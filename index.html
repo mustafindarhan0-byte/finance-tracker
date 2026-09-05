@@ -10,6 +10,8 @@
 <title>Finance Tracker</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore-compat.js"></script>
 <style>
 :root{
   --bg:#f1f5f9;--bg2:#fff;--bg3:#e2e8f0;
@@ -201,6 +203,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .modal-overlay.show{display:flex}
 .modal{background:var(--bg2);border-radius:var(--radius) var(--radius) 0 0;padding:20px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;animation:slideUp .2s}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:none}}
+
+/* Setup / sync */
+.setup-wrap{padding-top:60px;text-align:center}
+.setup-wrap .emoji{font-size:48px;margin-bottom:16px}
+.setup-wrap h1{margin-bottom:8px}
+.setup-wrap p{color:var(--text2);margin-bottom:24px;font-size:14px}
+.setup-status{margin-top:16px;color:var(--text2);font-size:13px;min-height:18px}
+.code-display{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:16px;background:var(--bg3);padding:14px;border-radius:var(--radius-sm);word-break:break-all;text-align:center;margin-bottom:12px;user-select:all}
 </style>
 </head>
 <body>
@@ -208,8 +218,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div id="toast" class="toast"></div>
 <div id="warning" class="warning-banner"></div>
 
+<!-- SETUP / SYNC -->
+<div id="view-setup" class="view active">
+<div class="container">
+  <div class="setup-wrap">
+    <div class="emoji">&#128260;</div>
+    <h1>Синхронизация</h1>
+    <p>Первый запуск на этом устройстве. Выбери один из вариантов:</p>
+    <button class="save-btn expense" style="background:var(--primary)" onclick="createNewSpace()">Создать аккаунт из данных этого устройства</button>
+    <button class="save-btn expense" style="background:var(--bg3);color:var(--text)" onclick="document.getElementById('join-form').hidden=false">У меня уже есть код</button>
+    <div id="join-form" hidden style="margin-top:16px;text-align:left">
+      <input type="text" id="join-code" class="settings-input" placeholder="Вставь код доступа" autocomplete="off">
+      <button class="save-btn income" onclick="joinExistingSpace()">Подключиться</button>
+    </div>
+    <div class="setup-status" id="setup-status"></div>
+  </div>
+</div>
+</div>
+
 <!-- HOME -->
-<div id="view-home" class="view active">
+<div id="view-home" class="view">
 <div class="container">
   <div class="header"><h1>Finance</h1><button class="header-btn" onclick="switchView('settings')">&#9881;</button></div>
   <div class="period-tabs">
@@ -336,6 +364,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div class="header"><h1>Настройки</h1><button class="header-btn" onclick="switchView('home')">&#10005;</button></div>
   <div class="card">
     <div class="settings-item">
+      <div><div class="settings-label">Код синхронизации</div><div class="settings-desc">Для подключения другого устройства</div></div>
+      <button class="settings-btn" onclick="showMyCode()">Показать</button>
+    </div>
+    <div class="settings-item" style="border:none">
+      <div><div class="settings-label">Синхронизировать сейчас</div></div>
+      <button class="settings-btn" onclick="syncNow()">Обновить</button>
+    </div>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <div class="settings-item">
       <div><div class="settings-label">Валюта</div></div>
       <select class="currency-select" id="currency-sel" onchange="setCurrency(this.value)">
         <option value="KZT">&#8376; Тенге</option>
@@ -412,7 +450,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </div>
 </div>
 
-<nav class="bottom-nav">
+<!-- Sync code modal -->
+<div class="modal-overlay" id="code-modal">
+<div class="modal">
+  <h3>Сохрани свой код доступа</h3>
+  <p style="color:var(--text2);font-size:13px;margin-bottom:12px">Он понадобится, чтобы подключить другое устройство. Без него данные не восстановить — сохрани в менеджер паролей или заметки.</p>
+  <div class="code-display" id="code-display"></div>
+  <button class="save-btn expense" style="background:var(--primary)" onclick="copyCode()">Скопировать код</button>
+  <button class="save-btn expense" style="background:var(--green)" id="code-modal-confirm">Продолжить</button>
+</div>
+</div>
+
+<nav class="bottom-nav" id="bottom-nav" hidden>
   <button class="nav-btn active" data-view="home" onclick="switchView('home',this)"><span class="icon">&#127968;</span>Главная</button>
   <button class="nav-btn" data-view="history" onclick="switchView('history',this)"><span class="icon">&#128203;</span>История</button>
   <button class="nav-btn" data-view="add" onclick="switchView('add',this)" style="position:relative;top:-8px"><span class="icon" style="background:var(--primary);color:#fff;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 2px 8px rgba(37,99,235,.4)">+</span></button>
@@ -467,7 +516,7 @@ const KEYWORDS={
 const CUR_SYM={KZT:'₸',RUB:'₽',USD:'$',EUR:'€'};
 
 // ── State ──
-let db,currency='KZT',currentType='expense',currentPeriod='week',historyPeriod='week',statsPeriod='month';
+let currency='KZT',currentType='expense',currentPeriod='week',historyPeriod='week',statsPeriod='month';
 let chartPie=null,chartBar=null;
 let txCache=null,txDirty=true;
 let learnedMap={};
@@ -476,32 +525,153 @@ let undoTimer=null;
 let stmtData=[];
 let currentSubTab='budget';
 
-// ── IndexedDB ──
-function openDB(){
-  return new Promise((res,rej)=>{
-    const r=indexedDB.open('FinanceTracker',3);
-    r.onupgradeneeded=e=>{
-      const d=e.target.result;
-      if(!d.objectStoreNames.contains('transactions')){
-        const s=d.createObjectStore('transactions',{keyPath:'id'});
-        s.createIndex('date','date');s.createIndex('type','type');
-      }
-      if(!d.objectStoreNames.contains('goals'))d.createObjectStore('goals',{keyPath:'id'});
-      if(!d.objectStoreNames.contains('settings'))d.createObjectStore('settings',{keyPath:'key'});
-      if(!d.objectStoreNames.contains('templates'))d.createObjectStore('templates',{keyPath:'id'});
-      if(!d.objectStoreNames.contains('budgets'))d.createObjectStore('budgets',{keyPath:'key'});
-      if(!d.objectStoreNames.contains('learned'))d.createObjectStore('learned',{keyPath:'keyword'});
+// ── Firebase config ──
+const firebaseConfig={
+  apiKey:"AIzaSyDBIxkjhSCfzygtbu9b661Jb7pOLgOWT7s",
+  authDomain:"finance-tracker-b9d8c.firebaseapp.com",
+  projectId:"finance-tracker-b9d8c",
+  storageBucket:"finance-tracker-b9d8c.firebasestorage.app",
+  messagingSenderId:"429737773165",
+  appId:"1:429737773165:web:2ac4b2ce29100970395764"
+};
+
+// ── Firestore-backed storage (replaces IndexedDB; store names/keys mirror the old object stores) ──
+let fsDb=null,spaceRef=null;
+const STORE_KEY_FIELD={budgets:'key',settings:'key',learned:'keyword'};
+function docId(s,d){return encodeURIComponent(String(d[STORE_KEY_FIELD[s]||'id']))}
+async function dbPut(s,d){await spaceRef.collection(s).doc(docId(s,d)).set(d)}
+async function dbDel(s,id){await spaceRef.collection(s).doc(encodeURIComponent(String(id))).delete()}
+async function dbAll(s){const snap=await spaceRef.collection(s).get();return snap.docs.map(d=>d.data())}
+async function dbClear(s){
+  const snap=await spaceRef.collection(s).get();
+  for(let i=0;i<snap.docs.length;i+=450){
+    const batch=fsDb.batch();
+    snap.docs.slice(i,i+450).forEach(d=>batch.delete(d.ref));
+    await batch.commit();
+  }
+}
+
+// ── Sync setup (space = your data, addressed by a hash of your access code) ──
+function generateCode(){
+  const bytes=new Uint8Array(18);crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+async function sha256Hex(str){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function connectSpace(spaceId){
+  if(!fsDb){
+    firebase.initializeApp(firebaseConfig);
+    fsDb=firebase.firestore();
+    try{await fsDb.enablePersistence({synchronizeTabs:true})}catch(e){}
+  }
+  spaceRef=fsDb.collection('spaces').doc(spaceId);
+}
+
+function readLegacyIndexedDB(){
+  return new Promise(res=>{
+    const r=indexedDB.open('FinanceTracker');
+    r.onupgradeneeded=()=>{};
+    r.onerror=()=>res({});
+    r.onsuccess=()=>{
+      const idb=r.result;
+      const stores=['transactions','goals','budgets','templates','settings','learned'].filter(s=>idb.objectStoreNames.contains(s));
+      if(!stores.length)return res({});
+      const tx=idb.transaction(stores,'readonly');
+      const out={};let remaining=stores.length;
+      stores.forEach(s=>{
+        const req=tx.objectStore(s).getAll();
+        req.onsuccess=()=>{out[s]=req.result;if(--remaining===0)res(out)};
+        req.onerror=()=>{out[s]=[];if(--remaining===0)res(out)};
+      });
     };
-    r.onsuccess=()=>{db=r.result;res()};
-    r.onerror=()=>rej(r.error);
   });
 }
-function dbPut(s,d){return dbOp(s,'readwrite',o=>o.put(d))}
-function dbDel(s,id){return dbOp(s,'readwrite',o=>o.delete(id))}
-function dbAll(s){return dbOp(s,'readonly',o=>o.getAll())}
-function dbClear(s){return dbOp(s,'readwrite',o=>o.clear())}
-function dbOp(s,m,fn){
-  return new Promise((res,rej)=>{const tx=db.transaction(s,m);const r=fn(tx.objectStore(s));r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+function hasAnyLegacyData(legacy){return Object.values(legacy).some(arr=>arr&&arr.length)}
+function downloadLegacyBackup(legacy){
+  const data=JSON.stringify({...legacy,currency,exportDate:new Date().toISOString(),note:'auto-backup before cloud sync migration'},null,2);
+  const blob=new Blob([data],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=`finance-backup-before-sync-${today()}.json`;a.click();URL.revokeObjectURL(url);
+}
+async function uploadLegacyData(legacy){
+  for(const s of['transactions','goals','budgets','templates','settings','learned']){
+    const items=legacy[s]||[];if(!items.length)continue;
+    for(let i=0;i<items.length;i+=450){
+      const batch=fsDb.batch();
+      items.slice(i,i+450).forEach(item=>batch.set(spaceRef.collection(s).doc(docId(s,item)),item));
+      await batch.commit();
+    }
+  }
+}
+
+let pendingCode=null;
+function showCodeModal(code,mode){
+  pendingCode=code;
+  document.getElementById('code-display').textContent=code;
+  const btn=document.getElementById('code-modal-confirm');
+  if(mode==='setup'){btn.textContent='Я сохранил, продолжить';btn.onclick=confirmCodeSaved}
+  else{btn.textContent='Закрыть';btn.onclick=()=>document.getElementById('code-modal').classList.remove('show')}
+  document.getElementById('code-modal').classList.add('show');
+}
+async function copyCode(){
+  try{await navigator.clipboard.writeText(pendingCode||'');toast('Скопировано')}
+  catch{toast('Не удалось скопировать — выдели текст вручную')}
+}
+function confirmCodeSaved(){
+  document.getElementById('code-modal').classList.remove('show');
+  localStorage.setItem('syncCode',pendingCode);
+  startApp();
+}
+function showMyCode(){
+  const code=localStorage.getItem('syncCode');
+  if(!code)return toast('Код не найден на этом устройстве');
+  showCodeModal(code,'view');
+}
+
+async function createNewSpace(){
+  document.getElementById('setup-status').textContent='Создаём аккаунт...';
+  const code=generateCode(),spaceId=await sha256Hex(code);
+  await connectSpace(spaceId);
+  await spaceRef.collection('_meta').doc('info').set({createdAt:Date.now()});
+  localStorage.setItem('syncSpace',spaceId);
+  const legacy=await readLegacyIndexedDB();
+  if(hasAnyLegacyData(legacy)){
+    document.getElementById('setup-status').textContent='Переносим существующие данные...';
+    downloadLegacyBackup(legacy);
+    await uploadLegacyData(legacy);
+  }
+  document.getElementById('setup-status').textContent='';
+  showCodeModal(code,'setup');
+}
+
+async function joinExistingSpace(){
+  const code=document.getElementById('join-code').value.trim();
+  if(!code)return toast('Введите код');
+  document.getElementById('setup-status').textContent='Проверяем код...';
+  const spaceId=await sha256Hex(code);
+  await connectSpace(spaceId);
+  let exists=false;
+  try{const doc=await spaceRef.collection('_meta').doc('info').get();exists=doc.exists}catch(e){}
+  if(!exists){
+    document.getElementById('setup-status').textContent='Код не найден. Проверь и попробуй снова.';
+    spaceRef=null;
+    return;
+  }
+  localStorage.setItem('syncSpace',spaceId);
+  localStorage.setItem('syncCode',code);
+  document.getElementById('setup-status').textContent='';
+  startApp();
+}
+
+async function syncNow(){
+  dirtyTx();
+  const active=document.querySelector('.nav-btn.active')?.dataset.view||'home';
+  if(active==='home')await refreshDashboard();
+  else if(active==='history')await refreshHistory();
+  else if(active==='stats')await refreshStats();
+  else if(active==='plans')await refreshPlans();
+  toast('Синхронизировано');
 }
 
 // ── Cache ──
@@ -1150,12 +1320,7 @@ async function importData(e){
   const file=e.target.files[0];if(!file)return;
   try{
     const data=JSON.parse(await file.text());
-    const tx=db.transaction(['transactions','goals','budgets','templates'],'readwrite');
-    if(data.transactions)for(const t of data.transactions)tx.objectStore('transactions').put(t);
-    if(data.goals)for(const g of data.goals)tx.objectStore('goals').put(g);
-    if(data.budgets)for(const b of data.budgets)tx.objectStore('budgets').put(b);
-    if(data.templates)for(const t of data.templates)tx.objectStore('templates').put(t);
-    await new Promise((res,rej)=>{tx.oncomplete=res;tx.onerror=rej});
+    await uploadLegacyData(data);
     if(data.currency){currency=data.currency;document.getElementById('currency-sel').value=currency;saveSetting('currency',currency)}
     dirtyTx();toast(`Импортировано: ${(data.transactions||[]).length} операций`);refreshDashboard();
   }catch{toast('Ошибка формата файла')}
@@ -1170,14 +1335,23 @@ async function clearAll(){
 }
 
 // ── Init ──
-async function init(){
-  await openDB();
+async function startApp(){
+  document.getElementById('view-setup').classList.remove('active');
+  document.getElementById('view-home').classList.add('active');
+  document.getElementById('bottom-nav').hidden=false;
   const cur=await getSetting('currency');if(cur){currency=cur;document.getElementById('currency-sel').value=currency}
   const gk=await getSetting('geminiKey');if(gk)document.getElementById('gemini-key').value=gk;
   const learned=await dbAll('learned');learned.forEach(l=>{learnedMap[l.keyword]=l.category});
   document.getElementById('smart-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();handleSmartInput()}});
   refreshDashboard();
   if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+async function init(){
+  const savedSpace=localStorage.getItem('syncSpace');
+  if(savedSpace){
+    await connectSpace(savedSpace);
+    startApp();
+  }
 }
 init();
 </script>
