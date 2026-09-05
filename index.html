@@ -181,8 +181,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .stmt-upload:hover{border-color:var(--primary)}
 .stmt-upload input{display:none}
 .stmt-results .match{background:var(--green-light);border-radius:var(--radius-sm);padding:10px;margin-bottom:6px;font-size:13px}
-.stmt-results .miss{background:var(--red-light);border-radius:var(--radius-sm);padding:10px;margin-bottom:6px;font-size:13px;cursor:pointer}
-.stmt-results .miss:hover{opacity:.8}
+.stmt-results .miss{background:var(--red-light);border-radius:var(--radius-sm);padding:10px;margin-bottom:6px;font-size:13px;display:flex;align-items:center;gap:8px}
+.stmt-results .miss label{flex:1;cursor:pointer}
+.stmt-results .miss input[type=checkbox]{width:20px;height:20px;accent-color:var(--primary);flex-shrink:0;cursor:pointer}
+.stmt-batch-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.stmt-batch-bar button{padding:8px 14px;border-radius:var(--radius-sm);border:none;font-size:13px;cursor:pointer}
+.stmt-batch-add{background:var(--primary);color:#fff}
+.stmt-batch-toggle{background:var(--bg3);color:var(--text2)}
+.bank-balances{margin-top:12px}
+.bank-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--bg3);font-size:14px}
+.bank-row:last-child{border-bottom:none}
+.bank-name{color:var(--text2)}
+.bank-amount{font-weight:600}
+.bank-edit-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.bank-edit-row input{flex:1;padding:8px;border-radius:var(--radius-sm);border:1px solid var(--bg3);background:var(--bg2);color:var(--text);font-size:14px}
 
 /* Modal */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;justify-content:center}
@@ -211,6 +223,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="balance-row">
       <div class="balance-box income"><div class="label">Доходы</div><div class="amount" id="dash-income">0</div></div>
       <div class="balance-box expense"><div class="label">Расходы</div><div class="amount" id="dash-expense">0</div></div>
+    </div>
+  </div>
+  <div class="card" id="bank-balances-card" hidden>
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">Балансы по банкам <button class="settings-btn" onclick="toggleBankEdit()" style="font-size:12px;padding:4px 10px">Изменить</button></div>
+    <div class="balance-amount" id="bank-total" style="font-size:20px;margin-bottom:8px">0</div>
+    <div class="bank-balances" id="bank-balances-list"></div>
+    <div id="bank-edit-form" hidden style="margin-top:12px">
+      <div class="bank-edit-row"><span style="width:80px;font-size:13px">Kaspi</span><input type="number" id="bal-kaspi" inputmode="decimal" placeholder="0"></div>
+      <div class="bank-edit-row"><span style="width:80px;font-size:13px">Freedom</span><input type="number" id="bal-freedom" inputmode="decimal" placeholder="0"></div>
+      <div class="bank-edit-row"><span style="width:80px;font-size:13px">Halyk</span><input type="number" id="bal-halyk" inputmode="decimal" placeholder="0"></div>
+      <div class="bank-edit-row"><span style="width:80px;font-size:13px">Forte</span><input type="number" id="bal-forte" inputmode="decimal" placeholder="0"></div>
+      <button class="save-btn expense" onclick="saveBankBalances()" style="background:var(--primary);margin-top:8px">Сохранить</button>
     </div>
   </div>
   <div class="card"><div class="card-title">Последние операции</div><div id="recent-list"></div></div>
@@ -367,6 +391,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div class="card" id="stmt-results-card" hidden>
     <div class="card-title">Результат</div>
     <div id="stmt-summary" style="margin-bottom:12px;font-size:14px"></div>
+    <div class="stmt-batch-bar" id="stmt-batch-bar" hidden>
+      <button class="stmt-batch-toggle" onclick="toggleAllStmt()">Отметить/снять все</button>
+      <button class="stmt-batch-add" onclick="addSelectedStmt()">Добавить отмеченные</button>
+    </div>
     <div class="stmt-results" id="stmt-results"></div>
   </div>
 </div>
@@ -601,6 +629,7 @@ function switchView(name,btn){
 
 // ── Dashboard ──
 async function refreshDashboard(){
+  renderBankBalances();
   const txs=filterPeriod(await getTxs(),currentPeriod);
   const inc=txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
   const exp=txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
@@ -1002,61 +1031,105 @@ function parseFreedomPdf(text){
   return parseFortePdf(text);
 }
 
+function missRow(idx,desc,amount,date){
+  return`<div class="miss"><input type="checkbox" id="stmt-chk-${idx}" checked><label for="stmt-chk-${idx}">&#10060; ${desc} &mdash; ${fmtCur(amount)} <span style="font-size:11px;color:var(--text3)">${date}</span></label></div>`;
+}
+
+let stmtBank='',stmtMode='pdf',stmtMissed=[];
+
 async function showPdfResults(bank,parsed){
+  stmtMode='pdf';
   document.getElementById('stmt-results-card').hidden=false;
   const txs=await getTxs();
   const txIndex=new Map();txs.forEach(t=>{const k=t.date.slice(5)+'|'+Math.round(t.amount);txIndex.set(k,(txIndex.get(k)||0)+1)});
-  let matched=0,missed=0,totalMissed=0,html='';
+  let matched=0,html='';
+  stmtMissed=[];
   const expenses=parsed.filter(p=>p.type==='expense');
-  expenses.forEach((p,i)=>{
+  expenses.forEach(p=>{
     const dateKey=p.date.slice(5);
     const k=dateKey+'|'+Math.round(p.amount);
     if(txIndex.has(k)&&txIndex.get(k)>0){matched++;txIndex.set(k,txIndex.get(k)-1);html+=`<div class="match">&#9989; ${p.desc} &mdash; ${fmtCur(p.amount)}</div>`}
-    else{missed++;totalMissed+=p.amount;html+=`<div class="miss" onclick="addPdfTx(${i})">&#10060; ${p.desc} &mdash; ${fmtCur(p.amount)} <span style="font-size:11px;color:var(--text3)">${p.date}</span><br><small>Нажмите чтобы добавить</small></div>`}
+    else{const idx=stmtMissed.length;stmtMissed.push({desc:p.desc,amount:p.amount,date:p.date});html+=missRow(idx,p.desc,p.amount,p.date)}
   });
+  const missed=stmtMissed.length,totalMissed=stmtMissed.reduce((s,x)=>s+x.amount,0);
   const incomeTotal=parsed.filter(p=>p.type==='income').reduce((s,p)=>s+p.amount,0);
   document.getElementById('stmt-summary').innerHTML=`&#127974; <b>${BANK_NAMES[bank]}</b><br>&#128202; Расходов: <b>${expenses.length}</b>, совпадений: <b>${matched}</b>, пропущено: <b style="color:var(--red)">${missed}</b> (${fmtCur(totalMissed)})<br>&#128176; Доходов: <b>${parsed.filter(p=>p.type==='income').length}</b> (${fmtCur(incomeTotal)})`;
+  document.getElementById('stmt-batch-bar').hidden=!missed;
   document.getElementById('stmt-results').innerHTML=html||'<div class="empty-state">Все расходы уже записаны!</div>';
 }
 
-let stmtBank='';
-async function addPdfTx(idx){
-  const p=stmtParsed.filter(x=>x.type==='expense')[idx];if(!p)return;
-  const catId=await classify(p.desc)||'other_exp';
-  await dbPut('transactions',{id:uid(),type:'expense',amount:p.amount,category:catId,description:p.desc,date:p.date,createdAt:Date.now(),source:'statement'});
-  dirtyTx();toast('Добавлено из выписки');
-  showPdfResults(stmtBank,stmtParsed);
-}
-
 async function analyzeStatement(){
+  stmtMode='csv';
   const dateCol=document.getElementById('map-date').value,amtCol=document.getElementById('map-amount').value,descCol=document.getElementById('map-desc').value;
   const txs=await getTxs();
   document.getElementById('stmt-results-card').hidden=false;
   const txIndex=new Map();txs.forEach(t=>{const k=t.date.slice(5)+'|'+Math.round(t.amount);txIndex.set(k,(txIndex.get(k)||0)+1)});
-  let matched=0,missed=0,totalMissed=0,html='';
+  let matched=0,html='';
+  stmtMissed=[];
   stmtData.forEach(row=>{
     const rawAmt=parseFloat((row[amtCol]||'0').replace(/[^\d.\-]/g,'')),amt=Math.abs(rawAmt);
     const desc=row[descCol]||'',date=row[dateCol]||'';if(amt===0)return;
-    let dateKey='';const dm=date.match(/(\d{2})[.\-\/](\d{2})/);if(dm)dateKey=dm[1]+'-'+dm[2];
+    let dateKey='';const dm=date.match(/(\d{2})[.\-\/](\d{2})/);if(dm)dateKey=dm[2]+'-'+dm[1];
     const k=dateKey+'|'+Math.round(amt);
     if(txIndex.has(k)&&txIndex.get(k)>0){matched++;txIndex.set(k,txIndex.get(k)-1);html+=`<div class="match">&#9989; ${desc} &mdash; ${fmtCur(amt)}</div>`}
-    else{missed++;totalMissed+=amt;html+=`<div class="miss" onclick="addFromStmt('${desc.replace(/'/g,"\\'")}',${amt},'${date}')">&#10060; ${desc} &mdash; ${fmtCur(amt)}<br><small>Нажмите чтобы добавить</small></div>`}
+    else{
+      let iso=today();const m=date.match(/(\d{4})[.\-\/](\d{2})[.\-\/](\d{2})/);
+      if(m)iso=`${m[1]}-${m[2]}-${m[3]}`;else{const m2=date.match(/(\d{2})[.\-\/](\d{2})[.\-\/](\d{4})/);if(m2)iso=`${m2[3]}-${m2[2]}-${m2[1]}`}
+      const idx=stmtMissed.length;stmtMissed.push({desc,amount:amt,date:iso});
+      html+=missRow(idx,desc,amt,date);
+    }
   });
+  const missed=stmtMissed.length,totalMissed=stmtMissed.reduce((s,x)=>s+x.amount,0);
   document.getElementById('stmt-summary').innerHTML=`&#128202; Совпадений: <b>${matched}</b>, пропущено: <b style="color:var(--red)">${missed}</b> на сумму <b>${fmtCur(totalMissed)}</b>`;
+  document.getElementById('stmt-batch-bar').hidden=!missed;
   document.getElementById('stmt-results').innerHTML=html||'<div class="empty-state">Нет данных</div>';
 }
 
-async function addFromStmt(desc,amount,date){
-  let iso=today();const m=date.match(/(\d{4})[.\-\/](\d{2})[.\-\/](\d{2})/);
-  if(m)iso=`${m[1]}-${m[2]}-${m[3]}`;else{const m2=date.match(/(\d{2})[.\-\/](\d{2})[.\-\/](\d{4})/);if(m2)iso=`${m2[3]}-${m2[2]}-${m2[1]}`}
-  const catId=await classify(desc)||'other_exp';
-  await dbPut('transactions',{id:uid(),type:'expense',amount,category:catId,description:desc,date:iso,createdAt:Date.now(),source:'statement'});
-  dirtyTx();toast('Добавлено из выписки');analyzeStatement();
+function toggleAllStmt(){
+  const boxes=stmtMissed.map((_,i)=>document.getElementById('stmt-chk-'+i)).filter(Boolean);
+  const allChecked=boxes.every(b=>b.checked);
+  boxes.forEach(b=>b.checked=!allChecked);
+}
+
+async function addSelectedStmt(){
+  const toAdd=stmtMissed.filter((_,i)=>document.getElementById('stmt-chk-'+i)?.checked);
+  if(!toAdd.length)return toast('Ничего не выбрано');
+  for(const item of toAdd){
+    const catId=await classify(item.desc)||'other_exp';
+    await dbPut('transactions',{id:uid(),type:'expense',amount:item.amount,category:catId,description:item.desc,date:item.date,createdAt:Date.now(),source:'statement'});
+  }
+  dirtyTx();
+  toast(`Добавлено: ${toAdd.length}`);
+  if(stmtMode==='pdf')showPdfResults(stmtBank,stmtParsed);else analyzeStatement();
 }
 
 // ── Settings ──
 async function getSetting(key){try{const all=await dbAll('settings');const s=all.find(x=>x.key===key);return s?s.value:null}catch{return null}}
 async function saveSetting(key,value){await dbPut('settings',{key,value})}
+
+// ── Bank balances ──
+const BANK_KEYS=['kaspi','freedom','halyk','forte'];
+async function renderBankBalances(){
+  const vals={};let total=0,any=false;
+  for(const k of BANK_KEYS){const v=parseFloat(await getSetting('bal_'+k))||0;vals[k]=v;if(v)any=true;total+=v}
+  document.getElementById('bank-balances-card').hidden=false;
+  document.getElementById('bank-total').textContent=fmtCur(total);
+  document.getElementById('bank-balances-list').innerHTML=any
+    ?BANK_KEYS.filter(k=>vals[k]).map(k=>`<div class="bank-row"><span class="bank-name">${BANK_NAMES[k]}</span><span class="bank-amount">${fmtCur(vals[k])}</span></div>`).join('')
+    :'<div class="empty-state" style="padding:8px 0">Нажмите «Изменить», чтобы указать баланс</div>';
+}
+async function toggleBankEdit(){
+  const form=document.getElementById('bank-edit-form');
+  const show=form.hidden;
+  if(show)for(const k of BANK_KEYS)document.getElementById('bal-'+k).value=(await getSetting('bal_'+k))||'';
+  form.hidden=!show;
+}
+async function saveBankBalances(){
+  for(const k of BANK_KEYS)await saveSetting('bal_'+k,parseFloat(document.getElementById('bal-'+k).value)||0);
+  document.getElementById('bank-edit-form').hidden=true;
+  renderBankBalances();
+  toast('Балансы сохранены');
+}
 
 function setCurrency(c){currency=c;saveSetting('currency',c);refreshDashboard()}
 
