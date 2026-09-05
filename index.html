@@ -563,40 +563,44 @@ function showWarning(msg,color){
 // ── Classifier ──
 function parseInput(text){
   text=text.trim();if(!text)return null;
-  let m=text.match(/^(.+?)\s+([\d][\d\s]*(?:[.,]\d+)?)\s*$/);
+  let m=text.match(/^(.+?)\s+(\d+(?:\s\d{3})*(?:[.,]\d+)?)\s*$/);
   if(m)return{desc:m[1].trim(),amount:parseAmt(m[2])};
-  m=text.match(/^([\d][\d\s]*(?:[.,]\d+)?)\s+(.+)$/);
+  m=text.match(/^(\d+(?:\s\d{3})*(?:[.,]\d+)?)\s+(.+)$/);
   if(m)return{desc:m[2].trim(),amount:parseAmt(m[1])};
   if(/^[\d\s.,]+$/.test(text))return{desc:'',amount:parseAmt(text)};
   return null;
 }
 function parseAmt(s){return parseFloat(s.replace(/\s/g,'').replace(',','.'))}
 
-async function classify(desc){
+const CAT_TYPE={};
+Object.entries(CATS).forEach(([type,cats])=>cats.forEach(c=>CAT_TYPE[c.id]=type));
+
+async function classify(desc,type){
   const lower=desc.toLowerCase();
-  if(learnedMap[lower])return learnedMap[lower];
+  if(learnedMap[lower]&&(!type||CAT_TYPE[learnedMap[lower]]===type))return learnedMap[lower];
   let best=null,bestLen=0;
   for(const[cat,words]of Object.entries(KEYWORDS)){
+    if(type&&CAT_TYPE[cat]!==type)continue;
     for(const w of words){
       if(lower.includes(w)&&w.length>bestLen){best=cat;bestLen=w.length;}
     }
   }
   if(best)return best;
   const geminiKey=await getSetting('geminiKey');
-  if(geminiKey)return classifyGemini(desc,geminiKey);
+  if(geminiKey)return classifyGemini(desc,geminiKey,type);
   return null;
 }
 
-async function classifyGemini(desc,key){
+async function classifyGemini(desc,key,type){
   try{
-    const cats=Object.values(CATS).flat().map(c=>c.id).join(',');
+    const cats=(type?CATS[type]:Object.values(CATS).flat()).map(c=>c.id).join(',');
     const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({contents:[{parts:[{text:`Classify this expense into one category. Reply with ONLY the category id.\nCategories: ${cats}\nExpense: "${desc}"`}]}],generationConfig:{maxOutputTokens:20}})
     });
     const d=await r.json();
     const catId=d.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-    if(CAT_MAP.has(catId))return catId;
+    if(CAT_MAP.has(catId)&&(!type||CAT_TYPE[catId]===type))return catId;
   }catch{}
   return null;
 }
@@ -660,7 +664,7 @@ async function handleSmartInput(){
   const input=document.getElementById('smart-input').value;
   const parsed=parseInput(input);
   if(!parsed||!parsed.amount||parsed.amount<=0)return toast('Введите описание и сумму');
-  const catId=parsed.desc?await classify(parsed.desc):null;
+  const catId=parsed.desc?await classify(parsed.desc,currentType):null;
   if(catId){
     const tx=await saveTx(parsed.desc,parsed.amount,catId);
     document.getElementById('smart-input').value='';
@@ -876,7 +880,7 @@ async function refreshGoals(){
   const list=document.getElementById('goals-list');
   if(!goals.length){list.innerHTML='<div class="empty-state"><span class="emoji">&#127919;</span>Создайте первую цель!</div>';return}
   list.innerHTML=goals.sort((a,b)=>a.createdAt-b.createdAt).map(g=>{
-    const pct=Math.min(100,Math.round(g.currentAmount/g.targetAmount*100));
+    const pct=Math.max(0,Math.min(100,Math.round(g.currentAmount/g.targetAmount*100)));
     const dl=g.deadline?new Date(g.deadline+'T00:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}):'';
     return`<div class="goal-card"><div class="goal-name">${g.name}</div>${dl?`<div class="goal-dates">&#128197; ${dl}</div>`:''}<div class="goal-progress"><div class="goal-progress-fill" style="width:${pct}%;background:${pct>=100?'var(--green)':'var(--primary)'}"></div></div><div class="goal-amounts"><span>${fmtCur(g.currentAmount)} / ${fmtCur(g.targetAmount)}</span><span class="goal-pct">${pct}%</span></div><div class="goal-actions"><button class="goal-action-btn goal-add-btn" onclick="addToGoal('${g.id}')">+ Пополнить</button><button class="goal-action-btn goal-del-btn" onclick="deleteGoal('${g.id}')">Удалить</button></div></div>`;
   }).join('');
@@ -889,9 +893,11 @@ async function saveGoal(){
   document.getElementById('goal-form').classList.remove('show');refreshGoals();toast('Цель создана');
 }
 async function addToGoal(id){
-  const amount=prompt('Сколько добавить?');if(!amount||isNaN(amount))return;
+  const amount=prompt('Сколько добавить?');if(amount===null)return;
+  const val=parseFloat(amount);
+  if(isNaN(val)||val<=0)return toast('Введите положительное число');
   const goals=await dbAll('goals');const g=goals.find(x=>x.id===id);if(!g)return;
-  g.currentAmount+=parseFloat(amount);await dbPut('goals',g);refreshGoals();toast('Пополнено');
+  g.currentAmount+=val;await dbPut('goals',g);refreshGoals();toast('Пополнено');
 }
 async function deleteGoal(id){if(!confirm('Удалить цель?'))return;await dbDel('goals',id);refreshGoals();toast('Цель удалена')}
 
@@ -1095,7 +1101,7 @@ async function addSelectedStmt(){
   const toAdd=stmtMissed.filter((_,i)=>document.getElementById('stmt-chk-'+i)?.checked);
   if(!toAdd.length)return toast('Ничего не выбрано');
   for(const item of toAdd){
-    const catId=await classify(item.desc)||'other_exp';
+    const catId=await classify(item.desc,'expense')||'other_exp';
     await dbPut('transactions',{id:uid(),type:'expense',amount:item.amount,category:catId,description:item.desc,date:item.date,createdAt:Date.now(),source:'statement'});
   }
   dirtyTx();
