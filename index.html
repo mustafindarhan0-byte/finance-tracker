@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#2563eb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<title>Finance Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+:root{
+  --bg:#f1f5f9;--bg2:#fff;--bg3:#e2e8f0;
+  --text:#0f172a;--text2:#475569;--text3:#94a3b8;
+  --primary:#2563eb;--primary-light:#dbeafe;
+  --green:#10b981;--green-light:#d1fae5;
+  --red:#ef4444;--red-light:#fee2e2;
+  --orange:#f59e0b;--orange-light:#fef3c7;
+  --radius:16px;--radius-sm:10px;
+  --shadow:0 1px 3px rgba(0,0,0,.08);
+  --nav-h:64px;
+}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f172a;--bg2:#1e293b;--bg3:#334155;
+  --text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;
+  --primary:#3b82f6;--primary-light:#1e3a5f;
+  --green-light:#064e3b;--red-light:#7f1d1d;--orange-light:#78350f;
+  --shadow:0 1px 3px rgba(0,0,0,.3);
+}}
+:root[data-theme="dark"]{
+  --bg:#0f172a;--bg2:#1e293b;--bg3:#334155;
+  --text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;
+  --primary:#3b82f6;--primary-light:#1e3a5f;
+  --green-light:#064e3b;--red-light:#7f1d1d;--orange-light:#78350f;
+  --shadow:0 1px 3px rgba(0,0,0,.3);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:calc(var(--nav-h)+16px);-webkit-tap-highlight-color:transparent;overflow-x:hidden}
+.container{max-width:480px;margin:0 auto;padding:0 16px}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:var(--nav-h);background:var(--bg2);border-top:1px solid var(--bg3);display:flex;justify-content:space-around;align-items:center;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+.nav-btn{background:none;border:none;color:var(--text3);font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:6px 12px;border-radius:var(--radius-sm);transition:.2s}
+.nav-btn .icon{font-size:22px}
+.nav-btn.active{color:var(--primary)}
+.view{display:none;padding:16px 0;animation:fadeIn .2s}.view.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.card{background:var(--bg2);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
+.card-title{font-size:13px;color:var(--text2);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.header{display:flex;align-items:center;justify-content:space-between;padding:12px 0}
+.header h1{font-size:20px;font-weight:700}
+.header-btn{background:none;border:none;font-size:20px;cursor:pointer;padding:4px;color:var(--text2)}
+.empty-state{text-align:center;padding:40px 0;color:var(--text3)}
+.empty-state .emoji{font-size:48px;margin-bottom:12px;display:block}
+.period-tabs{display:flex;gap:6px;margin-bottom:16px}
+.period-tab{flex:1;padding:8px;border:none;border-radius:var(--radius-sm);background:var(--bg3);color:var(--text2);font-size:13px;cursor:pointer;font-weight:500;transition:.2s}
+.period-tab.active{background:var(--primary);color:#fff}
+
+/* Dashboard */
+.balance-card{background:var(--primary);color:#fff;border-radius:var(--radius);padding:20px;margin-bottom:16px;text-align:center}
+.balance-label{font-size:13px;opacity:.85;margin-bottom:4px}
+.balance-amount{font-size:32px;font-weight:700}
+.balance-row{display:flex;gap:12px;margin-top:16px}
+.balance-box{flex:1;background:rgba(255,255,255,.15);border-radius:var(--radius-sm);padding:10px;text-align:center}
+.balance-box .label{font-size:11px;opacity:.8}
+.balance-box .amount{font-size:18px;font-weight:600;margin-top:2px}
+.balance-box.income .amount{color:#a7f3d0}
+.balance-box.expense .amount{color:#fca5a5}
+.recent-item{display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--bg3)}
+.recent-item:last-child{border:none}
+.recent-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-right:12px;flex-shrink:0}
+.recent-info{flex:1;min-width:0}
+.recent-desc{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recent-cat{font-size:12px;color:var(--text2)}
+.recent-amount{font-weight:600;font-size:14px;text-align:right}
+.recent-amount.expense{color:var(--red)}
+.recent-amount.income{color:var(--green)}
+.recent-date{font-size:11px;color:var(--text3);text-align:right}
+
+/* Smart input */
+.type-toggle{display:flex;background:var(--bg3);border-radius:var(--radius-sm);padding:3px;margin-bottom:16px}
+.type-btn{flex:1;padding:10px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:.2s;background:transparent;color:var(--text2)}
+.type-btn.active-expense{background:var(--red);color:#fff}
+.type-btn.active-income{background:var(--green);color:#fff}
+.smart-input-wrap{position:relative;margin-bottom:16px}
+.smart-input{width:100%;padding:16px 50px 16px 16px;border:2px solid var(--bg3);border-radius:var(--radius);font-size:18px;background:var(--bg2);color:var(--text);outline:none;transition:.2s}
+.smart-input:focus{border-color:var(--primary)}
+.smart-input::placeholder{color:var(--text3)}
+.smart-send{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:none;border-radius:50%;background:var(--primary);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.smart-hint{font-size:12px;color:var(--text3);margin-top:6px;text-align:center}
+
+.templates-wrap{margin-bottom:16px}
+.templates-scroll{display:flex;gap:8px;overflow-x:auto;padding:4px 0;-webkit-overflow-scrolling:touch}
+.templates-scroll::-webkit-scrollbar{display:none}
+.tmpl-chip{flex-shrink:0;padding:8px 14px;border-radius:20px;border:1.5px solid var(--bg3);background:var(--bg2);font-size:13px;cursor:pointer;white-space:nowrap;transition:.15s;color:var(--text)}
+.tmpl-chip:active{transform:scale(.95)}
+.tmpl-add{border-style:dashed;color:var(--text3)}
+
+.cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.cat-btn{background:var(--bg3);border:2px solid transparent;border-radius:var(--radius-sm);padding:10px 4px;text-align:center;cursor:pointer;transition:.2s;font-size:12px;color:var(--text2)}
+.cat-btn .emoji{font-size:22px;display:block;margin-bottom:2px}
+.cat-btn.selected{border-color:var(--primary);background:var(--primary-light);color:var(--primary)}
+.fallback-grid{display:none;animation:fadeIn .2s}
+.fallback-grid.show{display:block}
+.fallback-info{text-align:center;font-size:13px;color:var(--text2);margin-bottom:12px;padding:8px;background:var(--orange-light);border-radius:var(--radius-sm)}
+.save-btn{width:100%;padding:14px;border:none;border-radius:var(--radius-sm);font-size:16px;font-weight:600;cursor:pointer;margin-top:12px;transition:.2s}
+.save-btn.expense{background:var(--red);color:#fff}
+.save-btn.income{background:var(--green);color:#fff}
+.save-btn:active{transform:scale(.98)}
+
+/* Toast with undo */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-100px);background:var(--bg2);color:var(--text);padding:12px 16px;border-radius:var(--radius-sm);box-shadow:0 4px 12px rgba(0,0,0,.15);z-index:300;transition:.3s;font-size:14px;font-weight:500;display:flex;align-items:center;gap:10px;max-width:calc(100% - 32px)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast-undo{background:none;border:none;color:var(--primary);font-weight:600;cursor:pointer;font-size:14px;white-space:nowrap}
+
+/* Warning */
+.warning-banner{position:fixed;top:0;left:0;right:0;padding:10px 16px;text-align:center;font-size:13px;font-weight:600;z-index:250;transform:translateY(-100%);transition:.3s}
+.warning-banner.show{transform:translateY(0)}
+.warning-banner.orange{background:var(--orange);color:#fff}
+.warning-banner.red{background:var(--red);color:#fff}
+
+/* History */
+.date-group{font-size:13px;font-weight:600;color:var(--text2);padding:8px 0;margin-top:8px}
+.del-btn{background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:4px 8px;margin-left:8px}
+.del-btn:hover{color:var(--red)}
+
+/* Stats */
+.stat-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.stat-card{background:var(--bg2);border-radius:var(--radius-sm);padding:12px;box-shadow:var(--shadow)}
+.stat-card .label{font-size:12px;color:var(--text2)}
+.stat-card .value{font-size:20px;font-weight:700;margin-top:2px}
+.chart-container{position:relative;height:250px;margin:16px 0}
+.cat-list-item{display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--bg3)}
+.cat-list-item:last-child{border:none}
+.cat-bar-wrap{flex:1;margin:0 12px}
+.cat-bar{height:6px;border-radius:3px;background:var(--bg3)}
+.cat-bar-fill{height:100%;border-radius:3px;background:var(--primary);transition:.3s}
+.cat-amount{font-weight:600;font-size:14px;min-width:80px;text-align:right}
+.cat-pct{font-size:12px;color:var(--text2);min-width:40px;text-align:right}
+
+/* Plans (budget+goals) */
+.sub-tabs{display:flex;gap:6px;margin-bottom:16px}
+.sub-tab{flex:1;padding:10px;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;transition:.2s;background:var(--bg3);color:var(--text2)}
+.sub-tab.active{background:var(--primary);color:#fff}
+.sub-view{display:none}.sub-view.active{display:block}
+
+.budget-card{background:var(--bg2);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
+.budget-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.budget-name{font-weight:600;font-size:15px}
+.budget-limit{font-size:13px;color:var(--text2)}
+.budget-bar{height:10px;background:var(--bg3);border-radius:5px;overflow:hidden;margin-bottom:6px}
+.budget-bar-fill{height:100%;border-radius:5px;transition:.5s}
+.budget-amounts{display:flex;justify-content:space-between;font-size:12px;color:var(--text2)}
+.budget-pct{font-weight:600}
+
+.goal-card{background:var(--bg2);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
+.goal-name{font-weight:600;font-size:16px;margin-bottom:4px}
+.goal-dates{font-size:12px;color:var(--text2);margin-bottom:10px}
+.goal-progress{height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;margin-bottom:8px}
+.goal-progress-fill{height:100%;border-radius:4px;transition:.5s}
+.goal-amounts{display:flex;justify-content:space-between;font-size:13px;color:var(--text2)}
+.goal-pct{font-weight:600;color:var(--primary)}
+.goal-actions{display:flex;gap:8px;margin-top:10px}
+.goal-action-btn{flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:500}
+.goal-add-btn{background:var(--green-light);color:var(--green)}
+.goal-del-btn{background:var(--red-light);color:var(--red)}
+.add-form{display:none}.add-form.show{display:block}
+.add-form input,.add-form select{width:100%;padding:10px;border:2px solid var(--bg3);border-radius:var(--radius-sm);font-size:14px;background:var(--bg);color:var(--text);outline:none;margin-bottom:8px}
+
+/* Settings */
+.settings-item{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--bg3)}
+.settings-item:last-child{border:none}
+.settings-label{font-size:14px;font-weight:500}
+.settings-desc{font-size:12px;color:var(--text2)}
+.settings-btn{padding:8px 16px;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:500;background:var(--primary-light);color:var(--primary)}
+.settings-input{padding:8px 12px;border:2px solid var(--bg3);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px;outline:none;width:100%;margin-top:6px}
+.currency-select{padding:8px 12px;border:2px solid var(--bg3);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px;outline:none}
+
+/* Statement */
+.stmt-upload{border:2px dashed var(--bg3);border-radius:var(--radius);padding:30px;text-align:center;cursor:pointer;transition:.2s;margin-bottom:16px}
+.stmt-upload:hover{border-color:var(--primary)}
+.stmt-upload input{display:none}
+.stmt-results .match{background:var(--green-light);border-radius:var(--radius-sm);padding:10px;margin-bottom:6px;font-size:13px}
+.stmt-results .miss{background:var(--red-light);border-radius:var(--radius-sm);padding:10px;margin-bottom:6px;font-size:13px;cursor:pointer}
+.stmt-results .miss:hover{opacity:.8}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--bg2);border-radius:var(--radius) var(--radius) 0 0;padding:20px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;animation:slideUp .2s}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:none}}
+</style>
+</head>
+<body>
+
+<div id="toast" class="toast"></div>
+<div id="warning" class="warning-banner"></div>
+
+<!-- HOME -->
+<div id="view-home" class="view active">
+<div class="container">
+  <div class="header"><h1>Finance</h1><button class="header-btn" onclick="switchView('settings')">&#9881;</button></div>
+  <div class="period-tabs">
+    <button class="period-tab active" onclick="setPeriod('week',this)">Неделя</button>
+    <button class="period-tab" onclick="setPeriod('month',this)">Месяц</button>
+    <button class="period-tab" onclick="setPeriod('year',this)">Год</button>
+  </div>
+  <div class="balance-card">
+    <div class="balance-label">Баланс за период</div>
+    <div class="balance-amount" id="dash-balance">0</div>
+    <div class="balance-row">
+      <div class="balance-box income"><div class="label">Доходы</div><div class="amount" id="dash-income">0</div></div>
+      <div class="balance-box expense"><div class="label">Расходы</div><div class="amount" id="dash-expense">0</div></div>
+    </div>
+  </div>
+  <div class="card"><div class="card-title">Последние операции</div><div id="recent-list"></div></div>
+</div>
+</div>
+
+<!-- ADD -->
+<div id="view-add" class="view">
+<div class="container">
+  <div class="header"><h1>Новая запись</h1></div>
+  <div class="type-toggle">
+    <button class="type-btn active-expense" id="btn-expense" onclick="setType('expense')">Расход</button>
+    <button class="type-btn" id="btn-income" onclick="setType('income')">Доход</button>
+  </div>
+  <div class="smart-input-wrap">
+    <input type="text" class="smart-input" id="smart-input" placeholder='кофе 500' autocomplete="off" inputmode="text">
+    <button class="smart-send" onclick="handleSmartInput()">&#10148;</button>
+  </div>
+  <div class="smart-hint">Введите описание и сумму в любом порядке</div>
+  <div class="templates-wrap" id="templates-wrap">
+    <div class="card-title" style="margin-top:12px">Шаблоны</div>
+    <div class="templates-scroll" id="templates-list"></div>
+  </div>
+  <div class="fallback-grid" id="fallback-grid">
+    <div class="fallback-info" id="fallback-info"></div>
+    <div class="cat-grid" id="cat-grid"></div>
+    <button class="save-btn expense" id="save-btn" onclick="saveFallback()">Сохранить</button>
+  </div>
+</div>
+</div>
+
+<!-- HISTORY -->
+<div id="view-history" class="view">
+<div class="container">
+  <div class="header"><h1>История</h1></div>
+  <div class="period-tabs">
+    <button class="period-tab active" onclick="setHistoryPeriod('week',this)">Неделя</button>
+    <button class="period-tab" onclick="setHistoryPeriod('month',this)">Месяц</button>
+    <button class="period-tab" onclick="setHistoryPeriod('all',this)">Все</button>
+  </div>
+  <div id="history-list"></div>
+</div>
+</div>
+
+<!-- STATS -->
+<div id="view-stats" class="view">
+<div class="container">
+  <div class="header"><h1>Статистика</h1></div>
+  <div class="period-tabs">
+    <button class="period-tab active" onclick="setStatsPeriod('month',this)">Месяц</button>
+    <button class="period-tab" onclick="setStatsPeriod('year',this)">Год</button>
+    <button class="period-tab" onclick="setStatsPeriod('all',this)">Все</button>
+  </div>
+  <div class="stat-cards">
+    <div class="stat-card"><div class="label">Ср. расход/день</div><div class="value" id="stat-avg">0</div></div>
+    <div class="stat-card"><div class="label">Топ категория</div><div class="value" id="stat-top">-</div></div>
+  </div>
+  <div class="card"><div class="card-title">Расходы по категориям</div><div class="chart-container"><canvas id="chart-pie"></canvas></div></div>
+  <div class="card"><div class="card-title">Динамика</div><div class="chart-container"><canvas id="chart-bar"></canvas></div></div>
+  <div class="card"><div class="card-title">Все категории</div><div id="cat-breakdown"></div></div>
+</div>
+</div>
+
+<!-- PLANS -->
+<div id="view-plans" class="view">
+<div class="container">
+  <div class="header"><h1>Планы</h1><button class="header-btn" onclick="showAddPlanForm()">+</button></div>
+  <div class="sub-tabs">
+    <button class="sub-tab active" onclick="switchSubTab('budget',this)">Бюджет</button>
+    <button class="sub-tab" onclick="switchSubTab('goals',this)">Цели</button>
+  </div>
+  <!-- Budget -->
+  <div class="sub-view active" id="sub-budget">
+    <div class="add-form card" id="budget-form">
+      <div class="card-title">Новый лимит</div>
+      <select id="budget-cat"><option value="general">Общий лимит</option></select>
+      <input type="number" id="budget-limit" placeholder="Лимит на месяц" inputmode="decimal">
+      <button class="save-btn expense" onclick="saveBudget()" style="background:var(--primary)">Сохранить лимит</button>
+    </div>
+    <div id="budget-list"></div>
+  </div>
+  <!-- Goals -->
+  <div class="sub-view" id="sub-goals">
+    <div class="add-form card" id="goal-form">
+      <div class="card-title">Новая цель</div>
+      <input type="text" id="goal-name" placeholder="Название цели">
+      <input type="number" id="goal-target" placeholder="Сумма цели" inputmode="decimal">
+      <input type="date" id="goal-deadline">
+      <button class="save-btn income" onclick="saveGoal()">Создать цель</button>
+    </div>
+    <div id="goals-list"></div>
+  </div>
+</div>
+</div>
+
+<!-- SETTINGS -->
+<div id="view-settings" class="view">
+<div class="container">
+  <div class="header"><h1>Настройки</h1><button class="header-btn" onclick="switchView('home')">&#10005;</button></div>
+  <div class="card">
+    <div class="settings-item">
+      <div><div class="settings-label">Валюта</div></div>
+      <select class="currency-select" id="currency-sel" onchange="setCurrency(this.value)">
+        <option value="KZT">&#8376; Тенге</option>
+        <option value="RUB">&#8381; Рубль</option>
+        <option value="USD">$ Доллар</option>
+        <option value="EUR">&euro; Евро</option>
+      </select>
+    </div>
+    <div class="settings-item">
+      <div><div class="settings-label">Gemini API ключ</div><div class="settings-desc">Для умной классификации (необязательно)</div></div>
+    </div>
+    <input type="password" class="settings-input" id="gemini-key" placeholder="AIza..." onchange="saveSetting('geminiKey',this.value)">
+    <div class="settings-item">
+      <div><div class="settings-label">Экспорт данных</div><div class="settings-desc">JSON-файл со всеми данными</div></div>
+      <button class="settings-btn" onclick="exportData()">Экспорт</button>
+    </div>
+    <div class="settings-item">
+      <div><div class="settings-label">Импорт данных</div></div>
+      <button class="settings-btn" onclick="document.getElementById('import-file').click()">Импорт</button>
+      <input type="file" id="import-file" accept=".json" hidden onchange="importData(event)">
+    </div>
+    <div class="settings-item">
+      <div><div class="settings-label">Выписка из банка</div><div class="settings-desc">CSV — найти пропущенные расходы</div></div>
+      <button class="settings-btn" onclick="switchView('statement')">Загрузить</button>
+    </div>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <div class="settings-item" style="border:none">
+      <div><div class="settings-label" style="color:var(--red)">Удалить все данные</div></div>
+      <button class="settings-btn" style="background:var(--red-light);color:var(--red)" onclick="clearAll()">Очистить</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- STATEMENT -->
+<div id="view-statement" class="view">
+<div class="container">
+  <div class="header"><h1>Выписка</h1><button class="header-btn" onclick="switchView('settings')">&#10005;</button></div>
+  <div class="stmt-upload" onclick="document.getElementById('stmt-file').click()">
+    <div style="font-size:32px;margin-bottom:8px">&#128196;</div>
+    <div style="font-size:14px;color:var(--text2)">Загрузите PDF или CSV выписку</div>
+    <div style="font-size:12px;color:var(--text3);margin-top:4px">Kaspi, Forte, Halyk, Freedom</div>
+    <input type="file" id="stmt-file" accept=".csv,.pdf" hidden onchange="loadStatement(event)">
+  </div>
+  <div class="card" id="stmt-mapping" hidden>
+    <div class="card-title">Столбцы</div>
+    <div style="margin-bottom:8px"><label style="font-size:13px;color:var(--text2)">Дата</label><select class="currency-select" id="map-date" style="width:100%;margin-top:4px"></select></div>
+    <div style="margin-bottom:8px"><label style="font-size:13px;color:var(--text2)">Сумма</label><select class="currency-select" id="map-amount" style="width:100%;margin-top:4px"></select></div>
+    <div style="margin-bottom:8px"><label style="font-size:13px;color:var(--text2)">Описание</label><select class="currency-select" id="map-desc" style="width:100%;margin-top:4px"></select></div>
+    <button class="save-btn expense" onclick="analyzeStatement()" style="background:var(--primary)">Анализировать</button>
+  </div>
+  <div class="card" id="stmt-results-card" hidden>
+    <div class="card-title">Результат</div>
+    <div id="stmt-summary" style="margin-bottom:12px;font-size:14px"></div>
+    <div class="stmt-results" id="stmt-results"></div>
+  </div>
+</div>
+</div>
+
+<!-- Template modal -->
+<div class="modal-overlay" id="tmpl-modal">
+<div class="modal">
+  <h3>Новый шаблон</h3>
+  <input type="text" class="settings-input" id="tmpl-name" placeholder="Название (напр. Аренда)" style="margin-bottom:8px">
+  <input type="number" class="settings-input" id="tmpl-amount" placeholder="Сумма" inputmode="decimal" style="margin-bottom:8px">
+  <select class="currency-select" id="tmpl-cat" style="width:100%;margin-bottom:8px;padding:10px"></select>
+  <button class="save-btn expense" onclick="saveTemplate()" style="background:var(--primary)">Сохранить</button>
+  <button class="save-btn expense" onclick="closeTmplModal()" style="background:var(--bg3);color:var(--text2);margin-top:8px">Отмена</button>
+</div>
+</div>
+
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-view="home" onclick="switchView('home',this)"><span class="icon">&#127968;</span>Главная</button>
+  <button class="nav-btn" data-view="history" onclick="switchView('history',this)"><span class="icon">&#128203;</span>История</button>
+  <button class="nav-btn" data-view="add" onclick="switchView('add',this)" style="position:relative;top:-8px"><span class="icon" style="background:var(--primary);color:#fff;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 2px 8px rgba(37,99,235,.4)">+</span></button>
+  <button class="nav-btn" data-view="stats" onclick="switchView('stats',this)"><span class="icon">&#128200;</span>Стата</button>
+  <button class="nav-btn" data-view="plans" onclick="switchView('plans',this)"><span class="icon">&#127919;</span>Планы</button>
+</nav>
+
+<script>
+// ── Categories ──
+const CATS={
+  expense:[
+    {id:'food',name:'Еда',emoji:'&#127828;'},
+    {id:'groceries',name:'Продукты',emoji:'&#128722;'},
+    {id:'transport',name:'Транспорт',emoji:'&#128661;'},
+    {id:'home',name:'Жильё',emoji:'&#127968;'},
+    {id:'health',name:'Здоровье',emoji:'&#128138;'},
+    {id:'clothes',name:'Одежда',emoji:'&#128085;'},
+    {id:'fun',name:'Развлечения',emoji:'&#127918;'},
+    {id:'telecom',name:'Связь',emoji:'&#128241;'},
+    {id:'education',name:'Обучение',emoji:'&#128218;'},
+    {id:'gifts',name:'Подарки',emoji:'&#127873;'},
+    {id:'subscriptions',name:'Подписки',emoji:'&#128250;'},
+    {id:'other_exp',name:'Другое',emoji:'&#128176;'}
+  ],
+  income:[
+    {id:'salary',name:'Зарплата',emoji:'&#128188;'},
+    {id:'freelance',name:'Подработка',emoji:'&#128187;'},
+    {id:'gift_income',name:'Подарок',emoji:'&#127873;'},
+    {id:'other_inc',name:'Другое',emoji:'&#128178;'}
+  ]
+};
+const CAT_MAP=new Map();
+Object.values(CATS).flat().forEach(c=>CAT_MAP.set(c.id,c));
+
+const KEYWORDS={
+  food:['кофе','чай','обед','ужин','завтрак','ланч','бургер','пицца','суши','роллы','шаурма','кебаб','сникерс','шоколад','мороженое','кафе','ресторан','столовая','бизнес-ланч','перекус','фастфуд','макдональдс','kfc','burger king','пирожок','выпечка','латте','капучино','американо','эспрессо','раф','торт','десерт','блины','wolt','glovo','яндекс еда','доставка еды','донер','лаваш','самса','манты','плов','бешбармак','наурыз','хот-дог','сэндвич','sandwich','coffee','starbucks','costa'],
+  groceries:['магазин','продукты','молоко','хлеб','яйца','мясо','курица','рыба','овощи','фрукты','сыр','масло','крупа','рис','макароны','вода','сок','magnum','small','metro','арбуз','картошка','помидоры','бананы','яблоки','кефир','йогурт','колбаса','сахар','мука','соль','специи','консервы','чипсы','печенье','базар','рынок','супермаркет'],
+  transport:['такси','uber','яндекс такси','indriver','bolt','бензин','метро','автобус','газ','заправка','парковка','мойка','сто','ремонт авто','шиномонтаж','каско','штраф','бус','трамвай','самокат','каршеринг','поезд','жд','билет','авиабилет','перелёт'],
+  home:['аренда','квартира','коммунальные','квартплата','электричество','свет','интернет','уборка','мебель','ремонт','сантехник','электрик','ипотека','домофон'],
+  health:['аптека','лекарства','врач','больница','стоматолог','анализы','клиника','витамины','таблетки','массаж','окулист','терапевт','хирург','узи','мрт','вакцина','линзы','очки'],
+  clothes:['одежда','обувь','футболка','джинсы','куртка','кроссовки','ботинки','рубашка','платье','zara','h&m','nike','adidas','шапка','носки','костюм','пальто','свитер','худи','шорты','юбка'],
+  fun:['кино','театр','концерт','бар','клуб','боулинг','бильярд','игра','steam','playstation','xbox','музыка','фильм','парк','зоопарк','аттракцион','квест','караоке','дискотека','вечеринка','пиво','вино','алкоголь','коктейль'],
+  telecom:['связь','телефон','мобильный','теле2','билайн','мтс','activ','altel','kcell','beeline','тариф','симка','мегафон'],
+  education:['курсы','книга','учебник','обучение','тренинг','udemy','coursera','репетитор','школа','университет','семинар','мастер-класс','вебинар'],
+  gifts:['подарок','цветы','букет','сувенир','открытка','день рождения','свадьба','юбилей'],
+  subscriptions:['netflix','spotify','youtube premium','apple music','icloud','google one','chatgpt','adobe','антивирус','vpn','подписка','premium','pro','plus'],
+  salary:['зарплата','зп','аванс','оклад','премия'],
+  freelance:['фриланс','подработка','проект','заказ','халтура','гонорар'],
+  gift_income:['перевод от','помощь от','возврат','кэшбэк','cashback']
+};
+
+const CUR_SYM={KZT:'₸',RUB:'₽',USD:'$',EUR:'€'};
+
+// ── State ──
+let db,currency='KZT',currentType='expense',currentPeriod='week',historyPeriod='week',statsPeriod='month';
+let chartPie=null,chartBar=null;
+let txCache=null,txDirty=true;
+let learnedMap={};
+let pendingInput=null;
+let undoTimer=null;
+let stmtData=[];
+let currentSubTab='budget';
+
+// ── IndexedDB ──
+function openDB(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open('FinanceTracker',3);
+    r.onupgradeneeded=e=>{
+      const d=e.target.result;
+      if(!d.objectStoreNames.contains('transactions')){
+        const s=d.createObjectStore('transactions',{keyPath:'id'});
+        s.createIndex('date','date');s.createIndex('type','type');
+      }
+      if(!d.objectStoreNames.contains('goals'))d.createObjectStore('goals',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('settings'))d.createObjectStore('settings',{keyPath:'key'});
+      if(!d.objectStoreNames.contains('templates'))d.createObjectStore('templates',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('budgets'))d.createObjectStore('budgets',{keyPath:'key'});
+      if(!d.objectStoreNames.contains('learned'))d.createObjectStore('learned',{keyPath:'keyword'});
+    };
+    r.onsuccess=()=>{db=r.result;res()};
+    r.onerror=()=>rej(r.error);
+  });
+}
+function dbPut(s,d){return dbOp(s,'readwrite',o=>o.put(d))}
+function dbDel(s,id){return dbOp(s,'readwrite',o=>o.delete(id))}
+function dbAll(s){return dbOp(s,'readonly',o=>o.getAll())}
+function dbClear(s){return dbOp(s,'readwrite',o=>o.clear())}
+function dbOp(s,m,fn){
+  return new Promise((res,rej)=>{const tx=db.transaction(s,m);const r=fn(tx.objectStore(s));r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+}
+
+// ── Cache ──
+async function getTxs(){
+  if(!txDirty&&txCache)return txCache;
+  txCache=await dbAll('transactions');txDirty=false;return txCache;
+}
+function dirtyTx(){txDirty=true}
+
+// ── Utils ──
+const fmt=n=>Number(n).toLocaleString('ru-RU');
+const fmtCur=n=>fmt(n)+' '+CUR_SYM[currency];
+const today=()=>new Date().toISOString().slice(0,10);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const getCat=id=>CAT_MAP.get(id)||{name:id,emoji:'&#128178;'};
+
+function dateRange(p){
+  const now=new Date(),s=new Date();
+  if(p==='week')s.setDate(now.getDate()-6);
+  else if(p==='month')s.setMonth(now.getMonth()-1);
+  else if(p==='year')s.setFullYear(now.getFullYear()-1);
+  else return{start:null};
+  return{start:s.toISOString().slice(0,10)};
+}
+function filterPeriod(txs,p){const{start}=dateRange(p);return start?txs.filter(t=>t.date>=start):txs}
+function formatDateShort(d){
+  if(d===today())return'Сегодня';
+  const y=new Date();y.setDate(y.getDate()-1);
+  if(d===y.toISOString().slice(0,10))return'Вчера';
+  return new Date(d+'T00:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
+}
+
+// ── Toast ──
+function toast(msg){
+  clearTimeout(undoTimer);
+  const el=document.getElementById('toast');
+  el.innerHTML=msg;el.classList.add('show');
+  undoTimer=setTimeout(()=>el.classList.remove('show'),2500);
+}
+function toastUndo(msg,txId){
+  clearTimeout(undoTimer);
+  const el=document.getElementById('toast');
+  el.innerHTML=`${msg} <button class="toast-undo" onclick="undoTx('${txId}')">Отменить</button>`;
+  el.classList.add('show');
+  undoTimer=setTimeout(()=>el.classList.remove('show'),3500);
+}
+async function undoTx(id){
+  await dbDel('transactions',id);dirtyTx();
+  document.getElementById('toast').classList.remove('show');
+  toast('Отменено');
+}
+
+function showWarning(msg,color){
+  const el=document.getElementById('warning');
+  el.textContent=msg;el.className='warning-banner '+color+' show';
+  setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+// ── Classifier ──
+function parseInput(text){
+  text=text.trim();if(!text)return null;
+  let m=text.match(/^(.+?)\s+([\d][\d\s]*(?:[.,]\d+)?)\s*$/);
+  if(m)return{desc:m[1].trim(),amount:parseAmt(m[2])};
+  m=text.match(/^([\d][\d\s]*(?:[.,]\d+)?)\s+(.+)$/);
+  if(m)return{desc:m[2].trim(),amount:parseAmt(m[1])};
+  if(/^[\d\s.,]+$/.test(text))return{desc:'',amount:parseAmt(text)};
+  return null;
+}
+function parseAmt(s){return parseFloat(s.replace(/\s/g,'').replace(',','.'))}
+
+async function classify(desc){
+  const lower=desc.toLowerCase();
+  if(learnedMap[lower])return learnedMap[lower];
+  let best=null,bestLen=0;
+  for(const[cat,words]of Object.entries(KEYWORDS)){
+    for(const w of words){
+      if(lower.includes(w)&&w.length>bestLen){best=cat;bestLen=w.length;}
+    }
+  }
+  if(best)return best;
+  const geminiKey=await getSetting('geminiKey');
+  if(geminiKey)return classifyGemini(desc,geminiKey);
+  return null;
+}
+
+async function classifyGemini(desc,key){
+  try{
+    const cats=Object.values(CATS).flat().map(c=>c.id).join(',');
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents:[{parts:[{text:`Classify this expense into one category. Reply with ONLY the category id.\nCategories: ${cats}\nExpense: "${desc}"`}]}],generationConfig:{maxOutputTokens:20}})
+    });
+    const d=await r.json();
+    const catId=d.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if(CAT_MAP.has(catId))return catId;
+  }catch{}
+  return null;
+}
+
+async function learnCategory(keyword,catId){
+  const lower=keyword.toLowerCase();
+  learnedMap[lower]=catId;
+  await dbPut('learned',{keyword:lower,category:catId});
+}
+
+// ── Navigation ──
+function switchView(name,btn){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  else{const nb=document.querySelector(`.nav-btn[data-view="${name}"]`);if(nb)nb.classList.add('active')}
+  if(name==='home')refreshDashboard();
+  if(name==='history')refreshHistory();
+  if(name==='stats')refreshStats();
+  if(name==='plans')refreshPlans();
+  if(name==='add'){
+    document.getElementById('smart-input').value='';
+    document.getElementById('fallback-grid').classList.remove('show');
+    pendingInput=null;
+    renderTemplates();
+    document.getElementById('smart-input').focus();
+  }
+}
+
+// ── Dashboard ──
+async function refreshDashboard(){
+  const txs=filterPeriod(await getTxs(),currentPeriod);
+  const inc=txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const exp=txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  document.getElementById('dash-balance').textContent=fmtCur(inc-exp);
+  document.getElementById('dash-income').textContent='+'+fmtCur(inc);
+  document.getElementById('dash-expense').textContent='-'+fmtCur(exp);
+  const recent=[...txs].sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt).slice(0,7);
+  const list=document.getElementById('recent-list');
+  if(!recent.length){list.innerHTML='<div class="empty-state"><span class="emoji">&#128221;</span>Пока нет записей</div>';return}
+  list.innerHTML=recent.map(t=>{
+    const c=getCat(t.category),cls=t.type==='expense'?'expense':'income',sign=t.type==='expense'?'-':'+';
+    return`<div class="recent-item"><div class="recent-icon" style="background:var(--${cls==='expense'?'red':'green'}-light)">${c.emoji}</div><div class="recent-info"><div class="recent-desc">${t.description||c.name}</div><div class="recent-cat">${c.name}</div></div><div><div class="recent-amount ${cls}">${sign}${fmtCur(t.amount)}</div><div class="recent-date">${formatDateShort(t.date)}</div></div></div>`;
+  }).join('');
+}
+function setPeriod(p,btn){currentPeriod=p;btn.parentElement.querySelectorAll('.period-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');refreshDashboard()}
+
+// ── Smart Input ──
+function setType(type){
+  currentType=type;
+  document.getElementById('btn-expense').className='type-btn'+(type==='expense'?' active-expense':'');
+  document.getElementById('btn-income').className='type-btn'+(type==='income'?' active-income':'');
+  document.getElementById('save-btn').className='save-btn '+type;
+  document.getElementById('fallback-grid').classList.remove('show');
+  pendingInput=null;
+}
+
+async function handleSmartInput(){
+  const input=document.getElementById('smart-input').value;
+  const parsed=parseInput(input);
+  if(!parsed||!parsed.amount||parsed.amount<=0)return toast('Введите описание и сумму');
+  const catId=parsed.desc?await classify(parsed.desc):null;
+  if(catId){
+    const tx=await saveTx(parsed.desc,parsed.amount,catId);
+    document.getElementById('smart-input').value='';
+    document.getElementById('fallback-grid').classList.remove('show');
+    const c=getCat(catId);
+    toastUndo(`${c.emoji} ${c.name} &middot; ${parsed.desc} &middot; ${fmtCur(parsed.amount)}`,tx.id);
+    await checkBudget(tx);
+  }else{
+    pendingInput=parsed;
+    showFallbackGrid(parsed);
+  }
+}
+
+function showFallbackGrid(parsed){
+  const fg=document.getElementById('fallback-grid');
+  fg.classList.add('show');
+  document.getElementById('fallback-info').innerHTML=`&#128269; Не удалось определить категорию для &laquo;${parsed.desc}&raquo; (${fmtCur(parsed.amount)}). Выберите вручную:`;
+  const grid=document.getElementById('cat-grid');
+  const cats=CATS[currentType];
+  grid.innerHTML=cats.map(c=>`<div class="cat-btn" onclick="selectFallbackCat('${c.id}',this)"><span class="emoji">${c.emoji}</span>${c.name}</div>`).join('');
+}
+
+let selectedFallbackCat=null;
+function selectFallbackCat(id,el){
+  selectedFallbackCat=id;
+  document.querySelectorAll('#cat-grid .cat-btn').forEach(b=>b.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+async function saveFallback(){
+  if(!pendingInput||!selectedFallbackCat)return toast('Выберите категорию');
+  if(pendingInput.desc)await learnCategory(pendingInput.desc,selectedFallbackCat);
+  const tx=await saveTx(pendingInput.desc,pendingInput.amount,selectedFallbackCat);
+  document.getElementById('smart-input').value='';
+  document.getElementById('fallback-grid').classList.remove('show');
+  selectedFallbackCat=null;pendingInput=null;
+  const c=getCat(tx.category);
+  toastUndo(`${c.emoji} ${c.name} &middot; ${tx.description} &middot; ${fmtCur(tx.amount)}`,tx.id);
+  await checkBudget(tx);
+}
+
+async function saveTx(desc,amount,catId){
+  const tx={id:uid(),type:currentType,amount,category:catId,description:desc,date:today(),createdAt:Date.now(),source:'manual'};
+  await dbPut('transactions',tx);dirtyTx();
+  return tx;
+}
+
+// ── Templates ──
+async function renderTemplates(){
+  const tmpls=await dbAll('templates');
+  const list=document.getElementById('templates-list');
+  if(!tmpls.length){document.getElementById('templates-wrap').style.display='none';return}
+  document.getElementById('templates-wrap').style.display='block';
+  list.innerHTML=tmpls.map(t=>{
+    const c=getCat(t.category);
+    return`<div class="tmpl-chip" onclick="useTmpl('${t.id}')">${c.emoji} ${t.name} ${fmtCur(t.amount)}</div>`;
+  }).join('')+`<div class="tmpl-chip tmpl-add" onclick="openTmplModal()">+ Добавить</div>`;
+}
+
+async function useTmpl(id){
+  const tmpls=await dbAll('templates');
+  const t=tmpls.find(x=>x.id===id);if(!t)return;
+  currentType=t.type||'expense';setType(currentType);
+  const tx=await saveTx(t.name,t.amount,t.category);
+  const c=getCat(t.category);
+  toastUndo(`${c.emoji} ${t.name} &middot; ${fmtCur(t.amount)}`,tx.id);
+  await checkBudget(tx);
+}
+
+function openTmplModal(){
+  const sel=document.getElementById('tmpl-cat');
+  sel.innerHTML=CATS.expense.map(c=>`<option value="${c.id}">${c.emoji} ${c.name}</option>`).join('');
+  document.getElementById('tmpl-modal').classList.add('show');
+}
+function closeTmplModal(){document.getElementById('tmpl-modal').classList.remove('show')}
+async function saveTemplate(){
+  const name=document.getElementById('tmpl-name').value.trim();
+  const amount=parseFloat(document.getElementById('tmpl-amount').value);
+  const cat=document.getElementById('tmpl-cat').value;
+  if(!name||!amount)return toast('Заполните все поля');
+  await dbPut('templates',{id:uid(),name,amount,category:cat,type:currentType});
+  document.getElementById('tmpl-name').value='';document.getElementById('tmpl-amount').value='';
+  closeTmplModal();renderTemplates();toast('Шаблон создан');
+}
+
+// ── Budget ──
+async function checkBudget(tx){
+  if(tx.type!=='expense')return;
+  const budgets=await dbAll('budgets');if(!budgets.length)return;
+  const month=today().slice(0,7);
+  const allTxs=await getTxs();
+  const monthExp=allTxs.filter(t=>t.type==='expense'&&t.date.startsWith(month));
+  for(const b of budgets){
+    let spent;
+    if(b.key==='general')spent=monthExp.reduce((s,t)=>s+t.amount,0);
+    else if(b.key===tx.category)spent=monthExp.filter(t=>t.category===b.key).reduce((s,t)=>s+t.amount,0);
+    else continue;
+    const pct=spent/b.limit*100;
+    const name=b.key==='general'?'общих расходов':getCat(b.key).name;
+    if(pct>=100)showWarning(`Лимит на ${name} превышен! (${Math.round(pct)}%)`,'red');
+    else if(pct>=80)showWarning(`${Math.round(pct)}% лимита на ${name}`,'orange');
+  }
+}
+
+// ── History ──
+async function refreshHistory(){
+  const txs=filterPeriod([...(await getTxs())],historyPeriod).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt);
+  const list=document.getElementById('history-list');
+  if(!txs.length){list.innerHTML='<div class="empty-state"><span class="emoji">&#128221;</span>Нет записей</div>';return}
+  const groups={};txs.forEach(t=>{(groups[t.date]=groups[t.date]||[]).push(t)});
+  let html='';
+  for(const[date,items]of Object.entries(groups)){
+    html+=`<div class="date-group">${formatDateShort(date)} &middot; ${date}</div>`;
+    items.forEach(t=>{
+      const c=getCat(t.category),cls=t.type==='expense'?'expense':'income',sign=t.type==='expense'?'-':'+';
+      html+=`<div class="recent-item"><div class="recent-icon" style="background:var(--${cls==='expense'?'red':'green'}-light)">${c.emoji}</div><div class="recent-info"><div class="recent-desc">${t.description||c.name}</div><div class="recent-cat">${c.name}</div></div><div class="recent-amount ${cls}">${sign}${fmtCur(t.amount)}</div><button class="del-btn" onclick="deleteTx('${t.id}')">&#10005;</button></div>`;
+    });
+  }
+  list.innerHTML=html;
+}
+function setHistoryPeriod(p,btn){historyPeriod=p;btn.parentElement.querySelectorAll('.period-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');refreshHistory()}
+async function deleteTx(id){if(!confirm('Удалить запись?'))return;await dbDel('transactions',id);dirtyTx();refreshHistory();toast('Удалено')}
+
+// ── Stats ──
+async function refreshStats(){
+  const txs=filterPeriod(await getTxs(),statsPeriod);
+  const expenses=txs.filter(t=>t.type==='expense');
+  const{start}=dateRange(statsPeriod);
+  const days=start?Math.max(1,Math.ceil((Date.now()-new Date(start+'T00:00:00'))/86400000)):Math.max(1,new Set(expenses.map(t=>t.date)).size);
+  const totalExp=expenses.reduce((s,t)=>s+t.amount,0);
+  document.getElementById('stat-avg').textContent=fmtCur(Math.round(totalExp/days));
+  const byCat={};expenses.forEach(t=>{byCat[t.category]=(byCat[t.category]||0)+t.amount});
+  const sorted=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+  document.getElementById('stat-top').innerHTML=sorted.length?getCat(sorted[0][0]).emoji+' '+getCat(sorted[0][0]).name:'-';
+  const bd=document.getElementById('cat-breakdown'),maxAmt=sorted.length?sorted[0][1]:1;
+  bd.innerHTML=sorted.map(([cat,amt])=>{
+    const c=getCat(cat),pct=totalExp?Math.round(amt/totalExp*100):0;
+    return`<div class="cat-list-item"><span style="font-size:20px">${c.emoji}</span><div class="cat-bar-wrap"><div style="font-size:13px;margin-bottom:4px">${c.name}</div><div class="cat-bar"><div class="cat-bar-fill" style="width:${amt/maxAmt*100}%"></div></div></div><div class="cat-amount">${fmtCur(amt)}</div><div class="cat-pct">${pct}%</div></div>`;
+  }).join('')||'<div class="empty-state">Нет данных</div>';
+  renderCharts(expenses,txs);
+}
+
+function renderCharts(expenses,allTxs){
+  const isDark=window.matchMedia('(prefers-color-scheme:dark)').matches||document.documentElement.dataset.theme==='dark';
+  const gc=isDark?'rgba(255,255,255,.1)':'rgba(0,0,0,.06)',tc=isDark?'#94a3b8':'#64748b';
+  const byCat={};expenses.forEach(t=>{byCat[t.category]=(byCat[t.category]||0)+t.amount});
+  const sorted=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+  const colors=['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16','#06b6d4','#e11d48'];
+  const pieData={labels:sorted.map(([c])=>getCat(c).name),datasets:[{data:sorted.map(([,a])=>a),backgroundColor:colors.slice(0,sorted.length),borderWidth:0}]};
+  const pieOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:tc,padding:8,font:{size:11}}}}};
+  if(chartPie){chartPie.data=pieData;chartPie.options=pieOpts;chartPie.update()}
+  else chartPie=new Chart(document.getElementById('chart-pie'),{type:'doughnut',data:pieData,options:pieOpts});
+
+  const byDay={},incByDay={};
+  allTxs.forEach(t=>{if(t.type==='expense')byDay[t.date]=(byDay[t.date]||0)+t.amount;else incByDay[t.date]=(incByDay[t.date]||0)+t.amount});
+  const allDates=[...new Set([...Object.keys(byDay),...Object.keys(incByDay)])].sort().slice(-14);
+  const barData={
+    labels:allDates.map(d=>new Date(d+'T00:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'short'})),
+    datasets:[{label:'Расходы',data:allDates.map(d=>byDay[d]||0),backgroundColor:'rgba(239,68,68,.7)',borderRadius:4},{label:'Доходы',data:allDates.map(d=>incByDay[d]||0),backgroundColor:'rgba(16,185,129,.7)',borderRadius:4}]
+  };
+  const barOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:tc}}},scales:{x:{ticks:{color:tc,font:{size:10}},grid:{display:false}},y:{ticks:{color:tc},grid:{color:gc}}}};
+  if(chartBar){chartBar.data=barData;chartBar.options=barOpts;chartBar.update()}
+  else chartBar=new Chart(document.getElementById('chart-bar'),{type:'bar',data:barData,options:barOpts});
+}
+function setStatsPeriod(p,btn){statsPeriod=p;btn.parentElement.querySelectorAll('.period-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');refreshStats()}
+
+// ── Plans ──
+function switchSubTab(tab,btn){
+  currentSubTab=tab;
+  btn.parentElement.querySelectorAll('.sub-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  document.querySelectorAll('.sub-view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('sub-'+tab).classList.add('active');
+}
+function showAddPlanForm(){
+  const formId=currentSubTab==='budget'?'budget-form':'goal-form';
+  document.getElementById(formId).classList.toggle('show');
+}
+async function refreshPlans(){
+  await refreshBudgets();await refreshGoals();
+  const sel=document.getElementById('budget-cat');
+  sel.innerHTML='<option value="general">&#128176; Общий лимит</option>'+CATS.expense.map(c=>`<option value="${c.id}">${c.emoji} ${c.name}</option>`).join('');
+}
+
+async function refreshBudgets(){
+  const budgets=await dbAll('budgets');
+  const list=document.getElementById('budget-list');
+  if(!budgets.length){list.innerHTML='<div class="empty-state"><span class="emoji">&#128181;</span>Задайте месячный бюджет</div>';return}
+  const month=today().slice(0,7);
+  const allTxs=await getTxs();
+  const monthExp=allTxs.filter(t=>t.type==='expense'&&t.date.startsWith(month));
+  list.innerHTML=budgets.sort((a,b)=>a.key==='general'?-1:1).map(b=>{
+    const spent=b.key==='general'?monthExp.reduce((s,t)=>s+t.amount,0):monthExp.filter(t=>t.category===b.key).reduce((s,t)=>s+t.amount,0);
+    const pct=Math.min(100,Math.round(spent/b.limit*100));
+    const color=pct>=100?'var(--red)':pct>=80?'var(--orange)':'var(--green)';
+    const name=b.key==='general'?'&#128176; Общий лимит':getCat(b.key).emoji+' '+getCat(b.key).name;
+    return`<div class="budget-card"><div class="budget-header"><div class="budget-name">${name}</div><button class="del-btn" onclick="delBudget('${b.key}')">&#10005;</button></div><div class="budget-bar"><div class="budget-bar-fill" style="width:${pct}%;background:${color}"></div></div><div class="budget-amounts"><span>${fmtCur(spent)} / ${fmtCur(b.limit)}</span><span class="budget-pct" style="color:${color}">${pct}%</span></div></div>`;
+  }).join('');
+}
+
+async function saveBudget(){
+  const key=document.getElementById('budget-cat').value;
+  const limit=parseFloat(document.getElementById('budget-limit').value);
+  if(!limit||limit<=0)return toast('Введите лимит');
+  await dbPut('budgets',{key,limit});
+  document.getElementById('budget-limit').value='';
+  document.getElementById('budget-form').classList.remove('show');
+  refreshBudgets();toast('Лимит установлен');
+}
+async function delBudget(key){if(!confirm('Удалить лимит?'))return;await dbDel('budgets',key);refreshBudgets();toast('Лимит удалён')}
+
+async function refreshGoals(){
+  const goals=await dbAll('goals');
+  const list=document.getElementById('goals-list');
+  if(!goals.length){list.innerHTML='<div class="empty-state"><span class="emoji">&#127919;</span>Создайте первую цель!</div>';return}
+  list.innerHTML=goals.sort((a,b)=>a.createdAt-b.createdAt).map(g=>{
+    const pct=Math.min(100,Math.round(g.currentAmount/g.targetAmount*100));
+    const dl=g.deadline?new Date(g.deadline+'T00:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}):'';
+    return`<div class="goal-card"><div class="goal-name">${g.name}</div>${dl?`<div class="goal-dates">&#128197; ${dl}</div>`:''}<div class="goal-progress"><div class="goal-progress-fill" style="width:${pct}%;background:${pct>=100?'var(--green)':'var(--primary)'}"></div></div><div class="goal-amounts"><span>${fmtCur(g.currentAmount)} / ${fmtCur(g.targetAmount)}</span><span class="goal-pct">${pct}%</span></div><div class="goal-actions"><button class="goal-action-btn goal-add-btn" onclick="addToGoal('${g.id}')">+ Пополнить</button><button class="goal-action-btn goal-del-btn" onclick="deleteGoal('${g.id}')">Удалить</button></div></div>`;
+  }).join('');
+}
+async function saveGoal(){
+  const name=document.getElementById('goal-name').value.trim(),target=parseFloat(document.getElementById('goal-target').value);
+  if(!name||!target)return toast('Заполните название и сумму');
+  await dbPut('goals',{id:uid(),name,targetAmount:target,currentAmount:0,deadline:document.getElementById('goal-deadline').value,createdAt:Date.now()});
+  document.getElementById('goal-name').value='';document.getElementById('goal-target').value='';document.getElementById('goal-deadline').value='';
+  document.getElementById('goal-form').classList.remove('show');refreshGoals();toast('Цель создана');
+}
+async function addToGoal(id){
+  const amount=prompt('Сколько добавить?');if(!amount||isNaN(amount))return;
+  const goals=await dbAll('goals');const g=goals.find(x=>x.id===id);if(!g)return;
+  g.currentAmount+=parseFloat(amount);await dbPut('goals',g);refreshGoals();toast('Пополнено');
+}
+async function deleteGoal(id){if(!confirm('Удалить цель?'))return;await dbDel('goals',id);refreshGoals();toast('Цель удалена')}
+
+// ── Statement ──
+let stmtParsed=[];
+function loadStatement(e){
+  const file=e.target.files[0];if(!file)return;
+  if(file.name.toLowerCase().endsWith('.pdf'))loadPdfStatement(file);
+  else loadCsvStatement(file);
+}
+function loadCsvStatement(file){
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const lines=ev.target.result.split(/\r?\n/).filter(l=>l.trim());
+    if(lines.length<2)return toast('Файл пустой');
+    const sep=lines[0].includes(';')?';':',';
+    const headers=lines[0].split(sep).map(h=>h.replace(/"/g,'').trim());
+    stmtData=lines.slice(1).map(line=>{const vals=line.split(sep).map(v=>v.replace(/"/g,'').trim());const obj={};headers.forEach((h,i)=>obj[h]=vals[i]||'');return obj}).filter(r=>Object.values(r).some(v=>v));
+    document.getElementById('stmt-mapping').hidden=false;
+    ['map-date','map-amount','map-desc'].forEach(id=>{document.getElementById(id).innerHTML=headers.map(h=>`<option value="${h}">${h}</option>`).join('')});
+    const ag=headers.find(h=>/сумма|amount|sum/i.test(h)),dg=headers.find(h=>/дата|date/i.test(h)),desc=headers.find(h=>/описание|desc|назначение|detail/i.test(h));
+    if(ag)document.getElementById('map-amount').value=ag;if(dg)document.getElementById('map-date').value=dg;if(desc)document.getElementById('map-desc').value=desc;
+  };
+  reader.readAsText(file);
+}
+
+async function loadPdfStatement(file){
+  toast('Обработка PDF...');
+  try{
+    if(typeof pdfjsLib==='undefined')return toast('pdf.js не загружен');
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const buf=await file.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise;
+    let fullText='';
+    for(let i=1;i<=pdf.numPages;i++){
+      const page=await pdf.getPage(i);
+      const content=await page.getTextContent();
+      let lastY=null,line='';
+      for(const item of content.items){
+        const y=Math.round(item.transform[5]);
+        if(lastY!==null&&Math.abs(y-lastY)>3){fullText+=line.trim()+'\n';line=''}
+        line+=item.str+' ';lastY=y;
+      }
+      if(line.trim())fullText+=line.trim()+'\n';
+    }
+    const bank=detectBank(fullText);
+    if(!bank)return toast('Не удалось определить банк');
+    let parsed=[];
+    if(bank==='kaspi')parsed=parseKaspiPdf(fullText);
+    else if(bank==='forte')parsed=parseFortePdf(fullText);
+    else if(bank==='halyk')parsed=parseHalykPdf(fullText);
+    else if(bank==='freedom')parsed=parseFreedomPdf(fullText);
+    if(!parsed.length)return toast('Не найдено операций в выписке');
+    stmtParsed=parsed;stmtBank=bank;
+    document.getElementById('stmt-mapping').hidden=true;
+    showPdfResults(bank,parsed);
+  }catch(err){toast('Ошибка чтения PDF: '+err.message);console.error(err)}
+}
+
+function detectBank(text){
+  if(/kaspi/i.test(text)||/Kaspi Gold/i.test(text))return'kaspi';
+  if(/фридом|freedom|bankffin/i.test(text))return'freedom';
+  if(/народный|halyk|hsbkkzkx/i.test(text))return'halyk';
+  if(/forte|форте/i.test(text))return'forte';
+  if(/KZ\d{2}96503/i.test(text))return'forte';
+  if(/KZ\d{2}551D/i.test(text))return'freedom';
+  return null;
+}
+const BANK_NAMES={kaspi:'Kaspi Bank',forte:'Forte Bank',halyk:'Halyk Bank',freedom:'Freedom Bank'};
+
+function parseKaspiPdf(text){
+  const results=[];
+  const lines=text.split('\n');
+  for(const line of lines){
+    const m=line.match(/(\d{2}\.\d{2}\.\d{2})\s+([+-])\s+([\d\s]+,\d{2})\s*₸\s+(\S+)\s*(.*)/);
+    if(!m)continue;
+    const dd=m[1].split('.'),date=`20${dd[2]}-${dd[1]}-${dd[0]}`;
+    const amount=parseFloat(m[3].replace(/\s/g,'').replace(',','.'));
+    const op=m[4],detail=(m[5]||'').trim();
+    const type=m[2]==='+'?'income':'expense';
+    if(op==='Пополнение'&&/своего|свой|другого банка/i.test(detail))continue;
+    if(op==='Перевод'&&/свой/i.test(detail))continue;
+    results.push({date,amount,desc:detail||op,type,op});
+  }
+  return results;
+}
+
+function parseFortePdf(text){
+  const results=[];
+  const lines=text.split('\n');
+  let pendingDesc='';
+  for(const line of lines){
+    const m=line.match(/(\d{2}\.\d{2}\.\d{4})\s+(-?[\d.]+)\s+KZT\s+(\S+(?:\s+счета|\s+бонусами)?)\s*(.*)/);
+    if(m){
+      const dd=m[1].split('.'),date=`${dd[2]}-${dd[1]}-${dd[0]}`;
+      const rawAmt=parseFloat(m[2]),amount=Math.abs(rawAmt);
+      const op=m[3],detail=(m[4]||'').trim();
+      const type=rawAmt>0?'income':'expense';
+      if(/Пополнение/i.test(op)&&/собственных|своих/i.test(detail))continue;
+      results.push({date,amount,desc:detail||op,type,op});
+    }
+  }
+  return results;
+}
+
+function parseHalykPdf(text){
+  const results=[];
+  const lines=text.split('\n');
+  const HALYK_WORDS={'Операцияоплатыукоммерсанта':'Оплата','Операцияоплатыу':'Оплата','Поступлениеперевода':'Поступление','ПоступлениенасчетТОО':'Поступление от ТОО','Переводнадругуюкарту':'Перевод на карту','ПереводнакредитRS':'Перевод на кредит','Поступлениенасчет':'Поступление'};
+  let last=null;
+  for(const line of lines){
+    const m=line.match(/(\d{2}\.\d{2}\.\d{4})\s+\d{2}\.\d{2}\.\d{4}\s+(.+?)\s+([-\d\s]+,\d{2})\s+KZT\s+([-\d\s]+,\d{2})\s+([-\d\s]+,\d{2})/);
+    if(m){
+      const dd=m[1].split('.'),date=`${dd[2]}-${dd[1]}-${dd[0]}`;
+      const rawDesc=m[2].trim();
+      const amount=parseFloat(m[3].replace(/\s/g,'').replace(',','.'));
+      const income=parseFloat(m[4].replace(/\s/g,'').replace(',','.'));
+      if(Math.abs(amount)<1){last=null;continue}
+      const type=income>0?'income':'expense';
+      let desc=rawDesc;
+      for(const[k,v]of Object.entries(HALYK_WORDS))desc=desc.replace(k,v+' ');
+      desc=desc.replace(/([а-яё])([A-Z])/g,'$1 $2').trim();
+      if(/Погашени|Комисси|задолженност|P2P|RegularCharge|Ежемесячная/i.test(desc)){last=null;continue}
+      last={date,amount:Math.abs(amount),desc,type,op:desc};
+      results.push(last);
+    }else if(last&&line.trim()&&!/^\d{2}\.\d{2}\.\d{4}/.test(line)&&!/Выписка|Дата|Сумма|Валюта|операции|Всего/i.test(line)){
+      const extra=line.trim().replace(/\(KZT\)/g,'').trim();
+      if(extra&&extra.length>1){
+        last.desc=(last.desc+' '+extra).replace(/коммерсанта\s*/gi,'').trim();
+      }
+    }
+  }
+  return results;
+}
+
+function parseFreedomPdf(text){
+  return parseFortePdf(text);
+}
+
+async function showPdfResults(bank,parsed){
+  document.getElementById('stmt-results-card').hidden=false;
+  const txs=await getTxs();
+  const txIndex=new Map();txs.forEach(t=>{const k=t.date.slice(5)+'|'+Math.round(t.amount);txIndex.set(k,(txIndex.get(k)||0)+1)});
+  let matched=0,missed=0,totalMissed=0,html='';
+  const expenses=parsed.filter(p=>p.type==='expense');
+  expenses.forEach((p,i)=>{
+    const dateKey=p.date.slice(5);
+    const k=dateKey+'|'+Math.round(p.amount);
+    if(txIndex.has(k)&&txIndex.get(k)>0){matched++;txIndex.set(k,txIndex.get(k)-1);html+=`<div class="match">&#9989; ${p.desc} &mdash; ${fmtCur(p.amount)}</div>`}
+    else{missed++;totalMissed+=p.amount;html+=`<div class="miss" onclick="addPdfTx(${i})">&#10060; ${p.desc} &mdash; ${fmtCur(p.amount)} <span style="font-size:11px;color:var(--text3)">${p.date}</span><br><small>Нажмите чтобы добавить</small></div>`}
+  });
+  const incomeTotal=parsed.filter(p=>p.type==='income').reduce((s,p)=>s+p.amount,0);
+  document.getElementById('stmt-summary').innerHTML=`&#127974; <b>${BANK_NAMES[bank]}</b><br>&#128202; Расходов: <b>${expenses.length}</b>, совпадений: <b>${matched}</b>, пропущено: <b style="color:var(--red)">${missed}</b> (${fmtCur(totalMissed)})<br>&#128176; Доходов: <b>${parsed.filter(p=>p.type==='income').length}</b> (${fmtCur(incomeTotal)})`;
+  document.getElementById('stmt-results').innerHTML=html||'<div class="empty-state">Все расходы уже записаны!</div>';
+}
+
+let stmtBank='';
+async function addPdfTx(idx){
+  const p=stmtParsed.filter(x=>x.type==='expense')[idx];if(!p)return;
+  const catId=await classify(p.desc)||'other_exp';
+  await dbPut('transactions',{id:uid(),type:'expense',amount:p.amount,category:catId,description:p.desc,date:p.date,createdAt:Date.now(),source:'statement'});
+  dirtyTx();toast('Добавлено из выписки');
+  showPdfResults(stmtBank,stmtParsed);
+}
+
+async function analyzeStatement(){
+  const dateCol=document.getElementById('map-date').value,amtCol=document.getElementById('map-amount').value,descCol=document.getElementById('map-desc').value;
+  const txs=await getTxs();
+  document.getElementById('stmt-results-card').hidden=false;
+  const txIndex=new Map();txs.forEach(t=>{const k=t.date.slice(5)+'|'+Math.round(t.amount);txIndex.set(k,(txIndex.get(k)||0)+1)});
+  let matched=0,missed=0,totalMissed=0,html='';
+  stmtData.forEach(row=>{
+    const rawAmt=parseFloat((row[amtCol]||'0').replace(/[^\d.\-]/g,'')),amt=Math.abs(rawAmt);
+    const desc=row[descCol]||'',date=row[dateCol]||'';if(amt===0)return;
+    let dateKey='';const dm=date.match(/(\d{2})[.\-\/](\d{2})/);if(dm)dateKey=dm[1]+'-'+dm[2];
+    const k=dateKey+'|'+Math.round(amt);
+    if(txIndex.has(k)&&txIndex.get(k)>0){matched++;txIndex.set(k,txIndex.get(k)-1);html+=`<div class="match">&#9989; ${desc} &mdash; ${fmtCur(amt)}</div>`}
+    else{missed++;totalMissed+=amt;html+=`<div class="miss" onclick="addFromStmt('${desc.replace(/'/g,"\\'")}',${amt},'${date}')">&#10060; ${desc} &mdash; ${fmtCur(amt)}<br><small>Нажмите чтобы добавить</small></div>`}
+  });
+  document.getElementById('stmt-summary').innerHTML=`&#128202; Совпадений: <b>${matched}</b>, пропущено: <b style="color:var(--red)">${missed}</b> на сумму <b>${fmtCur(totalMissed)}</b>`;
+  document.getElementById('stmt-results').innerHTML=html||'<div class="empty-state">Нет данных</div>';
+}
+
+async function addFromStmt(desc,amount,date){
+  let iso=today();const m=date.match(/(\d{4})[.\-\/](\d{2})[.\-\/](\d{2})/);
+  if(m)iso=`${m[1]}-${m[2]}-${m[3]}`;else{const m2=date.match(/(\d{2})[.\-\/](\d{2})[.\-\/](\d{4})/);if(m2)iso=`${m2[3]}-${m2[2]}-${m2[1]}`}
+  const catId=await classify(desc)||'other_exp';
+  await dbPut('transactions',{id:uid(),type:'expense',amount,category:catId,description:desc,date:iso,createdAt:Date.now(),source:'statement'});
+  dirtyTx();toast('Добавлено из выписки');analyzeStatement();
+}
+
+// ── Settings ──
+async function getSetting(key){try{const all=await dbAll('settings');const s=all.find(x=>x.key===key);return s?s.value:null}catch{return null}}
+async function saveSetting(key,value){await dbPut('settings',{key,value})}
+
+function setCurrency(c){currency=c;saveSetting('currency',c);refreshDashboard()}
+
+async function exportData(){
+  const[txs,goals,budgets,templates]=await Promise.all([dbAll('transactions'),dbAll('goals'),dbAll('budgets'),dbAll('templates')]);
+  const data=JSON.stringify({transactions:txs,goals,budgets,templates,currency,exportDate:new Date().toISOString()},null,2);
+  const blob=new Blob([data],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=`finance-${today()}.json`;a.click();URL.revokeObjectURL(url);toast('Экспорт завершён');
+}
+
+async function importData(e){
+  const file=e.target.files[0];if(!file)return;
+  try{
+    const data=JSON.parse(await file.text());
+    const tx=db.transaction(['transactions','goals','budgets','templates'],'readwrite');
+    if(data.transactions)for(const t of data.transactions)tx.objectStore('transactions').put(t);
+    if(data.goals)for(const g of data.goals)tx.objectStore('goals').put(g);
+    if(data.budgets)for(const b of data.budgets)tx.objectStore('budgets').put(b);
+    if(data.templates)for(const t of data.templates)tx.objectStore('templates').put(t);
+    await new Promise((res,rej)=>{tx.oncomplete=res;tx.onerror=rej});
+    if(data.currency){currency=data.currency;document.getElementById('currency-sel').value=currency;saveSetting('currency',currency)}
+    dirtyTx();toast(`Импортировано: ${(data.transactions||[]).length} операций`);refreshDashboard();
+  }catch{toast('Ошибка формата файла')}
+  e.target.value='';
+}
+
+async function clearAll(){
+  if(!confirm('Удалить ВСЕ данные? Это необратимо!'))return;
+  if(!confirm('Точно уверены?'))return;
+  await Promise.all([dbClear('transactions'),dbClear('goals'),dbClear('budgets'),dbClear('templates'),dbClear('learned')]);
+  dirtyTx();learnedMap={};toast('Все данные удалены');refreshDashboard();
+}
+
+// ── Init ──
+async function init(){
+  await openDB();
+  const cur=await getSetting('currency');if(cur){currency=cur;document.getElementById('currency-sel').value=currency}
+  const gk=await getSetting('geminiKey');if(gk)document.getElementById('gemini-key').value=gk;
+  const learned=await dbAll('learned');learned.forEach(l=>{learnedMap[l.keyword]=l.category});
+  document.getElementById('smart-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();handleSmartInput()}});
+  refreshDashboard();
+  if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+init();
+</script>
+</body>
+</html>
