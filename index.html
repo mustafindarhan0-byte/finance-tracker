@@ -1270,18 +1270,39 @@ function toggleAllStmt(){
 async function addSelectedStmt(){
   const toAdd=stmtMissed.filter((_,i)=>document.getElementById('stmt-chk-'+i)?.checked);
   if(!toAdd.length)return toast('Ничего не выбрано');
-  for(const item of toAdd){
-    const catId=await classify(item.desc,'expense')||'other_exp';
-    await dbPut('transactions',{id:uid(),type:'expense',amount:item.amount,category:catId,description:item.desc,date:item.date,createdAt:Date.now(),source:'statement'});
+  toast(`Добавляем ${toAdd.length}...`);
+  try{
+    for(let i=0;i<toAdd.length;i+=450){
+      const chunk=toAdd.slice(i,i+450);
+      const batch=fsDb.batch();
+      for(const item of chunk){
+        const catId=await classify(item.desc,'expense')||'other_exp';
+        const tx={id:uid(),type:'expense',amount:item.amount,category:catId,description:item.desc,date:item.date,createdAt:Date.now(),source:'statement'};
+        batch.set(spaceRef.collection('transactions').doc(docId('transactions',tx)),tx);
+      }
+      await batch.commit();
+    }
+    dirtyTx();
+    toast(`Добавлено: ${toAdd.length}`);
+    if(stmtMode==='pdf')showPdfResults(stmtBank,stmtParsed);else analyzeStatement();
+  }catch(err){
+    toast('Ошибка при добавлении: '+err.message);
+    console.error(err);
   }
-  dirtyTx();
-  toast(`Добавлено: ${toAdd.length}`);
-  if(stmtMode==='pdf')showPdfResults(stmtBank,stmtParsed);else analyzeStatement();
 }
 
 // ── Settings ──
-async function getSetting(key){try{const all=await dbAll('settings');const s=all.find(x=>x.key===key);return s?s.value:null}catch{return null}}
-async function saveSetting(key,value){await dbPut('settings',{key,value})}
+let settingsCache=null;
+async function getSetting(key){
+  try{
+    if(!settingsCache)settingsCache=await dbAll('settings');
+    const s=settingsCache.find(x=>x.key===key);return s?s.value:null;
+  }catch{return null}
+}
+async function saveSetting(key,value){
+  await dbPut('settings',{key,value});
+  if(settingsCache){const i=settingsCache.findIndex(x=>x.key===key);if(i>=0)settingsCache[i]={key,value};else settingsCache.push({key,value})}
+}
 
 // ── Bank balances ──
 const BANK_KEYS=['kaspi','freedom','halyk','forte'];
