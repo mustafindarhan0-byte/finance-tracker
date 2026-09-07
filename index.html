@@ -383,10 +383,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       </select>
     </div>
     <div class="settings-item">
-      <div><div class="settings-label">Gemini API ключ</div><div class="settings-desc">Для умной классификации (необязательно)</div></div>
-    </div>
-    <input type="password" class="settings-input" id="gemini-key" placeholder="AIza..." onchange="saveSetting('geminiKey',this.value)">
-    <div class="settings-item">
       <div><div class="settings-label">Экспорт данных</div><div class="settings-desc">JSON-файл со всеми данными</div></div>
       <button class="settings-btn" onclick="exportData()">Экспорт</button>
     </div>
@@ -429,6 +425,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div class="card" id="stmt-results-card" hidden>
     <div class="card-title">Результат</div>
     <div id="stmt-summary" style="margin-bottom:12px;font-size:14px"></div>
+    <div id="stmt-balance-banner" hidden style="background:var(--primary-light);color:var(--primary);border-radius:var(--radius-sm);padding:10px;margin-bottom:12px;font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:8px"></div>
     <div class="stmt-batch-bar" id="stmt-batch-bar" hidden>
       <button class="stmt-batch-toggle" onclick="toggleAllStmt()">Отметить/снять все</button>
       <button class="stmt-batch-add" onclick="addSelectedStmt()">Добавить отмеченные</button>
@@ -497,17 +494,17 @@ const CAT_MAP=new Map();
 Object.values(CATS).flat().forEach(c=>CAT_MAP.set(c.id,c));
 
 const KEYWORDS={
-  food:['кофе','чай','обед','ужин','завтрак','ланч','бургер','пицца','суши','роллы','шаурма','кебаб','сникерс','шоколад','мороженое','кафе','ресторан','столовая','бизнес-ланч','перекус','фастфуд','макдональдс','kfc','burger king','пирожок','выпечка','латте','капучино','американо','эспрессо','раф','торт','десерт','блины','wolt','glovo','яндекс еда','доставка еды','донер','лаваш','самса','манты','плов','бешбармак','наурыз','хот-дог','сэндвич','sandwich','coffee','starbucks','costa'],
-  groceries:['магазин','продукты','молоко','хлеб','яйца','мясо','курица','рыба','овощи','фрукты','сыр','масло','крупа','рис','макароны','вода','сок','magnum','small','metro','арбуз','картошка','помидоры','бананы','яблоки','кефир','йогурт','колбаса','сахар','мука','соль','специи','консервы','чипсы','печенье','базар','рынок','супермаркет'],
-  transport:['такси','uber','яндекс такси','indriver','bolt','бензин','метро','автобус','газ','заправка','парковка','мойка','сто','ремонт авто','шиномонтаж','каско','штраф','бус','трамвай','самокат','каршеринг','поезд','жд','билет','авиабилет','перелёт'],
+  food:['кофе','чай','обед','ужин','завтрак','ланч','бургер','пицца','суши','роллы','шаурма','кебаб','сникерс','шоколад','мороженое','кафе','ресторан','столовая','бизнес-ланч','перекус','фастфуд','макдональдс','kfc','burger king','popeyes','пирожок','выпечка','латте','капучино','американо','эспрессо','espresso','раф','торт','десерт','блины','wolt','glovo','яндекс еда','yandex.eda','yandex.delivery','доставка еды','донер','doner','лаваш','самса','манты','плов','бешбармак','наурыз','хот-дог','сэндвич','sandwich','coffee','cafe','catering','food','starbucks','costa'],
+  groceries:['магазин','продукты','молоко','хлеб','яйца','мясо','курица','рыба','овощи','фрукты','сыр','масло','крупа','рис','макароны','вода','сок','magnum','small','metro','арбуз','картошка','помидоры','бананы','яблоки','кефир','йогурт','колбаса','сахар','мука','соль','специи','консервы','чипсы','печенье','базар','рынок','супермаркет','minimarket','маркет','lido','zamzam','abc_market','inmart','galmart','yandex.lavka'],
+  transport:['такси','uber','яндекс такси','indriver','bolt','бензин','метро','автобус','газ','заправка','парковка','мойка','сто','ремонт авто','шиномонтаж','каско','штраф','бус','трамвай','самокат','каршеринг','поезд','жд','билет','авиабилет','перелёт','avtobys','onay','itaxi','yandex.go','азс','sinooil','qazaq air','авиакомпания','lrt'],
   home:['аренда','квартира','коммунальные','квартплата','электричество','свет','интернет','уборка','мебель','ремонт','сантехник','электрик','ипотека','домофон'],
-  health:['аптека','лекарства','врач','больница','стоматолог','анализы','клиника','витамины','таблетки','массаж','окулист','терапевт','хирург','узи','мрт','вакцина','линзы','очки'],
-  clothes:['одежда','обувь','футболка','джинсы','куртка','кроссовки','ботинки','рубашка','платье','zara','h&m','nike','adidas','шапка','носки','костюм','пальто','свитер','худи','шорты','юбка'],
+  health:['аптека','лекарства','врач','больница','стоматолог','анализы','клиника','витамины','таблетки','массаж','окулист','терапевт','хирург','узи','мрт','вакцина','линзы','очки','barber','farmacia'],
+  clothes:['одежда','обувь','футболка','джинсы','куртка','кроссовки','ботинки','рубашка','платье','zara','h&m','nike','adidas','шапка','носки','костюм','пальто','свитер','худи','шорты','юбка','золотое яблоко'],
   fun:['кино','театр','концерт','бар','клуб','боулинг','бильярд','игра','steam','playstation','xbox','музыка','фильм','парк','зоопарк','аттракцион','квест','караоке','дискотека','вечеринка','пиво','вино','алкоголь','коктейль'],
-  telecom:['связь','телефон','мобильный','теле2','билайн','мтс','activ','altel','kcell','beeline','тариф','симка','мегафон'],
-  education:['курсы','книга','учебник','обучение','тренинг','udemy','coursera','репетитор','школа','университет','семинар','мастер-класс','вебинар'],
+  telecom:['связь','телефон','мобильный','теле2','tele2','билайн','мтс','activ','altel','kcell','beeline','тариф','симка','мегафон'],
+  education:['курсы','книга','учебник','обучение','тренинг','udemy','coursera','репетитор','школа','университет','семинар','мастер-класс','вебинар','hackthebox'],
   gifts:['подарок','цветы','букет','сувенир','открытка','день рождения','свадьба','юбилей'],
-  subscriptions:['netflix','spotify','youtube premium','apple music','icloud','google one','chatgpt','adobe','антивирус','vpn','подписка','premium','pro','plus'],
+  subscriptions:['netflix','spotify','youtube premium','apple music','icloud','google one','chatgpt','claude','adobe','антивирус','vpn','подписка','premium','pro','plus'],
   salary:['зарплата','зп','аванс','оклад','премия'],
   freelance:['фриланс','подработка','проект','заказ','халтура','гонорар'],
   gift_income:['перевод от','помощь от','возврат','кэшбэк','cashback']
@@ -745,6 +742,27 @@ function parseAmt(s){return parseFloat(s.replace(/\s/g,'').replace(',','.'))}
 const CAT_TYPE={};
 Object.entries(CATS).forEach(([type,cats])=>cats.forEach(c=>CAT_TYPE[c.id]=type));
 
+// MCC (merchant category code) → app category, for statement-derived descriptions that carry
+// an "MCC: NNNN" tag but no dictionary-matched merchant word. Kept to codes actually observed
+// in real Kaspi/Forte statement exports plus their well-known neighbors.
+const MCC_MAP={
+  5811:'food',5812:'food',5814:'food',5499:'food',
+  5411:'groceries',5422:'groceries',5441:'groceries',5451:'groceries',5462:'groceries',5300:'groceries',5399:'groceries',
+  4111:'transport',4112:'transport',4121:'transport',4131:'transport',4784:'transport',5541:'transport',5542:'transport',7523:'transport',4011:'transport',
+  5912:'health',8011:'health',8021:'health',8031:'health',8041:'health',8042:'health',8049:'health',8050:'health',8062:'health',8071:'health',8099:'health',
+  5611:'clothes',5621:'clothes',5631:'clothes',5641:'clothes',5651:'clothes',5661:'clothes',5681:'clothes',5691:'clothes',5699:'clothes',5139:'clothes',5941:'clothes',5977:'clothes',
+  5813:'fun',5921:'fun',7829:'fun',7832:'fun',7841:'fun',7911:'fun',7922:'fun',7929:'fun',7932:'fun',7933:'fun',7941:'fun',7991:'fun',7992:'fun',7993:'fun',7994:'fun',7996:'fun',7997:'fun',7998:'fun',7999:'fun',
+  4812:'telecom',4813:'telecom',4814:'telecom',4816:'telecom',4899:'telecom',
+  8211:'education',8220:'education',8241:'education',8244:'education',8249:'education',8299:'education',5942:'education',5943:'education',
+  5992:'gifts',5947:'gifts',5193:'gifts',
+  4900:'home',1520:'home',1711:'home',5211:'home',5251:'home',5712:'home',5719:'home',5722:'home',
+  5815:'subscriptions',5816:'subscriptions',5817:'subscriptions',5818:'subscriptions'
+};
+function classifyByMCC(desc){
+  const m=desc.match(/MCC:\s*(\d{4})/);
+  return m?(MCC_MAP[m[1]]||null):null;
+}
+
 async function classify(desc,type){
   const lower=desc.toLowerCase();
   if(learnedMap[lower]&&(!type||CAT_TYPE[learnedMap[lower]]===type))return learnedMap[lower];
@@ -756,22 +774,8 @@ async function classify(desc,type){
     }
   }
   if(best)return best;
-  const geminiKey=await getSetting('geminiKey');
-  if(geminiKey)return classifyGemini(desc,geminiKey,type);
-  return null;
-}
-
-async function classifyGemini(desc,key,type){
-  try{
-    const cats=(type?CATS[type]:Object.values(CATS).flat()).map(c=>c.id).join(',');
-    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({contents:[{parts:[{text:`Classify this expense into one category. Reply with ONLY the category id.\nCategories: ${cats}\nExpense: "${desc}"`}]}],generationConfig:{maxOutputTokens:20}})
-    });
-    const d=await r.json();
-    const catId=d.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-    if(CAT_MAP.has(catId)&&(!type||CAT_TYPE[catId]===type))return catId;
-  }catch{}
+  const mccCat=classifyByMCC(desc);
+  if(mccCat&&(!type||CAT_TYPE[mccCat]===type))return mccCat;
   return null;
 }
 
@@ -1121,7 +1125,7 @@ async function loadPdfStatement(file){
     else if(bank==='halyk')parsed=parseHalykPdf(fullText);
     else if(bank==='freedom')parsed=parseFreedomPdf(fullText);
     if(!parsed.length)return toast('Не найдено операций в выписке');
-    stmtParsed=parsed;stmtBank=bank;
+    stmtParsed=parsed;stmtBank=bank;stmtRawText=fullText;
     document.getElementById('stmt-mapping').hidden=true;
     showPdfResults(bank,parsed);
   }catch(err){toast('Ошибка чтения PDF: '+err.message);console.error(err)}
@@ -1156,18 +1160,34 @@ function parseKaspiPdf(text){
 }
 
 function parseFortePdf(text){
+  // pdf.js's line extraction interleaves the wrapped "Детализация" column with the date/amount
+  // column: a merchant name that doesn't fit on one line appears split across the line BEFORE
+  // and the line AFTER the transaction's own date-line (e.g. "MCC: 5" ... date-line ... "812").
+  // Verified against a real 12-page, 303-transaction Forte statement.
   const results=[];
-  const lines=text.split('\n');
-  let pendingDesc='';
+  const lines=text.split('\n').map(l=>l.trim()).filter(l=>l);
+  const dateLineRe=/^(\d{2}\.\d{2}\.\d{4})\s+(-?[\d.]+)\s+KZT\s+(\S+(?:\s+счета|\s+бонусами)?)\s*(.*)$/;
+  let pendingPrefix='',lastResult=null;
   for(const line of lines){
-    const m=line.match(/(\d{2}\.\d{2}\.\d{4})\s+(-?[\d.]+)\s+KZT\s+(\S+(?:\s+счета|\s+бонусами)?)\s*(.*)/);
+    if(/Выписка|^Дата\s+Сумма|Валюта счета|Задолженность|Сервисные|Овердрафт|Детализация выписки/i.test(line)){
+      pendingPrefix='';lastResult=null;continue;
+    }
+    const m=line.match(dateLineRe);
     if(m){
       const dd=m[1].split('.'),date=`${dd[2]}-${dd[1]}-${dd[0]}`;
       const rawAmt=parseFloat(m[2]),amount=Math.abs(rawAmt);
-      const op=m[3],detail=(m[4]||'').trim();
+      const op=m[3],inlineDetail=(m[4]||'').trim();
       const type=rawAmt>0?'income':'expense';
-      if(/Пополнение/i.test(op)&&/собственных|своих/i.test(detail))continue;
-      results.push({date,amount,desc:detail||op,type,op});
+      let desc;
+      if(inlineDetail){desc=inlineDetail;pendingPrefix='';lastResult=null}
+      else{desc=(pendingPrefix||op).trim();pendingPrefix=''}
+      if(/Пополнение/i.test(op)&&/собственных|своих/i.test(desc)){lastResult=null;continue}
+      const result={date,amount,desc,type,op};
+      results.push(result);
+      lastResult=inlineDetail?null:result;
+    }else{
+      if(lastResult){lastResult.desc=(lastResult.desc+line).trim();lastResult=null}
+      else{pendingPrefix=(pendingPrefix?pendingPrefix+' ':'')+line}
     }
   }
   return results;
@@ -1211,11 +1231,49 @@ function missRow(idx,desc,amount,date){
   return`<div class="miss"><input type="checkbox" id="stmt-chk-${idx}" checked><label for="stmt-chk-${idx}">&#10060; ${desc} &mdash; ${fmtCur(amount)} <span style="font-size:11px;color:var(--text3)">${date}</span></label></div>`;
 }
 
-let stmtBank='',stmtMode='pdf',stmtMissed=[];
+let stmtBank='',stmtMode='pdf',stmtMissed=[],stmtRawText='',detectedBalance=null;
+
+// Balance lines observed in real Kaspi/Forte/Halyk/Freedom exports (see commit notes).
+function extractBalanceKaspiForte(text){
+  const m=text.match(/Доступно на \d{2}\.\d{2}\.\d{2,4}:\s*[+\-]?\s*([\d\s]+(?:[.,]\d+)?)\s*(?:₸|KZT)/);
+  return m?parseAmt(m[1]):null;
+}
+function extractBalanceHalyk(text){
+  const m=text.match(/Исходящийостаток:\s*([\d\s]+,\d{2})\s*KZT/);
+  return m?parseAmt(m[1]):null;
+}
+function extractBalanceFreedom(text){
+  const matches=[...text.matchAll(/\bKZT\s+([\d,]+\.\d{2})\s*₸/g)];
+  if(!matches.length)return null;
+  return matches.reduce((s,m)=>s+parseFloat(m[1].replace(/,/g,'')),0);
+}
+function extractStatementBalance(bank,text){
+  if(bank==='kaspi'||bank==='forte')return extractBalanceKaspiForte(text);
+  if(bank==='halyk')return extractBalanceHalyk(text);
+  if(bank==='freedom')return extractBalanceFreedom(text);
+  return null;
+}
+function renderBalanceBanner(bank,text){
+  const banner=document.getElementById('stmt-balance-banner');
+  const amount=extractStatementBalance(bank,text);
+  if(amount==null){banner.hidden=true;detectedBalance=null;return}
+  detectedBalance={bank,amount};
+  banner.hidden=false;
+  banner.innerHTML=`&#128179; Баланс ${BANK_NAMES[bank]} по выписке: <b>${fmtCur(amount)}</b> <button class="settings-btn" style="flex-shrink:0" onclick="applyDetectedBalance()">Обновить</button>`;
+}
+async function applyDetectedBalance(){
+  if(!detectedBalance)return;
+  await saveSetting('bal_'+detectedBalance.bank,detectedBalance.amount);
+  toast('Баланс обновлён');
+  document.getElementById('stmt-balance-banner').hidden=true;
+  detectedBalance=null;
+  renderBankBalances();
+}
 
 async function showPdfResults(bank,parsed){
   stmtMode='pdf';
   document.getElementById('stmt-results-card').hidden=false;
+  renderBalanceBanner(bank,stmtRawText);
   const txs=await getTxs();
   const txIndex=new Map();txs.forEach(t=>{const k=t.date.slice(5)+'|'+Math.round(t.amount);txIndex.set(k,(txIndex.get(k)||0)+1)});
   let matched=0,html='';
@@ -1361,7 +1419,6 @@ async function startApp(){
   document.getElementById('view-home').classList.add('active');
   document.getElementById('bottom-nav').hidden=false;
   const cur=await getSetting('currency');if(cur){currency=cur;document.getElementById('currency-sel').value=currency}
-  const gk=await getSetting('geminiKey');if(gk)document.getElementById('gemini-key').value=gk;
   const learned=await dbAll('learned');learned.forEach(l=>{learnedMap[l.keyword]=l.category});
   document.getElementById('smart-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();handleSmartInput()}});
   refreshDashboard();
