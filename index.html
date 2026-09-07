@@ -1138,12 +1138,16 @@ async function loadPdfStatement(file){
 }
 
 function detectBank(text){
-  if(/kaspi/i.test(text)||/Kaspi Gold/i.test(text))return'kaspi';
-  if(/фридом|freedom|bankffin/i.test(text))return'freedom';
-  if(/народный|halyk|hsbkkzkx/i.test(text))return'halyk';
-  if(/forte|форте/i.test(text))return'forte';
+  // Bare bank names ("kaspi", "halyk"...) are unsafe: they also show up as the ACQUIRING bank
+  // of a merchant's terminal inside another bank's own statement (e.g. "..., Kaspi Bank, MCC:
+  // 5812" is extremely common inside Forte/Halyk statements). Detect by each bank's own unique
+  // BIK/SWIFT code or IBAN prefix instead — those never appear as a mere merchant mention.
+  if(/CASPKZKA|kaspi\.kz|Kaspi Gold/i.test(text))return'kaspi';
+  if(/HSBKKZKX/i.test(text))return'halyk';
+  if(/KSNVKZKA|bankffin/i.test(text))return'freedom';
   if(/KZ\d{2}96503/i.test(text))return'forte';
   if(/KZ\d{2}551D/i.test(text))return'freedom';
+  if(/форте банк|forte bank/i.test(text))return'forte';
   return null;
 }
 const BANK_NAMES={kaspi:'Kaspi Bank',forte:'Forte Bank',halyk:'Halyk Bank',freedom:'Freedom Bank'};
