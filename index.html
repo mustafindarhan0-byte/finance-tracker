@@ -183,9 +183,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .stmt-upload:hover{border-color:var(--primary)}
 .stmt-upload input{display:none}
 .stmt-results .match{background:var(--green-light);border-radius:var(--radius-sm);padding:10px;margin-bottom:6px;font-size:13px}
-.stmt-results .miss{background:var(--red-light);border-radius:var(--radius-sm);padding:10px;margin-bottom:6px;font-size:13px;display:flex;align-items:center;gap:8px}
-.stmt-results .miss label{flex:1;cursor:pointer}
-.stmt-results .miss input[type=checkbox]{width:20px;height:20px;accent-color:var(--primary);flex-shrink:0;cursor:pointer}
+.stmt-results .miss,.stmt-results .miss-income{background:var(--red-light);border-radius:var(--radius-sm);padding:10px;margin-bottom:6px;font-size:13px;display:flex;align-items:center;gap:8px}
+.stmt-results .miss-income{background:var(--green-light)}
+.stmt-results .miss label,.stmt-results .miss-income label{flex:1;cursor:pointer}
+.stmt-results .miss input[type=checkbox],.stmt-results .miss-income input[type=checkbox]{width:20px;height:20px;accent-color:var(--primary);flex-shrink:0;cursor:pointer}
 .stmt-batch-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
 .stmt-batch-bar button{padding:8px 14px;border-radius:var(--radius-sm);border:none;font-size:13px;cursor:pointer}
 .stmt-batch-add{background:var(--primary);color:#fff}
@@ -1239,8 +1240,9 @@ function parseFreedomPdf(text){
   return parseFortePdf(text);
 }
 
-function missRow(idx,desc,amount,date){
-  return`<div class="miss"><input type="checkbox" id="stmt-chk-${idx}" checked><label for="stmt-chk-${idx}">&#10060; ${desc} &mdash; ${fmtCur(amount)} <span style="font-size:11px;color:var(--text3)">${date}</span></label></div>`;
+function missRow(idx,desc,amount,date,type){
+  const isIncome=type==='income';
+  return`<div class="${isIncome?'miss-income':'miss'}"><input type="checkbox" id="stmt-chk-${idx}" checked><label for="stmt-chk-${idx}">${isIncome?'&#10133;':'&#10060;'} ${desc} &mdash; ${isIncome?'+':'-'}${fmtCur(amount)} <span style="font-size:11px;color:var(--text3)">${date}</span></label></div>`;
 }
 
 let stmtBank='',stmtMode='pdf',stmtMissed=[],stmtRawText='',detectedBalance=null,stmtFileHash=null;
@@ -1301,21 +1303,21 @@ async function showPdfResults(bank,parsed){
   document.getElementById('stmt-results-card').hidden=false;
   renderBalanceBanner(bank,stmtRawText);
   const txs=await getTxs();
-  const txIndex=new Map();txs.forEach(t=>{const k=t.date.slice(5)+'|'+Math.round(t.amount);txIndex.set(k,(txIndex.get(k)||0)+1)});
+  const txIndex=new Map();txs.forEach(t=>{const k=t.type+'|'+t.date.slice(5)+'|'+Math.round(t.amount);txIndex.set(k,(txIndex.get(k)||0)+1)});
   let matched=0,html='';
   stmtMissed=[];
-  const expenses=parsed.filter(p=>p.type==='expense');
-  expenses.forEach(p=>{
-    const dateKey=p.date.slice(5);
-    const k=dateKey+'|'+Math.round(p.amount);
+  parsed.forEach(p=>{
+    const k=p.type+'|'+p.date.slice(5)+'|'+Math.round(p.amount);
     if(txIndex.has(k)&&txIndex.get(k)>0){matched++;txIndex.set(k,txIndex.get(k)-1);html+=`<div class="match">&#9989; ${p.desc} &mdash; ${fmtCur(p.amount)}</div>`}
-    else{const idx=stmtMissed.length;stmtMissed.push({desc:p.desc,amount:p.amount,date:p.date});html+=missRow(idx,p.desc,p.amount,p.date)}
+    else{const idx=stmtMissed.length;stmtMissed.push({desc:p.desc,amount:p.amount,date:p.date,type:p.type});html+=missRow(idx,p.desc,p.amount,p.date,p.type)}
   });
-  const missed=stmtMissed.length,totalMissed=stmtMissed.reduce((s,x)=>s+x.amount,0);
-  const incomeTotal=parsed.filter(p=>p.type==='income').reduce((s,p)=>s+p.amount,0);
-  document.getElementById('stmt-summary').innerHTML=`&#127974; <b>${BANK_NAMES[bank]}</b><br>&#128202; Расходов: <b>${expenses.length}</b>, совпадений: <b>${matched}</b>, пропущено: <b style="color:var(--red)">${missed}</b> (${fmtCur(totalMissed)})<br>&#128176; Доходов: <b>${parsed.filter(p=>p.type==='income').length}</b> (${fmtCur(incomeTotal)})`;
+  const expenses=parsed.filter(p=>p.type==='expense'),incomes=parsed.filter(p=>p.type==='income');
+  const missed=stmtMissed.length;
+  const missedExpense=stmtMissed.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);
+  const missedIncome=stmtMissed.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
+  document.getElementById('stmt-summary').innerHTML=`&#127974; <b>${BANK_NAMES[bank]}</b><br>&#128202; Расходов: <b>${expenses.length}</b>, доходов: <b>${incomes.length}</b>, совпадений: <b>${matched}</b><br>&#128683; Пропущено расходов: <b style="color:var(--red)">${fmtCur(missedExpense)}</b>, доходов: <b style="color:var(--green)">${fmtCur(missedIncome)}</b>`;
   document.getElementById('stmt-batch-bar').hidden=!missed;
-  document.getElementById('stmt-results').innerHTML=html||'<div class="empty-state">Все расходы уже записаны!</div>';
+  document.getElementById('stmt-results').innerHTML=html||'<div class="empty-state">Все операции уже записаны!</div>';
 }
 
 async function analyzeStatement(){
@@ -1323,24 +1325,25 @@ async function analyzeStatement(){
   const dateCol=document.getElementById('map-date').value,amtCol=document.getElementById('map-amount').value,descCol=document.getElementById('map-desc').value;
   const txs=await getTxs();
   document.getElementById('stmt-results-card').hidden=false;
-  const txIndex=new Map();txs.forEach(t=>{const k=t.date.slice(5)+'|'+Math.round(t.amount);txIndex.set(k,(txIndex.get(k)||0)+1)});
+  const txIndex=new Map();txs.forEach(t=>{const k=t.type+'|'+t.date.slice(5)+'|'+Math.round(t.amount);txIndex.set(k,(txIndex.get(k)||0)+1)});
   let matched=0,html='';
   stmtMissed=[];
   stmtData.forEach(row=>{
     const rawAmt=parseFloat((row[amtCol]||'0').replace(/[^\d.\-]/g,'')),amt=Math.abs(rawAmt);
     const desc=row[descCol]||'',date=row[dateCol]||'';if(amt===0)return;
+    const type=rawAmt>0?'income':'expense';
     let dateKey='';const dm=date.match(/(\d{2})[.\-\/](\d{2})/);if(dm)dateKey=dm[2]+'-'+dm[1];
-    const k=dateKey+'|'+Math.round(amt);
+    const k=type+'|'+dateKey+'|'+Math.round(amt);
     if(txIndex.has(k)&&txIndex.get(k)>0){matched++;txIndex.set(k,txIndex.get(k)-1);html+=`<div class="match">&#9989; ${desc} &mdash; ${fmtCur(amt)}</div>`}
     else{
       let iso=today();const m=date.match(/(\d{4})[.\-\/](\d{2})[.\-\/](\d{2})/);
       if(m)iso=`${m[1]}-${m[2]}-${m[3]}`;else{const m2=date.match(/(\d{2})[.\-\/](\d{2})[.\-\/](\d{4})/);if(m2)iso=`${m2[3]}-${m2[2]}-${m2[1]}`}
-      const idx=stmtMissed.length;stmtMissed.push({desc,amount:amt,date:iso});
-      html+=missRow(idx,desc,amt,date);
+      const idx=stmtMissed.length;stmtMissed.push({desc,amount:amt,date:iso,type});
+      html+=missRow(idx,desc,amt,date,type);
     }
   });
-  const missed=stmtMissed.length,totalMissed=stmtMissed.reduce((s,x)=>s+x.amount,0);
-  document.getElementById('stmt-summary').innerHTML=`&#128202; Совпадений: <b>${matched}</b>, пропущено: <b style="color:var(--red)">${missed}</b> на сумму <b>${fmtCur(totalMissed)}</b>`;
+  const missed=stmtMissed.length,totalMissed=stmtMissed.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0),totalMissedIncome=stmtMissed.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
+  document.getElementById('stmt-summary').innerHTML=`&#128202; Совпадений: <b>${matched}</b>, пропущено расходов: <b style="color:var(--red)">${fmtCur(totalMissed)}</b>, доходов: <b style="color:var(--green)">${fmtCur(totalMissedIncome)}</b>`;
   document.getElementById('stmt-batch-bar').hidden=!missed;
   document.getElementById('stmt-results').innerHTML=html||'<div class="empty-state">Нет данных</div>';
 }
@@ -1363,8 +1366,9 @@ async function addSelectedStmt(){
       const chunk=toAdd.slice(i,i+450);
       const batch=fsDb.batch();
       for(const item of chunk){
-        const catId=await classify(item.desc,'expense')||'other_exp';
-        const tx={id:uid(),type:'expense',amount:item.amount,category:catId,description:item.desc,date:item.date,createdAt:Date.now(),source:'statement'};
+        const type=item.type||'expense';
+        const catId=await classify(item.desc,type)||(type==='income'?'other_inc':'other_exp');
+        const tx={id:uid(),type,amount:item.amount,category:catId,description:item.desc,date:item.date,createdAt:Date.now(),source:'statement'};
         batch.set(spaceRef.collection('transactions').doc(docId('transactions',tx)),tx);
       }
       await batch.commit();
