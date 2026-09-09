@@ -317,6 +317,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <button class="period-tab" onclick="setStatsPeriod('year',this)">Год</button>
     <button class="period-tab" onclick="setStatsPeriod('all',this)">Все</button>
   </div>
+  <input type="month" id="stats-month-picker" class="settings-input" style="margin-bottom:16px" onchange="setStatsMonth(this.value)">
   <div class="stat-cards">
     <div class="stat-card"><div class="label">Ср. расход/день</div><div class="value" id="stat-avg">0</div></div>
     <div class="stat-card"><div class="label">Топ категория</div><div class="value" id="stat-top">-</div></div>
@@ -514,7 +515,7 @@ const KEYWORDS={
 const CUR_SYM={KZT:'₸',RUB:'₽',USD:'$',EUR:'€'};
 
 // ── State ──
-let currency='KZT',currentType='expense',currentPeriod='week',historyPeriod='week',statsPeriod='month';
+let currency='KZT',currentType='expense',currentPeriod='week',historyPeriod='week',statsPeriod='month',statsCustomMonth=null;
 let chartPie=null,chartBar=null;
 let txCache=null,txDirty=true;
 let learnedMap={};
@@ -978,10 +979,18 @@ async function deleteTx(id){if(!confirm('Удалить запись?'))return;a
 
 // ── Stats ──
 async function refreshStats(){
-  const txs=filterPeriod(await getTxs(),statsPeriod);
+  let txs,days;
+  if(statsPeriod==='custom'&&statsCustomMonth){
+    txs=(await getTxs()).filter(t=>t.date.startsWith(statsCustomMonth));
+    const[y,mo]=statsCustomMonth.split('-').map(Number);
+    const isCurrentMonth=statsCustomMonth===today().slice(0,7);
+    days=isCurrentMonth?Math.max(1,new Date().getDate()):new Date(y,mo,0).getDate();
+  }else{
+    txs=filterPeriod(await getTxs(),statsPeriod);
+    const{start}=dateRange(statsPeriod);
+    days=start?Math.max(1,Math.ceil((Date.now()-new Date(start+'T00:00:00'))/86400000)):Math.max(1,new Set(txs.filter(t=>t.type==='expense').map(t=>t.date)).size);
+  }
   const expenses=txs.filter(t=>t.type==='expense');
-  const{start}=dateRange(statsPeriod);
-  const days=start?Math.max(1,Math.ceil((Date.now()-new Date(start+'T00:00:00'))/86400000)):Math.max(1,new Set(expenses.map(t=>t.date)).size);
   const totalExp=expenses.reduce((s,t)=>s+t.amount,0);
   document.getElementById('stat-avg').textContent=fmtCur(Math.round(totalExp/days));
   const byCat={};expenses.forEach(t=>{byCat[t.category]=(byCat[t.category]||0)+t.amount});
@@ -1017,7 +1026,18 @@ function renderCharts(expenses,allTxs){
   if(chartBar){chartBar.data=barData;chartBar.options=barOpts;chartBar.update()}
   else chartBar=new Chart(document.getElementById('chart-bar'),{type:'bar',data:barData,options:barOpts});
 }
-function setStatsPeriod(p,btn){statsPeriod=p;btn.parentElement.querySelectorAll('.period-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');refreshStats()}
+function setStatsPeriod(p,btn){
+  statsPeriod=p;statsCustomMonth=null;
+  document.getElementById('stats-month-picker').value='';
+  btn.parentElement.querySelectorAll('.period-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  refreshStats();
+}
+function setStatsMonth(val){
+  if(!val)return;
+  statsPeriod='custom';statsCustomMonth=val;
+  document.querySelectorAll('#view-stats .period-tab').forEach(b=>b.classList.remove('active'));
+  refreshStats();
+}
 
 // ── Plans ──
 function switchSubTab(tab,btn){
