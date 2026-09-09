@@ -256,7 +256,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   </div>
   <div class="card" id="bank-balances-card" hidden>
     <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">Балансы по банкам <button class="settings-btn" onclick="toggleBankEdit()" style="font-size:12px;padding:4px 10px">Изменить</button></div>
-    <div class="balance-amount" id="bank-total" style="font-size:20px;margin-bottom:8px">0</div>
+    <div class="balance-amount" id="bank-total" style="font-size:20px;margin-bottom:2px">0</div>
+    <div id="bank-total-delta" style="font-size:12px;color:var(--text3);margin-bottom:8px"></div>
     <div class="bank-balances" id="bank-balances-list"></div>
     <div id="bank-edit-form" hidden style="margin-top:12px">
       <div class="bank-edit-row"><span style="width:80px;font-size:13px">Kaspi</span><input type="number" id="bal-kaspi" inputmode="decimal" placeholder="0"></div>
@@ -304,6 +305,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <button class="period-tab" onclick="setHistoryPeriod('month',this)">Месяц</button>
     <button class="period-tab" onclick="setHistoryPeriod('all',this)">Все</button>
   </div>
+  <div style="display:flex;gap:8px;margin-bottom:16px">
+    <select class="currency-select" id="history-bank-filter" style="flex:1" onchange="setHistoryBank(this.value)">
+      <option value="">Все банки</option>
+      <option value="kaspi">Kaspi Bank</option>
+      <option value="forte">Forte Bank</option>
+      <option value="halyk">Halyk Bank</option>
+      <option value="freedom">Freedom Bank</option>
+    </select>
+    <button class="settings-btn" onclick="exportHistoryFiltered()">Экспорт</button>
+  </div>
   <div id="history-list"></div>
 </div>
 </div>
@@ -325,6 +336,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div class="card"><div class="card-title">Расходы по категориям</div><div class="chart-container"><canvas id="chart-pie"></canvas></div></div>
   <div class="card"><div class="card-title">Динамика</div><div class="chart-container"><canvas id="chart-bar"></canvas></div></div>
   <div class="card"><div class="card-title">Все категории</div><div id="cat-breakdown"></div></div>
+  <div class="card" id="bank-breakdown-card" hidden><div class="card-title">Расходы по банкам</div><div id="bank-breakdown"></div></div>
 </div>
 </div>
 
@@ -515,7 +527,7 @@ const KEYWORDS={
 const CUR_SYM={KZT:'₸',RUB:'₽',USD:'$',EUR:'€'};
 
 // ── State ──
-let currency='KZT',currentType='expense',currentPeriod='week',historyPeriod='week',statsPeriod='month',statsCustomMonth=null;
+let currency='KZT',currentType='expense',currentPeriod='week',historyPeriod='week',historyBank='',statsPeriod='month',statsCustomMonth=null;
 let chartPie=null,chartBar=null;
 let txCache=null,txDirty=true;
 let learnedMap={};
@@ -959,8 +971,11 @@ async function checkBudget(tx){
 }
 
 // ── History ──
+function historyFilteredTxs(txs){
+  return historyBank?txs.filter(t=>t.bank===historyBank):txs;
+}
 async function refreshHistory(){
-  const txs=filterPeriod([...(await getTxs())],historyPeriod).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt);
+  const txs=historyFilteredTxs(filterPeriod([...(await getTxs())],historyPeriod)).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt);
   const list=document.getElementById('history-list');
   if(!txs.length){list.innerHTML='<div class="empty-state"><span class="emoji">&#128221;</span>Нет записей</div>';return}
   const groups={};txs.forEach(t=>{(groups[t.date]=groups[t.date]||[]).push(t)});
@@ -975,6 +990,15 @@ async function refreshHistory(){
   list.innerHTML=html;
 }
 function setHistoryPeriod(p,btn){historyPeriod=p;btn.parentElement.querySelectorAll('.period-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');refreshHistory()}
+function setHistoryBank(b){historyBank=b;refreshHistory()}
+async function exportHistoryFiltered(){
+  const txs=historyFilteredTxs(filterPeriod([...(await getTxs())],historyPeriod)).sort((a,b)=>b.date.localeCompare(a.date));
+  if(!txs.length)return toast('Нет данных для экспорта');
+  const data=JSON.stringify({transactions:txs,bank:historyBank||'все',period:historyPeriod,exportDate:new Date().toISOString()},null,2);
+  const blob=new Blob([data],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=`finance-${historyBank||'all'}-${today()}.json`;a.click();URL.revokeObjectURL(url);
+  toast(`Экспортировано: ${txs.length}`);
+}
 async function deleteTx(id){if(!confirm('Удалить запись?'))return;await dbDel('transactions',id);dirtyTx();refreshHistory();toast('Удалено')}
 
 // ── Stats ──
@@ -1001,6 +1025,17 @@ async function refreshStats(){
     const c=getCat(cat),pct=totalExp?Math.round(amt/totalExp*100):0;
     return`<div class="cat-list-item"><span style="font-size:20px">${c.emoji}</span><div class="cat-bar-wrap"><div style="font-size:13px;margin-bottom:4px">${c.name}</div><div class="cat-bar"><div class="cat-bar-fill" style="width:${amt/maxAmt*100}%"></div></div></div><div class="cat-amount">${fmtCur(amt)}</div><div class="cat-pct">${pct}%</div></div>`;
   }).join('')||'<div class="empty-state">Нет данных</div>';
+  const byBank={};expenses.forEach(t=>{const k=t.bank||null;if(k)byBank[k]=(byBank[k]||0)+t.amount});
+  const bankSorted=Object.entries(byBank).sort((a,b)=>b[1]-a[1]);
+  const bbCard=document.getElementById('bank-breakdown-card');
+  bbCard.hidden=!bankSorted.length;
+  if(bankSorted.length){
+    const maxBankAmt=bankSorted[0][1];
+    document.getElementById('bank-breakdown').innerHTML=bankSorted.map(([bank,amt])=>{
+      const pct=totalExp?Math.round(amt/totalExp*100):0;
+      return`<div class="cat-list-item"><span style="font-size:20px">&#127974;</span><div class="cat-bar-wrap"><div style="font-size:13px;margin-bottom:4px">${BANK_NAMES[bank]||bank}</div><div class="cat-bar"><div class="cat-bar-fill" style="width:${amt/maxBankAmt*100}%"></div></div></div><div class="cat-amount">${fmtCur(amt)}</div><div class="cat-pct">${pct}%</div></div>`;
+    }).join('');
+  }
   renderCharts(expenses,txs);
 }
 
@@ -1421,6 +1456,7 @@ async function addSelectedStmt(){
         const type=item.type||'expense';
         const catId=await classify(item.desc,type)||(type==='income'?'other_inc':'other_exp');
         const tx={id:uid(),type,amount:item.amount,category:catId,description:item.desc,date:item.date,createdAt:Date.now(),source:'statement'};
+        if(stmtMode==='pdf'&&stmtBank)tx.bank=stmtBank;
         batch.set(spaceRef.collection('transactions').doc(docId('transactions',tx)),tx);
       }
       await batch.commit();
@@ -1452,6 +1488,7 @@ async function saveSetting(key,value){
 
 // ── Bank balances ──
 const BANK_KEYS=['kaspi','freedom','halyk','forte'];
+const PERIOD_LABELS={week:'неделю',month:'месяц',year:'год'};
 async function renderBankBalances(){
   const vals={};let total=0,any=false;
   for(const k of BANK_KEYS){const v=parseFloat(await getSetting('bal_'+k))||0;vals[k]=v;if(v)any=true;total+=v}
@@ -1460,6 +1497,10 @@ async function renderBankBalances(){
   document.getElementById('bank-balances-list').innerHTML=any
     ?BANK_KEYS.filter(k=>vals[k]).map(k=>`<div class="bank-row"><span class="bank-name">${BANK_NAMES[k]}</span><span class="bank-amount">${fmtCur(vals[k])}</span></div>`).join('')
     :'<div class="empty-state" style="padding:8px 0">Нажмите «Изменить», чтобы указать баланс</div>';
+  const periodTxs=filterPeriod(await getTxs(),currentPeriod);
+  const net=periodTxs.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
+  const deltaEl=document.getElementById('bank-total-delta');
+  deltaEl.textContent=any&&net!==0?`${net>0?'+':''}${fmtCur(net)} за ${PERIOD_LABELS[currentPeriod]||currentPeriod}`:'';
 }
 async function toggleBankEdit(){
   const form=document.getElementById('bank-edit-form');
