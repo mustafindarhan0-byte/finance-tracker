@@ -662,7 +662,7 @@ async function joinExistingSpace(){
 }
 
 async function syncNow(){
-  dirtyTx();
+  dirtyTx();settingsCache=null;
   const active=document.querySelector('.nav-btn.active')?.dataset.view||'home';
   if(active==='home')await refreshDashboard();
   else if(active==='history')await refreshHistory();
@@ -769,9 +769,9 @@ function classifyByMCC(desc){
 const PERSON_NAME_RE=/^[\p{Lu}][\p{Ll}]+\s+[\p{Lu}]\.?$/u;
 
 async function classify(desc,type){
-  if(PERSON_NAME_RE.test(desc.trim()))return null;
   const lower=desc.toLowerCase();
   if(learnedMap[lower]&&(!type||CAT_TYPE[learnedMap[lower]]===type))return learnedMap[lower];
+  if(PERSON_NAME_RE.test(desc.trim()))return null;
   let best=null,bestLen=0;
   for(const[cat,words]of Object.entries(KEYWORDS)){
     if(type&&CAT_TYPE[cat]!==type)continue;
@@ -1090,7 +1090,8 @@ function loadStatement(e){
 }
 function loadCsvStatement(file){
   const reader=new FileReader();
-  reader.onload=ev=>{
+  reader.onload=async ev=>{
+    if(!(await confirmNotDuplicateStatement(ev.target.result)))return;
     const lines=ev.target.result.split(/\r?\n/).filter(l=>l.trim());
     if(lines.length<2)return toast('Файл пустой');
     const sep=lines[0].includes(';')?';':',';
@@ -1125,6 +1126,7 @@ async function loadPdfStatement(file){
     }
     const bank=detectBank(fullText);
     if(!bank)return toast('Не удалось определить банк');
+    if(!(await confirmNotDuplicateStatement(fullText)))return;
     let parsed=[];
     if(bank==='kaspi')parsed=parseKaspiPdf(fullText);
     else if(bank==='forte')parsed=parseFortePdf(fullText);
@@ -1241,7 +1243,21 @@ function missRow(idx,desc,amount,date){
   return`<div class="miss"><input type="checkbox" id="stmt-chk-${idx}" checked><label for="stmt-chk-${idx}">&#10060; ${desc} &mdash; ${fmtCur(amount)} <span style="font-size:11px;color:var(--text3)">${date}</span></label></div>`;
 }
 
-let stmtBank='',stmtMode='pdf',stmtMissed=[],stmtRawText='',detectedBalance=null;
+let stmtBank='',stmtMode='pdf',stmtMissed=[],stmtRawText='',detectedBalance=null,stmtFileHash=null;
+
+// Warn (not block) if this exact statement's content was already imported before — guards
+// against an accidental double-upload/double-tap duplicating transactions.
+async function confirmNotDuplicateStatement(content){
+  stmtFileHash=await sha256Hex(content);
+  try{
+    const doc=await spaceRef.collection('importedStatements').doc(stmtFileHash).get();
+    if(doc.exists){
+      const info=doc.data();
+      return confirm(`Похоже, эта выписка уже была загружена ${new Date(info.importedAt).toLocaleDateString('ru-RU')} (добавлено ${info.count}). Загрузить ещё раз?`);
+    }
+  }catch(e){}
+  return true;
+}
 
 // Balance lines observed in real Kaspi/Forte/Halyk/Freedom exports (see commit notes).
 function extractBalanceKaspiForte(text){
@@ -1335,9 +1351,12 @@ function toggleAllStmt(){
   boxes.forEach(b=>b.checked=!allChecked);
 }
 
+let isAddingStmt=false;
 async function addSelectedStmt(){
+  if(isAddingStmt)return;
   const toAdd=stmtMissed.filter((_,i)=>document.getElementById('stmt-chk-'+i)?.checked);
   if(!toAdd.length)return toast('Ничего не выбрано');
+  isAddingStmt=true;
   toast(`Добавляем ${toAdd.length}...`);
   try{
     for(let i=0;i<toAdd.length;i+=450){
@@ -1351,11 +1370,14 @@ async function addSelectedStmt(){
       await batch.commit();
     }
     dirtyTx();
+    if(stmtFileHash)await spaceRef.collection('importedStatements').doc(stmtFileHash).set({bank:stmtBank,importedAt:Date.now(),count:toAdd.length});
     toast(`Добавлено: ${toAdd.length}`);
     if(stmtMode==='pdf')showPdfResults(stmtBank,stmtParsed);else analyzeStatement();
   }catch(err){
     toast('Ошибка при добавлении: '+err.message);
     console.error(err);
+  }finally{
+    isAddingStmt=false;
   }
 }
 
@@ -1419,8 +1441,13 @@ async function importData(e){
 async function clearAll(){
   if(!confirm('Удалить ВСЕ данные? Это необратимо!'))return;
   if(!confirm('Точно уверены?'))return;
-  await Promise.all([dbClear('transactions'),dbClear('goals'),dbClear('budgets'),dbClear('templates'),dbClear('learned')]);
-  dirtyTx();learnedMap={};toast('Все данные удалены');refreshDashboard();
+  try{
+    await Promise.all([dbClear('transactions'),dbClear('goals'),dbClear('budgets'),dbClear('templates'),dbClear('learned'),dbClear('settings'),dbClear('importedStatements')]);
+    dirtyTx();learnedMap={};settingsCache=null;currency='KZT';
+    toast('Все данные удалены');refreshDashboard();
+  }catch(err){
+    toast('Не всё удалилось, попробуйте ещё раз: '+err.message);
+  }
 }
 
 // ── Init ──
