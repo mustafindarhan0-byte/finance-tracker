@@ -1232,9 +1232,14 @@ function parseHalykPdf(text){
       if(/Погашени|Комисси|задолженност|P2P|RegularCharge|Ежемесячная/i.test(desc)){last=null;continue}
       last={date,amount:Math.abs(amount),desc,type,op:desc};
       results.push(last);
-    }else if(last&&line.trim()&&!/^\d{2}\.\d{2}\.\d{4}/.test(line)&&!/Выписка|Дата|Сумма|Валюта|операции|Всего/i.test(line)){
+    }else if(last&&line.trim()&&!/^\d{2}\.\d{2}\.\d{4}/.test(line)&&!/Выписка|Дата|Сумма|Валюта|операции|Всего/i.test(line)
+        &&!/[\d\s]+,\d{2}\s*KZT/i.test(line)&&!/KZ\d{6,}|\d{6}\*+\d{4}/.test(line)
+        &&!/Погашени|Комисси|задолженност|P2P|Regular\s*Charge|Ежемесячная|обслуживани|карт-счет|карт\s*счет|проведения|обработки|Приход в|Расход в|валюте счета|карточки\/счета|Место печати/i.test(line)){
+      // pdf.js can merge several table rows onto one "line" when Halyk's row spacing is tight,
+      // so a genuine continuation (a merchant name wrapping) is short and has no amount/account
+      // fragments in it — anything with those is another row's data leaking through, not ours.
       const extra=line.trim().replace(/\(KZT\)/g,'').trim();
-      if(extra&&extra.length>1){
+      if(extra&&extra.length>1&&extra.length<40){
         last.desc=(last.desc+' '+extra).replace(/коммерсанта\s*/gi,'').trim();
       }
     }
