@@ -855,17 +855,23 @@ async function handleSmartInput(){
     await checkBudget(tx);
   }else{
     pendingInput=parsed;
-    showFallbackGrid(parsed);
+    await showFallbackGrid(parsed);
   }
 }
 
-function showFallbackGrid(parsed){
+async function showFallbackGrid(parsed){
   const fg=document.getElementById('fallback-grid');
   fg.classList.add('show');
   document.getElementById('fallback-info').innerHTML=`&#128269; Не удалось определить категорию для &laquo;${parsed.desc}&raquo; (${fmtCur(parsed.amount)}). Выберите вручную:`;
   const grid=document.getElementById('cat-grid');
   const cats=CATS[currentType];
-  grid.innerHTML=cats.map(c=>`<div class="cat-btn" onclick="selectFallbackCat('${c.id}',this)"><span class="emoji">${c.emoji}</span>${c.name}</div>`).join('');
+  let tiles=cats.map(c=>`<div class="cat-btn" onclick="selectFallbackCat('${c.id}',this)"><span class="emoji">${c.emoji}</span>${c.name}</div>`).join('');
+  if(currentType==='expense'){
+    const goals=await dbAll('goals');
+    registerGoalCategories(goals);
+    tiles+=goals.map(g=>`<div class="cat-btn" onclick="selectFallbackCat('goal_${g.id}',this)"><span class="emoji">&#127919;</span>${g.name}</div>`).join('');
+  }
+  grid.innerHTML=tiles;
 }
 
 let selectedFallbackCat=null;
@@ -879,6 +885,7 @@ async function saveFallback(){
   if(!pendingInput||!selectedFallbackCat)return toast('Выберите категорию');
   if(pendingInput.desc)await learnCategory(pendingInput.desc,selectedFallbackCat);
   const tx=await saveTx(pendingInput.desc,pendingInput.amount,selectedFallbackCat);
+  if(selectedFallbackCat.startsWith('goal_'))await contributeToGoal(selectedFallbackCat.slice(5),tx.amount);
   document.getElementById('smart-input').value='';
   document.getElementById('fallback-grid').classList.remove('show');
   selectedFallbackCat=null;pendingInput=null;
@@ -1056,8 +1063,23 @@ async function saveBudget(){
 }
 async function delBudget(key){if(!confirm('Удалить лимит?'))return;await dbDel('budgets',key);refreshBudgets();toast('Лимит удалён')}
 
+// Goals double as expense categories ("goal_<id>") so picking one in the fallback grid both
+// files the transaction and grows the goal — registered dynamically since goals are user-created.
+function registerGoalCategories(goals){
+  goals.forEach(g=>{
+    const id='goal_'+g.id;
+    CAT_MAP.set(id,{id,name:g.name,emoji:'&#127919;'});
+    CAT_TYPE[id]='expense';
+  });
+}
+async function contributeToGoal(id,amount){
+  const goals=await dbAll('goals');const g=goals.find(x=>x.id===id);if(!g)return;
+  g.currentAmount+=amount;await dbPut('goals',g);
+}
+
 async function refreshGoals(){
   const goals=await dbAll('goals');
+  registerGoalCategories(goals);
   const list=document.getElementById('goals-list');
   if(!goals.length){list.innerHTML='<div class="empty-state"><span class="emoji">&#127919;</span>Создайте первую цель!</div>';return}
   list.innerHTML=goals.sort((a,b)=>a.createdAt-b.createdAt).map(g=>{
@@ -1077,8 +1099,7 @@ async function addToGoal(id){
   const amount=prompt('Сколько добавить?');if(amount===null)return;
   const val=parseFloat(amount);
   if(isNaN(val)||val<=0)return toast('Введите положительное число');
-  const goals=await dbAll('goals');const g=goals.find(x=>x.id===id);if(!g)return;
-  g.currentAmount+=val;await dbPut('goals',g);refreshGoals();toast('Пополнено');
+  await contributeToGoal(id,val);refreshGoals();toast('Пополнено');
 }
 async function deleteGoal(id){if(!confirm('Удалить цель?'))return;await dbDel('goals',id);refreshGoals();toast('Цель удалена')}
 
@@ -1472,6 +1493,7 @@ async function startApp(){
   document.getElementById('bottom-nav').hidden=false;
   const cur=await getSetting('currency');if(cur){currency=cur;document.getElementById('currency-sel').value=currency}
   const learned=await dbAll('learned');learned.forEach(l=>{learnedMap[l.keyword]=l.category});
+  registerGoalCategories(await dbAll('goals'));
   document.getElementById('smart-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();handleSmartInput()}});
   refreshDashboard();
   if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
