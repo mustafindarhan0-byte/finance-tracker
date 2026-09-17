@@ -25,15 +25,15 @@
   --nav-h:64px;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:calc(var(--nav-h)+16px);-webkit-tap-highlight-color:transparent;overflow-x:hidden}
-.container{max-width:480px;margin:0 auto;padding:0 16px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:radial-gradient(ellipse 900px 500px at 50% -10%,#171b0c 0%,var(--bg) 60%) var(--bg);color:var(--text);min-height:100vh;padding-bottom:calc(var(--nav-h)+16px);-webkit-tap-highlight-color:transparent;overflow-x:hidden;position:relative}
+.container{max-width:480px;margin:0 auto;padding:0 16px;position:relative;z-index:1}
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;height:var(--nav-h);background:var(--bg2);border-top:1px solid var(--bg3);display:flex;justify-content:space-around;align-items:center;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
 .nav-btn{background:none;border:none;color:var(--text3);font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:6px 12px;border-radius:var(--radius-sm);transition:.2s}
 .nav-btn .icon{font-size:22px}
 .nav-btn.active{color:var(--primary)}
 .view{display:none;padding:16px 0;animation:fadeIn .2s}.view.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.card{background:var(--bg2);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
+.card{background:var(--bg2);border:1px solid rgba(198,255,0,.07);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
 .card-title{font-size:13px;color:var(--text2);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
 .header{display:flex;align-items:center;justify-content:space-between;padding:12px 0}
 .header h1{font-size:20px;font-weight:700}
@@ -45,17 +45,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .period-tab.active{background:var(--primary);color:var(--on-primary)}
 
 /* Dashboard */
-.balance-card{background:var(--primary);color:var(--on-primary);border-radius:var(--radius);padding:20px;margin-bottom:16px;text-align:center}
-.balance-label{font-size:13px;opacity:.85;margin-bottom:4px}
-.balance-amount{font-size:32px;font-weight:700}
+.balance-card{background:linear-gradient(160deg,#1a1d14 0%,var(--bg2) 55%);border:1px solid rgba(198,255,0,.18);color:var(--text);border-radius:var(--radius);padding:20px;margin-bottom:16px;text-align:center}
+.balance-label{font-size:13px;color:var(--text2);margin-bottom:4px}
+.balance-amount{font-size:34px;font-weight:700;color:var(--primary);text-shadow:0 0 24px rgba(198,255,0,.3)}
 .balance-row{display:flex;gap:12px;margin-top:16px}
-.balance-box{flex:1;background:rgba(0,0,0,.08);border-radius:var(--radius-sm);padding:10px;text-align:center}
-.balance-box .label{font-size:11px;opacity:.7}
+.balance-box{flex:1;background:rgba(255,255,255,.03);border:1px solid var(--bg3);border-radius:var(--radius-sm);padding:10px;text-align:center}
+.balance-box .label{font-size:11px;color:var(--text2)}
 .balance-box .amount{font-size:18px;font-weight:600;margin-top:2px}
-.balance-box.income .amount{color:#065f46}
-.balance-box.expense .amount{color:#7f1d1d}
+.balance-box.income .amount{color:var(--green)}
+.balance-box.expense .amount{color:var(--red)}
 .budget-ring-card{display:flex;align-items:center;gap:16px}
-.budget-ring{width:80px;height:80px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative}
+.budget-ring{width:80px;height:80px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative;filter:drop-shadow(0 0 10px rgba(198,255,0,.25))}
 .budget-ring::before{content:'';position:absolute;inset:8px;border-radius:50%;background:var(--bg2)}
 .budget-ring-pct{position:relative;font-size:17px;font-weight:700}
 .budget-ring-info{flex:1;font-size:14px;color:var(--text2)}
@@ -79,7 +79,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .smart-input{width:100%;padding:16px 50px 16px 16px;border:2px solid var(--bg3);border-radius:var(--radius);font-size:18px;background:var(--bg2);color:var(--text);outline:none;transition:.2s}
 .smart-input:focus{border-color:var(--primary)}
 .smart-input::placeholder{color:var(--text3)}
-.smart-send{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:none;border-radius:50%;background:var(--primary);color:var(--on-primary);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.smart-send{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:none;border-radius:50%;background:var(--primary);color:var(--on-primary);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(198,255,0,.3)}
 .smart-hint{font-size:12px;color:var(--text3);margin-top:6px;text-align:center}
 
 .templates-wrap{margin-bottom:16px}
@@ -99,7 +99,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .save-btn{width:100%;padding:14px;border:none;border-radius:var(--radius-sm);font-size:16px;font-weight:600;cursor:pointer;margin-top:12px;transition:.2s}
 .save-btn.expense{background:var(--red);color:#fff}
 .save-btn.income{background:var(--green);color:#fff}
-.save-btn.primary{background:var(--primary);color:var(--on-primary)}
+.save-btn.primary{background:var(--primary);color:var(--on-primary);box-shadow:0 4px 16px rgba(198,255,0,.25)}
 .save-btn.neutral{background:var(--bg3);color:var(--text)}
 .save-btn:active{transform:scale(.98)}
 
@@ -205,6 +205,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .setup-wrap p{color:var(--text2);margin-bottom:24px;font-size:14px}
 .setup-status{margin-top:16px;color:var(--text2);font-size:13px;min-height:18px}
 .code-display{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:16px;background:var(--bg3);padding:14px;border-radius:var(--radius-sm);word-break:break-all;text-align:center;margin-bottom:12px;user-select:all}
+
+/* Desktop/laptop: max effect tier — glass cards + glow, gated behind width so phones never pay for it */
+@media(min-width:768px){
+  body::before,body::after{content:'';position:fixed;border-radius:50%;filter:blur(90px);z-index:0;pointer-events:none}
+  body::before{width:520px;height:520px;background:rgba(198,255,0,.16);top:-12%;left:8%}
+  body::after{width:420px;height:420px;background:rgba(16,185,129,.12);bottom:-8%;right:8%}
+  .card,.balance-card,.budget-card,.goal-card,.stat-card,.bottom-nav,.modal{
+    background:rgba(22,24,21,.62);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  }
+  .balance-card{background:linear-gradient(160deg,rgba(26,29,20,.78) 0%,rgba(22,24,21,.5) 55%)}
+  .balance-amount{text-shadow:0 0 32px rgba(198,255,0,.45)}
+  .save-btn.primary,.smart-send,.stmt-batch-add{box-shadow:0 6px 24px rgba(198,255,0,.4)}
+  .budget-ring{filter:drop-shadow(0 0 16px rgba(198,255,0,.4))}
+}
 </style>
 </head>
 <body>
