@@ -14,9 +14,9 @@
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore-compat.js"></script>
 <style>
 :root{
-  --bg:#0a0a0a;--bg2:#161815;--bg3:#26281f;
-  --text:#f5f5f0;--text2:#9a9a92;--text3:#68685f;
-  --primary:#c6ff00;--primary-light:#1f2408;--on-primary:#0a0a0a;
+  --bg:#0a0a0f;--bg2:#161620;--bg3:#262436;
+  --text:#f5f5f7;--text2:#9a98a8;--text3:#68667a;
+  --primary:#7c6cf5;--primary-light:#211d3d;--on-primary:#f5f5f7;
   --green:#10b981;--green-light:#0d2818;
   --red:#ef4444;--red-light:#3a1113;
   --orange:#f59e0b;--orange-light:#3a2705;
@@ -25,7 +25,7 @@
   --nav-h:64px;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:radial-gradient(ellipse 900px 500px at 50% -10%,#171b0c 0%,var(--bg) 60%) var(--bg);color:var(--text);min-height:100vh;padding-bottom:calc(var(--nav-h)+16px);-webkit-tap-highlight-color:transparent;overflow-x:hidden;position:relative}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:radial-gradient(ellipse 900px 500px at 50% -10%,#1c1830 0%,var(--bg) 60%) var(--bg);color:var(--text);min-height:100vh;padding-bottom:calc(var(--nav-h)+16px);-webkit-tap-highlight-color:transparent;overflow-x:hidden;position:relative}
 .container{max-width:480px;margin:0 auto;padding:0 16px;position:relative;z-index:1}
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;height:var(--nav-h);background:var(--bg2);border-top:1px solid var(--bg3);display:flex;justify-content:space-around;align-items:center;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
 .nav-btn{background:none;border:none;color:var(--text3);font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:6px 12px;border-radius:var(--radius-sm);transition:.2s}
@@ -33,7 +33,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .nav-btn.active{color:var(--primary)}
 .view{display:none;padding:16px 0;animation:fadeIn .2s}.view.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.card{background:var(--bg2);border:1px solid rgba(198,255,0,.07);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
+.card{background:var(--bg2);border:1px solid rgba(124,108,245,.1);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
 .card-title{font-size:13px;color:var(--text2);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
 .header{display:flex;align-items:center;justify-content:space-between;padding:12px 0}
 .header h1{font-size:20px;font-weight:700}
@@ -45,9 +45,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .period-tab.active{background:var(--primary);color:var(--on-primary)}
 
 /* Dashboard */
-.balance-card{background:linear-gradient(160deg,#1a1d14 0%,var(--bg2) 55%);border:1px solid rgba(198,255,0,.18);color:var(--text);border-radius:var(--radius);padding:20px;margin-bottom:16px;text-align:center}
+.balance-card{background:linear-gradient(160deg,#211c3d 0%,var(--bg2) 55%);border:1px solid rgba(124,108,245,.18);color:var(--text);border-radius:var(--radius);padding:20px;margin-bottom:16px;text-align:center}
 .balance-label{font-size:13px;color:var(--text2);margin-bottom:4px}
-.balance-amount{font-size:34px;font-weight:700;color:var(--primary);text-shadow:0 0 24px rgba(198,255,0,.3)}
+.balance-amount{font-size:34px;font-weight:700;color:var(--primary);text-shadow:0 0 24px rgba(124,108,245,.3)}
 .balance-row{display:flex;gap:12px;margin-top:16px}
 .balance-box{flex:1;background:rgba(255,255,255,.03);border:1px solid var(--bg3);border-radius:var(--radius-sm);padding:10px;text-align:center}
 .balance-box .label{font-size:11px;color:var(--text2)}
@@ -55,13 +55,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .balance-box.income .amount{color:var(--green)}
 .balance-box.expense .amount{color:var(--red)}
 .budget-ring-card{display:flex;align-items:center;gap:16px}
-.budget-ring{width:80px;height:80px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative;filter:drop-shadow(0 0 10px rgba(198,255,0,.25))}
+.budget-ring{width:80px;height:80px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative;filter:drop-shadow(0 0 10px rgba(124,108,245,.25))}
 .budget-ring::before{content:'';position:absolute;inset:8px;border-radius:50%;background:var(--bg2)}
 .budget-ring-pct{position:relative;font-size:17px;font-weight:700}
 .budget-ring-info{flex:1;font-size:14px;color:var(--text2)}
 .recent-item{display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--bg3)}
 .recent-item:last-child{border:none}
-.recent-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;margin-right:12px;flex-shrink:0;border:1px solid var(--bg3)}
+.recent-icon{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;margin-right:12px;flex-shrink:0;border:1px solid rgba(255,255,255,.08);box-shadow:inset 0 1px 1px rgba(255,255,255,.08),0 2px 10px rgba(0,0,0,.35)}
 .recent-info{flex:1;min-width:0}
 .recent-desc{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .recent-cat{font-size:12px;color:var(--text2)}
@@ -79,7 +79,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .smart-input{width:100%;padding:16px 50px 16px 16px;border:2px solid var(--bg3);border-radius:var(--radius);font-size:18px;background:var(--bg2);color:var(--text);outline:none;transition:.2s}
 .smart-input:focus{border-color:var(--primary)}
 .smart-input::placeholder{color:var(--text3)}
-.smart-send{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:none;border-radius:50%;background:var(--primary);color:var(--on-primary);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(198,255,0,.3)}
+.smart-send{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:none;border-radius:50%;background:var(--primary);color:var(--on-primary);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(124,108,245,.3)}
 .smart-hint{font-size:12px;color:var(--text3);margin-top:6px;text-align:center}
 
 .templates-wrap{margin-bottom:16px}
@@ -99,7 +99,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .save-btn{width:100%;padding:14px;border:none;border-radius:var(--radius-sm);font-size:16px;font-weight:600;cursor:pointer;margin-top:12px;transition:.2s}
 .save-btn.expense{background:var(--red);color:#fff}
 .save-btn.income{background:var(--green);color:#fff}
-.save-btn.primary{background:var(--primary);color:var(--on-primary);box-shadow:0 4px 16px rgba(198,255,0,.25)}
+.save-btn.primary{background:var(--primary);color:var(--on-primary);box-shadow:0 4px 16px rgba(124,108,245,.25)}
 .save-btn.neutral{background:var(--bg3);color:var(--text)}
 .save-btn:active{transform:scale(.98)}
 
@@ -122,13 +122,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 /* Stats */
 #view-stats{position:relative}
 #view-stats::before,#view-stats::after{content:'';position:absolute;border-radius:50%;filter:blur(60px);z-index:0;pointer-events:none}
-#view-stats::before{width:240px;height:240px;background:rgba(198,255,0,.2);top:-30px;right:-70px}
-#view-stats::after{width:200px;height:200px;background:rgba(16,185,129,.16);top:420px;left:-70px}
+#view-stats::before{width:240px;height:240px;background:rgba(124,108,245,.2);top:-30px;right:-70px}
+#view-stats::after{width:200px;height:200px;background:rgba(59,130,246,.18);top:420px;left:-70px}
 .stat-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
-.stat-card{background:var(--bg2);border:1px solid rgba(198,255,0,.1);border-radius:var(--radius-sm);padding:12px;box-shadow:var(--shadow)}
+.stat-card{background:var(--bg2);border:1px solid rgba(124,108,245,.1);border-radius:var(--radius-sm);padding:12px;box-shadow:var(--shadow)}
 .stat-card .label{font-size:12px;color:var(--text2)}
-.stat-card .value{font-size:20px;font-weight:700;margin-top:2px;color:var(--primary);text-shadow:0 0 16px rgba(198,255,0,.3)}
-.chart-container{position:relative;height:250px;margin:16px 0;filter:drop-shadow(0 0 14px rgba(198,255,0,.15))}
+.stat-card .value{font-size:20px;font-weight:700;margin-top:2px;color:var(--primary);text-shadow:0 0 16px rgba(124,108,245,.3)}
+.chart-container{position:relative;height:250px;margin:16px 0;filter:drop-shadow(0 0 14px rgba(124,108,245,.15))}
 .cat-list-item{display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--bg3)}
 .cat-list-item:last-child{border:none}
 .cat-bar-wrap{flex:1;margin:0 12px}
@@ -213,15 +213,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 /* Desktop/laptop: max effect tier — glass cards + glow, gated behind width so phones never pay for it */
 @media(min-width:768px){
   body::before,body::after{content:'';position:fixed;border-radius:50%;filter:blur(90px);z-index:0;pointer-events:none}
-  body::before{width:520px;height:520px;background:rgba(198,255,0,.16);top:-12%;left:8%}
-  body::after{width:420px;height:420px;background:rgba(16,185,129,.12);bottom:-8%;right:8%}
+  body::before{width:520px;height:520px;background:rgba(124,108,245,.16);top:-12%;left:8%}
+  body::after{width:420px;height:420px;background:rgba(59,130,246,.14);bottom:-8%;right:8%}
   .card,.balance-card,.budget-card,.goal-card,.stat-card,.bottom-nav,.modal{
     background:rgba(22,24,21,.62);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
   }
   .balance-card{background:linear-gradient(160deg,rgba(26,29,20,.78) 0%,rgba(22,24,21,.5) 55%)}
-  .balance-amount{text-shadow:0 0 32px rgba(198,255,0,.45)}
-  .save-btn.primary,.smart-send,.stmt-batch-add{box-shadow:0 6px 24px rgba(198,255,0,.4)}
-  .budget-ring{filter:drop-shadow(0 0 16px rgba(198,255,0,.4))}
+  .balance-amount{text-shadow:0 0 32px rgba(124,108,245,.45)}
+  .save-btn.primary,.smart-send,.stmt-batch-add{box-shadow:0 6px 24px rgba(124,108,245,.4)}
+  .budget-ring{filter:drop-shadow(0 0 16px rgba(124,108,245,.4))}
 }
 </style>
 </head>
@@ -493,7 +493,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <nav class="bottom-nav" id="bottom-nav" hidden>
   <button class="nav-btn active" data-view="home" onclick="switchView('home',this)"><span class="icon">&#127968;</span>Главная</button>
   <button class="nav-btn" data-view="history" onclick="switchView('history',this)"><span class="icon">&#128203;</span>История</button>
-  <button class="nav-btn" data-view="add" onclick="switchView('add',this)" style="position:relative;top:-8px"><span class="icon" style="background:var(--primary);color:var(--on-primary);width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 2px 10px rgba(198,255,0,.35)">+</span></button>
+  <button class="nav-btn" data-view="add" onclick="switchView('add',this)" style="position:relative;top:-8px"><span class="icon" style="background:var(--primary);color:var(--on-primary);width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 2px 10px rgba(124,108,245,.35)">+</span></button>
   <button class="nav-btn" data-view="stats" onclick="switchView('stats',this)"><span class="icon">&#128200;</span>Стата</button>
   <button class="nav-btn" data-view="plans" onclick="switchView('plans',this)"><span class="icon">&#127919;</span>Планы</button>
 </nav>
@@ -1078,7 +1078,7 @@ function renderCharts(expenses,allTxs){
   const gc='rgba(255,255,255,.08)',tc='#9a9a92';
   const byCat={};expenses.forEach(t=>{byCat[t.category]=(byCat[t.category]||0)+t.amount});
   const sorted=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
-  const colors=['#c6ff00','#10b981','#f59e0b','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16','#06b6d4','#e11d48'];
+  const colors=['#7c6cf5','#10b981','#f59e0b','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16','#06b6d4','#e11d48'];
   const pieData={labels:sorted.map(([c])=>getCat(c).name),datasets:[{data:sorted.map(([,a])=>a),backgroundColor:colors.slice(0,sorted.length),borderWidth:0,borderRadius:6,spacing:3,hoverOffset:6}]};
   const pieOpts={responsive:true,maintainAspectRatio:false,cutout:'74%',plugins:{legend:{position:'bottom',labels:{color:tc,padding:8,font:{size:11},usePointStyle:true,pointStyle:'circle'}}}};
   if(chartPie){chartPie.data=pieData;chartPie.options=pieOpts;chartPie.update()}
@@ -1089,13 +1089,13 @@ function renderCharts(expenses,allTxs){
   const allDates=[...new Set([...Object.keys(byDay),...Object.keys(incByDay)])].sort().slice(-14);
   const barCtx=document.getElementById('chart-bar').getContext('2d');
   const expGrad=barCtx.createLinearGradient(0,0,0,220);
-  expGrad.addColorStop(0,'rgba(198,255,0,.35)');expGrad.addColorStop(1,'rgba(198,255,0,0)');
+  expGrad.addColorStop(0,'rgba(124,108,245,.35)');expGrad.addColorStop(1,'rgba(124,108,245,0)');
   const incGrad=barCtx.createLinearGradient(0,0,0,220);
   incGrad.addColorStop(0,'rgba(16,185,129,.3)');incGrad.addColorStop(1,'rgba(16,185,129,0)');
   const barData={
     labels:allDates.map(d=>new Date(d+'T00:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'short'})),
     datasets:[
-      {label:'Расходы',data:allDates.map(d=>byDay[d]||0),borderColor:'#c6ff00',backgroundColor:expGrad,fill:true,tension:.4,pointRadius:0,pointHoverRadius:5,pointHoverBackgroundColor:'#c6ff00',borderWidth:2.5},
+      {label:'Расходы',data:allDates.map(d=>byDay[d]||0),borderColor:'#7c6cf5',backgroundColor:expGrad,fill:true,tension:.4,pointRadius:0,pointHoverRadius:5,pointHoverBackgroundColor:'#7c6cf5',borderWidth:2.5},
       {label:'Доходы',data:allDates.map(d=>incByDay[d]||0),borderColor:'#10b981',backgroundColor:incGrad,fill:true,tension:.4,pointRadius:0,pointHoverRadius:5,pointHoverBackgroundColor:'#10b981',borderWidth:2.5}
     ]
   };
