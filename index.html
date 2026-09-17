@@ -120,11 +120,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .del-btn:hover{color:var(--red)}
 
 /* Stats */
+#view-stats{position:relative}
+#view-stats::before,#view-stats::after{content:'';position:absolute;border-radius:50%;filter:blur(60px);z-index:0;pointer-events:none}
+#view-stats::before{width:240px;height:240px;background:rgba(198,255,0,.2);top:-30px;right:-70px}
+#view-stats::after{width:200px;height:200px;background:rgba(16,185,129,.16);top:420px;left:-70px}
 .stat-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
-.stat-card{background:var(--bg2);border-radius:var(--radius-sm);padding:12px;box-shadow:var(--shadow)}
+.stat-card{background:var(--bg2);border:1px solid rgba(198,255,0,.1);border-radius:var(--radius-sm);padding:12px;box-shadow:var(--shadow)}
 .stat-card .label{font-size:12px;color:var(--text2)}
-.stat-card .value{font-size:20px;font-weight:700;margin-top:2px}
-.chart-container{position:relative;height:250px;margin:16px 0}
+.stat-card .value{font-size:20px;font-weight:700;margin-top:2px;color:var(--primary);text-shadow:0 0 16px rgba(198,255,0,.3)}
+.chart-container{position:relative;height:250px;margin:16px 0;filter:drop-shadow(0 0 14px rgba(198,255,0,.15))}
 .cat-list-item{display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--bg3)}
 .cat-list-item:last-child{border:none}
 .cat-bar-wrap{flex:1;margin:0 12px}
@@ -1054,26 +1058,50 @@ async function refreshStats(){
   renderCharts(expenses,txs);
 }
 
+const centerTextPlugin={
+  id:'centerText',
+  afterDraw(chart){
+    if(chart.config.type!=='doughnut')return;
+    const{ctx,chartArea:{left,right,top,bottom}}=chart;
+    const total=chart.data.datasets[0].data.reduce((s,v)=>s+v,0);
+    const cx=(left+right)/2,cy=(top+bottom)/2;
+    ctx.save();
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillStyle='#9a9a92';ctx.font='11px -apple-system,sans-serif';
+    ctx.fillText('ВСЕГО',cx,cy-12);
+    ctx.fillStyle='#f5f5f0';ctx.font='700 20px -apple-system,sans-serif';
+    ctx.fillText(fmtCur(total),cx,cy+10);
+    ctx.restore();
+  }
+};
 function renderCharts(expenses,allTxs){
-  const gc='rgba(255,255,255,.1)',tc='#9a9a92';
+  const gc='rgba(255,255,255,.08)',tc='#9a9a92';
   const byCat={};expenses.forEach(t=>{byCat[t.category]=(byCat[t.category]||0)+t.amount});
   const sorted=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
-  const colors=['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16','#06b6d4','#e11d48'];
-  const pieData={labels:sorted.map(([c])=>getCat(c).name),datasets:[{data:sorted.map(([,a])=>a),backgroundColor:colors.slice(0,sorted.length),borderWidth:0}]};
-  const pieOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:tc,padding:8,font:{size:11}}}}};
+  const colors=['#c6ff00','#10b981','#f59e0b','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16','#06b6d4','#e11d48'];
+  const pieData={labels:sorted.map(([c])=>getCat(c).name),datasets:[{data:sorted.map(([,a])=>a),backgroundColor:colors.slice(0,sorted.length),borderWidth:0,borderRadius:6,spacing:3,hoverOffset:6}]};
+  const pieOpts={responsive:true,maintainAspectRatio:false,cutout:'74%',plugins:{legend:{position:'bottom',labels:{color:tc,padding:8,font:{size:11},usePointStyle:true,pointStyle:'circle'}}}};
   if(chartPie){chartPie.data=pieData;chartPie.options=pieOpts;chartPie.update()}
-  else chartPie=new Chart(document.getElementById('chart-pie'),{type:'doughnut',data:pieData,options:pieOpts});
+  else chartPie=new Chart(document.getElementById('chart-pie'),{type:'doughnut',data:pieData,options:pieOpts,plugins:[centerTextPlugin]});
 
   const byDay={},incByDay={};
   allTxs.forEach(t=>{if(t.type==='expense')byDay[t.date]=(byDay[t.date]||0)+t.amount;else incByDay[t.date]=(incByDay[t.date]||0)+t.amount});
   const allDates=[...new Set([...Object.keys(byDay),...Object.keys(incByDay)])].sort().slice(-14);
+  const barCtx=document.getElementById('chart-bar').getContext('2d');
+  const expGrad=barCtx.createLinearGradient(0,0,0,220);
+  expGrad.addColorStop(0,'rgba(198,255,0,.35)');expGrad.addColorStop(1,'rgba(198,255,0,0)');
+  const incGrad=barCtx.createLinearGradient(0,0,0,220);
+  incGrad.addColorStop(0,'rgba(16,185,129,.3)');incGrad.addColorStop(1,'rgba(16,185,129,0)');
   const barData={
     labels:allDates.map(d=>new Date(d+'T00:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'short'})),
-    datasets:[{label:'Расходы',data:allDates.map(d=>byDay[d]||0),backgroundColor:'rgba(239,68,68,.7)',borderRadius:4},{label:'Доходы',data:allDates.map(d=>incByDay[d]||0),backgroundColor:'rgba(16,185,129,.7)',borderRadius:4}]
+    datasets:[
+      {label:'Расходы',data:allDates.map(d=>byDay[d]||0),borderColor:'#c6ff00',backgroundColor:expGrad,fill:true,tension:.4,pointRadius:0,pointHoverRadius:5,pointHoverBackgroundColor:'#c6ff00',borderWidth:2.5},
+      {label:'Доходы',data:allDates.map(d=>incByDay[d]||0),borderColor:'#10b981',backgroundColor:incGrad,fill:true,tension:.4,pointRadius:0,pointHoverRadius:5,pointHoverBackgroundColor:'#10b981',borderWidth:2.5}
+    ]
   };
-  const barOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:tc}}},scales:{x:{ticks:{color:tc,font:{size:10}},grid:{display:false}},y:{ticks:{color:tc},grid:{color:gc}}}};
+  const barOpts={responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{labels:{color:tc,usePointStyle:true,pointStyle:'circle'}}},scales:{x:{ticks:{color:tc,font:{size:10}},grid:{display:false}},y:{ticks:{color:tc},grid:{color:gc}}}};
   if(chartBar){chartBar.data=barData;chartBar.options=barOpts;chartBar.update()}
-  else chartBar=new Chart(document.getElementById('chart-bar'),{type:'bar',data:barData,options:barOpts});
+  else chartBar=new Chart(document.getElementById('chart-bar'),{type:'line',data:barData,options:barOpts});
 }
 function setStatsPeriod(p,btn){
   statsPeriod=p;statsCustomMonth=null;
