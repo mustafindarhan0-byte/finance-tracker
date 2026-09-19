@@ -162,6 +162,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 @keyframes blobFloat1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(12%,9%) scale(1.15)}}
 @keyframes blobFloat2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-13%,-7%) scale(1.1)}}
 @keyframes blobFloat3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-9%,11%) scale(1.2)}}
+.sphere-legend{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:20px}
+.sphere-legend-item{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:var(--bg3);font-size:12px;color:var(--text2);cursor:pointer;transition:.15s;user-select:none}
+.sphere-legend-item:hover,.sphere-legend-item.active{background:var(--primary-light);color:var(--text)}
+.sphere-legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .cat-list-item{display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--bg3)}
 .cat-list-item:last-child{border:none}
 .cat-list-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -430,10 +434,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         <div class="sphere-shine"></div>
       </div>
       <div class="sphere-center">
-        <div class="sphere-label">ВСЕГО</div>
+        <div class="sphere-label" id="sphere-label">ВСЕГО</div>
         <div class="sphere-total" id="sphere-total">0</div>
       </div>
     </div>
+    <div class="sphere-legend" id="sphere-legend"></div>
   </div>
   <div class="card"><div class="card-title">Динамика</div><div class="chart-container"><canvas id="chart-bar"></canvas></div></div>
   <div class="card"><div class="card-title">Все категории</div><div id="cat-breakdown"></div></div>
@@ -698,6 +703,7 @@ const CUR_SYM={KZT:'₸',RUB:'₽',USD:'$',EUR:'€'};
 let currency='KZT',currentType='expense',currentPeriod='week',historyPeriod='week',historyBank='',historySearch='',statsPeriod='month',statsCustomMonth=null;
 let historyCalMonth=new Date().toISOString().slice(0,7),historySelectedDay=null;
 let chartBar=null;
+let sphereTotalStr='0';
 let txCache=null,txDirty=true;
 let learnedMap={};
 let pendingInput=null;
@@ -1243,10 +1249,16 @@ async function refreshStats(){
   const expenses=txs.filter(t=>t.type==='expense');
   const totalExp=expenses.reduce((s,t)=>s+t.amount,0);
   document.getElementById('stat-avg').textContent=fmtCur(Math.round(totalExp/days));
-  document.getElementById('sphere-total').textContent=fmtCur(totalExp);
+  sphereTotalStr=fmtCur(totalExp);
+  document.getElementById('sphere-label').textContent='ВСЕГО';
+  document.getElementById('sphere-total').textContent=sphereTotalStr;
   const byCat={};expenses.forEach(t=>{byCat[t.category]=(byCat[t.category]||0)+t.amount});
   const sorted=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
   document.getElementById('stat-top').innerHTML=sorted.length?icoInline(getCat(sorted[0][0]).icon,16)+getCat(sorted[0][0]).name:'-';
+  document.getElementById('sphere-legend').innerHTML=sorted.map(([cat,amt],i)=>{
+    const c=getCat(cat),col=statsColor(i,sorted.length);
+    return`<div class="sphere-legend-item" data-name="${c.name}" data-amt="${fmtCur(amt)}" onmouseenter="sphereShow(this)" onmouseleave="sphereReset()" onclick="sphereToggle(this)"><span class="sphere-legend-dot" style="background:${col}"></span>${c.name}</div>`;
+  }).join('');
   const bd=document.getElementById('cat-breakdown'),maxAmt=sorted.length?sorted[0][1]:1;
   bd.innerHTML=sorted.map(([cat,amt],i)=>{
     const c=getCat(cat),pct=totalExp?Math.round(amt/totalExp*100):0,col=statsColor(i,sorted.length),colBg=statsColor(i,sorted.length,.18);
@@ -1264,6 +1276,21 @@ async function refreshStats(){
     }).join('');
   }
   renderCharts(txs);
+}
+function sphereShow(el){
+  document.getElementById('sphere-label').textContent=el.dataset.name;
+  document.getElementById('sphere-total').textContent=el.dataset.amt;
+}
+function sphereReset(){
+  if(document.querySelector('.sphere-legend-item.active'))return;
+  document.getElementById('sphere-label').textContent='ВСЕГО';
+  document.getElementById('sphere-total').textContent=sphereTotalStr;
+}
+function sphereToggle(el){
+  const wasActive=el.classList.contains('active');
+  document.querySelectorAll('.sphere-legend-item.active').forEach(x=>x.classList.remove('active'));
+  if(!wasActive){el.classList.add('active');sphereShow(el)}
+  else sphereReset();
 }
 
 const TOOLTIP_STYLE={backgroundColor:'#1c1a2e',titleColor:'#f5f5f7',bodyColor:'#f5f5f7',borderColor:'rgba(139,108,240,.4)',borderWidth:1,padding:10,cornerRadius:10,displayColors:true,boxPadding:4,titleFont:{weight:'600'}};
