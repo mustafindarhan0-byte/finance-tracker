@@ -30,7 +30,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .container{max-width:480px;margin:0 auto;padding:0 16px;position:relative;z-index:1}
 .bottom-nav{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));left:16px;right:16px;max-width:448px;margin:0 auto;height:var(--nav-h);background:rgba(22,22,32,.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(139,108,240,.15);border-radius:999px;display:flex;justify-content:space-around;align-items:center;z-index:100;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 .nav-btn{background:none;border:none;color:var(--text3);font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:6px 12px;border-radius:var(--radius-sm);transition:.2s}
-.nav-btn .icon{font-size:22px}
+.nav-btn .icon{display:flex;align-items:center;justify-content:center}
 .nav-btn.active{color:var(--primary)}
 .view{display:none;padding:16px 0;animation:fadeIn .2s}.view.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -38,9 +38,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .card-title{font-size:13px;color:var(--text2);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
 .header{display:flex;align-items:center;justify-content:space-between;padding:12px 0}
 .header h1{font-size:20px;font-weight:700}
-.header-btn{background:none;border:none;font-size:20px;cursor:pointer;padding:4px;color:var(--text2)}
+.header-btn{background:none;border:none;cursor:pointer;padding:4px;color:var(--text2);display:inline-flex;align-items:center}
 .empty-state{text-align:center;padding:40px 0;color:var(--text3)}
-.empty-state .emoji{font-size:48px;margin-bottom:12px;display:block}
+.empty-state .icon-wrap{margin-bottom:12px;display:flex;justify-content:center;color:var(--text3)}
 .period-tabs{display:flex;gap:6px;margin-bottom:16px}
 .period-tab{flex:1;padding:8px;border:none;border-radius:999px;background:var(--bg3);color:var(--text2);font-size:13px;cursor:pointer;font-weight:500;transition:.2s}
 .period-tab.active{background:var(--gradient);color:#fff;box-shadow:0 2px 10px rgba(124,108,245,.35)}
@@ -63,7 +63,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .budget-ring-info{flex:1;font-size:14px;color:var(--text2)}
 .recent-item{display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--bg3)}
 .recent-item:last-child{border:none}
-.recent-icon{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;margin-right:12px;flex-shrink:0;border:1px solid rgba(255,255,255,.08);box-shadow:inset 0 1px 1px rgba(255,255,255,.08),0 2px 10px rgba(0,0,0,.35)}
+.recent-icon{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-right:12px;flex-shrink:0;border:1px solid rgba(255,255,255,.08);box-shadow:inset 0 1px 1px rgba(255,255,255,.08),0 2px 10px rgba(0,0,0,.35)}
 .recent-icon.avatar{font-size:15px;font-weight:700;color:#fff;font-family:-apple-system,sans-serif}
 .recent-info{flex:1;min-width:0}
 .recent-desc{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -82,7 +82,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .smart-input{width:100%;padding:16px 50px 16px 16px;border:2px solid var(--bg3);border-radius:var(--radius);font-size:18px;background:var(--bg2);color:var(--text);outline:none;transition:.2s}
 .smart-input:focus{border-color:var(--primary)}
 .smart-input::placeholder{color:var(--text3)}
-.smart-send{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:none;border-radius:50%;background:var(--gradient);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 14px rgba(139,108,240,.4)}
+.smart-send{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:none;border-radius:50%;background:var(--gradient);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 14px rgba(139,108,240,.4)}
 .smart-hint{font-size:12px;color:var(--text3);margin-top:6px;text-align:center}
 
 .templates-wrap{margin-bottom:16px}
@@ -94,8 +94,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 .cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
 .cat-btn{background:var(--bg3);border:2px solid transparent;border-radius:var(--radius-sm);padding:10px 4px;text-align:center;cursor:pointer;transition:.2s;font-size:12px;color:var(--text2)}
-.cat-btn .emoji{font-size:22px;display:block;margin-bottom:2px}
+.cat-btn .icon-wrap{display:flex;justify-content:center;margin-bottom:4px;color:var(--text2)}
 .cat-btn.selected{border-color:var(--primary);background:var(--primary-light);color:var(--primary)}
+.cat-btn.selected .icon-wrap{color:var(--primary)}
 .fallback-grid{display:none;animation:fadeIn .2s}
 .fallback-grid.show{display:block}
 .fallback-info{text-align:center;font-size:13px;color:var(--text2);margin-bottom:12px;padding:8px;background:var(--orange-light);border-radius:var(--radius-sm)}
@@ -119,8 +120,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 /* History */
 .date-group{font-size:13px;font-weight:600;color:var(--text2);padding:8px 0;margin-top:8px}
-.del-btn{background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:4px 8px;margin-left:8px}
+.del-btn{background:none;border:none;color:var(--text3);cursor:pointer;padding:4px 8px;margin-left:8px;display:inline-flex;align-items:center}
 .del-btn:hover{color:var(--red)}
+.calendar-wrap{background:var(--bg2);border:1px solid rgba(124,108,245,.1);border-radius:var(--radius);padding:14px;margin-bottom:16px;box-shadow:var(--shadow)}
+.calendar-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.calendar-nav-btn{background:var(--bg3);border:none;color:var(--text2);width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.calendar-month-label{font-weight:600;font-size:14px;text-transform:capitalize}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.calendar-weekday{text-align:center;font-size:11px;color:var(--text3);padding:4px 0}
+.calendar-day{position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:13px;cursor:pointer;color:var(--text2);transition:.15s}
+.calendar-day.muted{visibility:hidden;cursor:default}
+.calendar-day.today{box-shadow:inset 0 0 0 1.5px var(--primary)}
+.calendar-day.has-tx::after{content:'';position:absolute;bottom:3px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--primary)}
+.calendar-day.selected{background:var(--gradient);color:#fff;font-weight:700;box-shadow:none}
+.calendar-day.selected::after{background:#fff}
 
 /* Stats */
 #view-stats{position:relative}
@@ -132,8 +145,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .stat-card .label{font-size:12px;color:var(--text2)}
 .stat-card .value{font-size:20px;font-weight:700;margin-top:2px;color:var(--primary);text-shadow:0 0 16px rgba(124,108,245,.3)}
 .chart-container{position:relative;height:250px;margin:16px 0;filter:drop-shadow(0 0 14px rgba(124,108,245,.15))}
+.chart-container.bubble::before{content:'';position:absolute;inset:12%;border-radius:50%;background:radial-gradient(circle at 32% 26%,rgba(255,255,255,.28),rgba(255,255,255,0) 40%),radial-gradient(circle at 50% 55%,rgba(139,108,240,.4),rgba(139,108,240,0) 72%);pointer-events:none;z-index:0}
+.chart-container.bubble canvas{position:relative;z-index:1}
 .cat-list-item{display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--bg3)}
 .cat-list-item:last-child{border:none}
+.cat-list-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .cat-bar-wrap{flex:1;margin:0 12px}
 .cat-bar{height:6px;border-radius:3px;background:var(--bg3)}
 .cat-bar-fill{height:100%;border-radius:3px;background:var(--primary);transition:.3s}
@@ -146,26 +162,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .sub-tab.active{background:var(--gradient);color:#fff;box-shadow:0 2px 10px rgba(124,108,245,.35)}
 .sub-view{display:none}.sub-view.active{display:block}
 
-.budget-card{background:var(--bg2);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
-.budget-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-.budget-name{font-weight:600;font-size:15px}
+.budget-card{background:var(--bg2);border:1px solid rgba(124,108,245,.1);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow);display:flex;align-items:center;gap:14px}
+.budget-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.budget-name{font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px}
 .budget-limit{font-size:13px;color:var(--text2)}
-.budget-bar{height:10px;background:var(--bg3);border-radius:5px;overflow:hidden;margin-bottom:6px}
-.budget-bar-fill{height:100%;border-radius:5px;transition:.5s}
-.budget-amounts{display:flex;justify-content:space-between;font-size:12px;color:var(--text2)}
+.budget-info{flex:1;min-width:0}
+.budget-amounts{display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-top:2px}
 .budget-pct{font-weight:600}
+.plan-ring{width:60px;height:60px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative;filter:drop-shadow(0 0 10px rgba(124,108,245,.25))}
+.plan-ring::before{content:'';position:absolute;inset:6px;border-radius:50%;background:var(--bg2)}
+.plan-ring-inner{position:relative;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center}
 
-.goal-card{background:var(--bg2);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
-.goal-name{font-weight:600;font-size:16px;margin-bottom:4px}
-.goal-dates{font-size:12px;color:var(--text2);margin-bottom:10px}
-.goal-progress{height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;margin-bottom:8px}
-.goal-progress-fill{height:100%;border-radius:4px;transition:.5s}
+.goal-card{background:var(--bg2);border:1px solid rgba(124,108,245,.1);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow);display:flex;align-items:center;gap:14px}
+.goal-info{flex:1;min-width:0}
+.goal-name{font-weight:600;font-size:16px;margin-bottom:2px;display:flex;align-items:center;gap:8px}
+.goal-dates{font-size:12px;color:var(--text2);margin-bottom:6px;display:flex;align-items:center;gap:5px}
 .goal-amounts{display:flex;justify-content:space-between;font-size:13px;color:var(--text2)}
 .goal-pct{font-weight:600;color:var(--primary)}
+.goal-badge{display:inline-flex;align-items:center;gap:4px;background:var(--green-light);color:var(--green);font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px}
 .goal-actions{display:flex;gap:8px;margin-top:10px}
-.goal-action-btn{flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:500}
+.goal-action-btn{flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px}
 .goal-add-btn{background:var(--green-light);color:var(--green)}
 .goal-del-btn{background:var(--red-light);color:var(--red)}
+.plan-ring.goal{width:64px;height:64px}
 .add-form{display:none}.add-form.show{display:block}
 .add-form input,.add-form select{width:100%;padding:10px;border:2px solid var(--bg3);border-radius:var(--radius-sm);font-size:14px;background:var(--bg);color:var(--text);outline:none;margin-bottom:8px}
 
@@ -178,7 +197,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .settings-input{padding:8px 12px;border:2px solid var(--bg3);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px;outline:none;width:100%;margin-top:6px}
 .currency-select{padding:8px 12px;border:2px solid var(--bg3);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px;outline:none}
 .search-wrap{position:relative;margin-bottom:12px}
-.search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:14px;opacity:.5}
+.search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%) translateY(-1px);display:flex;color:var(--text3)}
 .search-input{width:100%;padding:12px 14px 12px 38px;border:1px solid var(--bg3);border-radius:999px;background:var(--bg2);color:var(--text);font-size:14px;outline:none;transition:.2s}
 .search-input:focus{border-color:var(--primary)}
 .search-input::placeholder{color:var(--text3)}
@@ -196,14 +215,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .stmt-batch-bar button{padding:8px 14px;border-radius:var(--radius-sm);border:none;font-size:13px;cursor:pointer}
 .stmt-batch-add{background:var(--primary);color:var(--on-primary)}
 .stmt-batch-toggle{background:var(--bg3);color:var(--text2)}
-.bank-cards-scroll{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding:2px 2px 6px;margin:0 -2px;-webkit-overflow-scrolling:touch}
+.bank-cards-scroll{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;padding:2px 0 6px;-webkit-overflow-scrolling:touch}
 .bank-cards-scroll::-webkit-scrollbar{display:none}
-.bank-card{flex:0 0 78%;scroll-snap-align:start;border-radius:18px;padding:18px 20px;position:relative;overflow:hidden;min-height:104px;color:#fff;display:flex;flex-direction:column;justify-content:space-between}
+.bank-card{flex:0 0 100%;scroll-snap-align:center;aspect-ratio:1.65;border-radius:20px;padding:20px 22px;position:relative;overflow:hidden;color:#fff;display:flex;flex-direction:column;justify-content:space-between;background:var(--gradient);box-shadow:0 10px 30px rgba(91,108,245,.28)}
 .bank-card::after{content:'';position:absolute;top:-60%;right:-30%;width:80%;height:220%;background:rgba(255,255,255,.12);transform:rotate(20deg);pointer-events:none}
-.bank-card-top{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;opacity:.92;position:relative;z-index:1}
-.bank-card-chip{width:26px;height:19px;border-radius:5px;background:rgba(255,255,255,.35);border:1px solid rgba(255,255,255,.4)}
-.bank-card-balance{font-size:22px;font-weight:700;position:relative;z-index:1;text-shadow:0 1px 4px rgba(0,0,0,.2)}
+.bank-card-top{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;opacity:.95;position:relative;z-index:1}
+.bank-card-name{display:flex;align-items:center;gap:8px}
+.bank-card-badge{width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.bank-card-chip{width:30px;height:22px;border-radius:5px;background:rgba(255,255,255,.35);border:1px solid rgba(255,255,255,.4);position:relative;z-index:1}
+.bank-card-balance{font-size:26px;font-weight:700;position:relative;z-index:1;text-shadow:0 1px 4px rgba(0,0,0,.2)}
 .bank-card-dots{font-size:13px;letter-spacing:2px;opacity:.7;position:relative;z-index:1}
+.bank-cards-pager{display:flex;justify-content:center;gap:6px;margin-top:12px}
+.bank-cards-pager-dot{width:6px;height:6px;border-radius:50%;background:var(--bg3);transition:.2s}
+.bank-cards-pager-dot.active{background:var(--gradient);width:16px;border-radius:3px}
 .bank-edit-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
 .bank-edit-row input{flex:1;padding:8px;border-radius:var(--radius-sm);border:1px solid var(--bg3);background:var(--bg2);color:var(--text);font-size:14px}
 
@@ -215,8 +239,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 /* Setup / sync */
 .setup-wrap{padding-top:60px;text-align:center}
-.setup-wrap .emoji{font-size:48px;margin-bottom:16px}
-.setup-wrap .emoji.spin{display:inline-block;animation:spin 1s linear infinite}
+.setup-wrap .icon-wrap{margin-bottom:16px;display:flex;justify-content:center;color:var(--primary)}
+.setup-wrap .icon-wrap.spin{animation:spin 1s linear infinite}
 @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 .setup-wrap h1{margin-bottom:8px}
 .setup-wrap p{color:var(--text2);margin-bottom:24px;font-size:14px}
@@ -247,7 +271,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div id="view-setup" class="view active">
 <div class="container">
   <div class="setup-wrap">
-    <div class="emoji" id="setup-emoji">&#128260;</div>
+    <div class="icon-wrap" id="setup-emoji"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11A8 8 0 0 0 6.3 5.3L4 7.6"/><path d="M4 4v4h4"/><path d="M4 13a8 8 0 0 0 13.7 5.7L20 16.4"/><path d="M20 20v-4h-4"/></svg></div>
     <h1 id="setup-title">Синхронизация</h1>
     <p id="setup-subtitle">Первый запуск на этом устройстве. Выбери один из вариантов:</p>
     <div id="setup-options">
@@ -266,7 +290,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <!-- HOME -->
 <div id="view-home" class="view">
 <div class="container">
-  <div class="header"><h1>Finance</h1><button class="header-btn" onclick="switchView('settings')">&#9881;</button></div>
+  <div class="header"><h1>Finance</h1><button class="header-btn" onclick="switchView('settings')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.9 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.9-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.9-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.9 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9c0 .7.6 1.3 1.6 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg></button></div>
   <div class="period-tabs">
     <button class="period-tab active" onclick="setPeriod('week',this)">Неделя</button>
     <button class="period-tab" onclick="setPeriod('month',this)">Месяц</button>
@@ -292,6 +316,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="balance-amount" id="bank-total" style="font-size:20px;margin-bottom:2px">0</div>
     <div id="bank-total-delta" style="font-size:12px;color:var(--text3);margin-bottom:12px"></div>
     <div class="bank-cards-scroll" id="bank-cards-scroll"></div>
+    <div class="bank-cards-pager" id="bank-cards-pager"></div>
     <div id="bank-edit-form" hidden style="margin-top:12px">
       <div class="bank-edit-row"><span style="width:80px;font-size:13px">Kaspi</span><input type="number" id="bal-kaspi" inputmode="decimal" placeholder="0"></div>
       <div class="bank-edit-row"><span style="width:80px;font-size:13px">Freedom</span><input type="number" id="bal-freedom" inputmode="decimal" placeholder="0"></div>
@@ -314,7 +339,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   </div>
   <div class="smart-input-wrap">
     <input type="text" class="smart-input" id="smart-input" placeholder='кофе 500' autocomplete="off" inputmode="text">
-    <button class="smart-send" onclick="handleSmartInput()">&#10148;</button>
+    <button class="smart-send" onclick="handleSmartInput()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
   </div>
   <div class="smart-hint">Введите описание и сумму в любом порядке</div>
   <div class="templates-wrap" id="templates-wrap">
@@ -337,9 +362,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <button class="period-tab active" onclick="setHistoryPeriod('week',this)">Неделя</button>
     <button class="period-tab" onclick="setHistoryPeriod('month',this)">Месяц</button>
     <button class="period-tab" onclick="setHistoryPeriod('all',this)">Все</button>
+    <button class="period-tab" onclick="setHistoryPeriod('calendar',this)">Календарь</button>
+  </div>
+  <div class="calendar-wrap" id="history-calendar" hidden>
+    <div class="calendar-nav">
+      <button class="calendar-nav-btn" onclick="shiftHistoryCalMonth(-1)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg></button>
+      <div class="calendar-month-label" id="cal-month-label"></div>
+      <button class="calendar-nav-btn" onclick="shiftHistoryCalMonth(1)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></button>
+    </div>
+    <div class="calendar-grid" id="cal-weekdays"></div>
+    <div class="calendar-grid" id="cal-days"></div>
   </div>
   <div class="search-wrap">
-    <span class="search-icon">&#128269;</span>
+    <span class="search-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
     <input type="text" id="history-search" class="search-input" placeholder="Поиск по описанию..." oninput="setHistorySearch(this.value)">
   </div>
   <div style="display:flex;gap:8px;margin-bottom:16px">
@@ -370,7 +405,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="stat-card"><div class="label">Ср. расход/день</div><div class="value" id="stat-avg">0</div></div>
     <div class="stat-card"><div class="label">Топ категория</div><div class="value" id="stat-top">-</div></div>
   </div>
-  <div class="card"><div class="card-title">Расходы по категориям</div><div class="chart-container"><canvas id="chart-pie"></canvas></div></div>
+  <div class="card"><div class="card-title">Расходы по категориям</div><div class="chart-container bubble"><canvas id="chart-pie"></canvas></div></div>
   <div class="card"><div class="card-title">Динамика</div><div class="chart-container"><canvas id="chart-bar"></canvas></div></div>
   <div class="card"><div class="card-title">Все категории</div><div id="cat-breakdown"></div></div>
   <div class="card" id="bank-breakdown-card" hidden><div class="card-title">Расходы по банкам</div><div id="bank-breakdown"></div></div>
@@ -412,7 +447,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <!-- SETTINGS -->
 <div id="view-settings" class="view">
 <div class="container">
-  <div class="header"><h1>Настройки</h1><button class="header-btn" onclick="switchView('home')">&#10005;</button></div>
+  <div class="header"><h1>Настройки</h1><button class="header-btn" onclick="switchView('home')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
   <div class="card">
     <div class="settings-item">
       <div><div class="settings-label">Код синхронизации</div><div class="settings-desc">Для подключения другого устройства</div></div>
@@ -459,9 +494,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <!-- STATEMENT -->
 <div id="view-statement" class="view">
 <div class="container">
-  <div class="header"><h1>Выписка</h1><button class="header-btn" onclick="switchView('settings')">&#10005;</button></div>
+  <div class="header"><h1>Выписка</h1><button class="header-btn" onclick="switchView('settings')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
   <div class="stmt-upload" onclick="document.getElementById('stmt-file').click()">
-    <div style="font-size:32px;margin-bottom:8px">&#128196;</div>
+    <div style="margin-bottom:8px;display:flex;justify-content:center;color:var(--text3)"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2.5H7a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 2.5V8h5"/></svg></div>
     <div style="font-size:14px;color:var(--text2)">Загрузите PDF или CSV выписку</div>
     <div style="font-size:12px;color:var(--text3);margin-top:4px">Kaspi, Forte, Halyk, Freedom</div>
     <input type="file" id="stmt-file" accept=".csv,.pdf" hidden onchange="loadStatement(event)">
@@ -510,35 +545,73 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </div>
 
 <nav class="bottom-nav" id="bottom-nav" hidden>
-  <button class="nav-btn active" data-view="home" onclick="switchView('home',this)"><span class="icon">&#127968;</span>Главная</button>
-  <button class="nav-btn" data-view="history" onclick="switchView('history',this)"><span class="icon">&#128203;</span>История</button>
+  <button class="nav-btn active" data-view="home" onclick="switchView('home',this)"><span class="icon"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4l8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9"/></svg></span>Главная</button>
+  <button class="nav-btn" data-view="history" onclick="switchView('history',this)"><span class="icon"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>История</button>
   <button class="nav-btn" data-view="add" onclick="switchView('add',this)" style="position:relative;top:-8px"><span class="icon" style="background:var(--gradient);color:#fff;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 2px 14px rgba(139,108,240,.45)">+</span></button>
-  <button class="nav-btn" data-view="stats" onclick="switchView('stats',this)"><span class="icon">&#128200;</span>Стата</button>
-  <button class="nav-btn" data-view="plans" onclick="switchView('plans',this)"><span class="icon">&#127919;</span>Планы</button>
+  <button class="nav-btn" data-view="stats" onclick="switchView('stats',this)"><span class="icon"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M12 20V4M20 20v-7"/></svg></span>Стата</button>
+  <button class="nav-btn" data-view="plans" onclick="switchView('plans',this)"><span class="icon"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5.3"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/></svg></span>Планы</button>
 </nav>
 
 <script>
 // ── Categories ──
+// ── Icons (inline SVG via currentColor — replaces emoji so style/color are ours to control) ──
+const ICON_PATHS={
+  food:'<path d="M6 2v7a2 2 0 0 0 4 0V2M8 2v20M18 2c-2.2 2-2.5 5.3-2.5 8.2 0 2 1.1 3.3 2.5 3.3s2.5-1.3 2.5-3.3C20.5 7.3 20.2 4 18 2ZM18 13.5V22"/>',
+  groceries:'<path d="M9 8V6a3 3 0 0 1 6 0v2"/><path d="M5 8h14l-1.3 11.2a2 2 0 0 1-2 1.8H8.3a2 2 0 0 1-2-1.8L5 8Z"/>',
+  transport:'<path d="M5 17h14"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M5 13l1.4-4.6A2 2 0 0 1 8.3 7h7.4a2 2 0 0 1 1.9 1.4L19 13H5Z"/>',
+  home:'<path d="M4 11 12 4l8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9"/>',
+  health:'<path d="M12 21s-7.2-4.5-9.8-9.1A5.4 5.4 0 0 1 12 6.2a5.4 5.4 0 0 1 9.8 5.7C19.2 16.5 12 21 12 21Z"/>',
+  clothes:'<path d="M8.5 3 4 6.5 6.3 10 8.5 8.3V21h7V8.3L17.7 10 20 6.5 15.5 3l-2 2h-3l-2-2Z"/>',
+  fun:'<circle cx="12" cy="12" r="9"/><path d="M9 10.2h.01M15 10.2h.01"/><path d="M8.2 14.5a4.2 4.2 0 0 0 7.6 0"/>',
+  telecom:'<rect x="7" y="2" width="10" height="20" rx="2.2"/><path d="M11 18h2"/>',
+  education:'<path d="M2 9 12 4l10 5-10 5-10-5Z"/><path d="M6 11.3V17c0 1.6 2.9 3 6 3s6-1.4 6-3v-5.7"/><path d="M22 9v6"/>',
+  gifts:'<rect x="3" y="9" width="18" height="11" rx="1.5"/><path d="M3 9h18M12 9v11"/><path d="M8.3 9a2.5 2.5 0 0 1 0-5c1.7 0 3.2 2.3 3.9 5"/><path d="M15.7 9a2.5 2.5 0 0 0 0-5c-1.7 0-3.2 2.3-3.9 5"/>',
+  subscriptions:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M17 2v6M7 2v6M3 10h18"/><path d="M8 14h8M8 17.5h5"/>',
+  other_exp:'<path d="M20 7H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1Z"/><path d="M16 7V5.5A1.5 1.5 0 0 0 14.5 4h-1A1.5 1.5 0 0 0 12 5.5V7"/><circle cx="16.5" cy="13" r="1.4" fill="currentColor" stroke="none"/>',
+  salary:'<rect x="2.5" y="7" width="19" height="13" rx="2"/><path d="M8 7V5.5A2.5 2.5 0 0 1 10.5 3h3A2.5 2.5 0 0 1 16 5.5V7"/><circle cx="12" cy="13.5" r="2.2"/>',
+  freelance:'<rect x="4" y="4.5" width="16" height="10.5" rx="1.3"/><path d="M2 17.5h20l-1.6-3H3.6L2 17.5Z"/>',
+  goal:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5.3"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/>',
+  coin:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5v9M9 10h4.5a1.75 1.75 0 0 1 0 3.5H9"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>',
+  close:'<path d="M18 6 6 18M6 6l12 12"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+  arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>',
+  calendar:'<rect x="3" y="4.5" width="18" height="17" rx="2"/><path d="M16 2.5v4M8 2.5v4M3 10h18"/>',
+  doc:'<path d="M14 2.5H7a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 2.5V8h5"/>',
+  card:'<rect x="2" y="5" width="20" height="14" rx="2.2"/><path d="M2 10h20"/>',
+  bank:'<path d="M3 10 12 3.5 21 10"/><path d="M5 10v9M10 10v9M14 10v9M19 10v9"/><path d="M3 21h18"/>',
+  wallet:'<path d="M20 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/><path d="M20 7V5.5A1.5 1.5 0 0 0 18.5 4H6"/><circle cx="17" cy="13.5" r="1.3" fill="currentColor" stroke="none"/>',
+  bars:'<path d="M4 20V10M12 20V4M20 20v-7"/>',
+  plusCircle:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>'
+};
+function ico(name,size,color){
+  size=size||18;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block${color?';color:'+color:''}">${ICON_PATHS[name]||''}</svg>`;
+}
+function icoInline(name,size,color){
+  return `<span style="display:inline-flex;vertical-align:-4px;margin-right:3px">${ico(name,size||15,color)}</span>`;
+}
+
 const CATS={
   expense:[
-    {id:'food',name:'Еда',emoji:'&#127828;'},
-    {id:'groceries',name:'Продукты',emoji:'&#128722;'},
-    {id:'transport',name:'Транспорт',emoji:'&#128661;'},
-    {id:'home',name:'Жильё',emoji:'&#127968;'},
-    {id:'health',name:'Здоровье',emoji:'&#128138;'},
-    {id:'clothes',name:'Одежда',emoji:'&#128085;'},
-    {id:'fun',name:'Развлечения',emoji:'&#127918;'},
-    {id:'telecom',name:'Связь',emoji:'&#128241;'},
-    {id:'education',name:'Обучение',emoji:'&#128218;'},
-    {id:'gifts',name:'Подарки',emoji:'&#127873;'},
-    {id:'subscriptions',name:'Подписки',emoji:'&#128250;'},
-    {id:'other_exp',name:'Другое',emoji:'&#128176;'}
+    {id:'food',name:'Еда',icon:'food'},
+    {id:'groceries',name:'Продукты',icon:'groceries'},
+    {id:'transport',name:'Транспорт',icon:'transport'},
+    {id:'home',name:'Жильё',icon:'home'},
+    {id:'health',name:'Здоровье',icon:'health'},
+    {id:'clothes',name:'Одежда',icon:'clothes'},
+    {id:'fun',name:'Развлечения',icon:'fun'},
+    {id:'telecom',name:'Связь',icon:'telecom'},
+    {id:'education',name:'Обучение',icon:'education'},
+    {id:'gifts',name:'Подарки',icon:'gifts'},
+    {id:'subscriptions',name:'Подписки',icon:'subscriptions'},
+    {id:'other_exp',name:'Другое',icon:'other_exp'}
   ],
   income:[
-    {id:'salary',name:'Зарплата',emoji:'&#128188;'},
-    {id:'freelance',name:'Подработка',emoji:'&#128187;'},
-    {id:'gift_income',name:'Подарок',emoji:'&#127873;'},
-    {id:'other_inc',name:'Другое',emoji:'&#128178;'}
+    {id:'salary',name:'Зарплата',icon:'salary'},
+    {id:'freelance',name:'Подработка',icon:'freelance'},
+    {id:'gift_income',name:'Подарок',icon:'gifts'},
+    {id:'other_inc',name:'Другое',icon:'coin'}
   ]
 };
 const CAT_MAP=new Map();
@@ -550,6 +623,13 @@ const CAT_COLORS={
   salary:'#10b981',freelance:'#7c6cf5',gift_income:'#ec4899',other_inc:'#6b7280'
 };
 function catColor(id){if(id&&id.startsWith('goal_'))return'#8b6cf0';return CAT_COLORS[id]||'#6b7280'}
+// Harmonized indigo→violet tonal family for Stats (chart + breakdown) — hue drifts blue→violet
+// as amount rank increases, lightness alternates so neighboring slices stay distinguishable.
+function statsColor(i,n,alpha){
+  const hue=220+(n<=1?0:(65*i/(n-1)));
+  const light=i%2===0?58:47;
+  return `hsla(${hue.toFixed(0)}, 78%, ${light}%, ${alpha==null?1:alpha})`;
+}
 const AVATAR_GRADIENTS=[
   'linear-gradient(135deg,#5b8cff,#8b6cf0)','linear-gradient(135deg,#f59e0b,#ef4444)',
   'linear-gradient(135deg,#10b981,#06b6d4)','linear-gradient(135deg,#ec4899,#8b5cf6)',
@@ -586,6 +666,7 @@ const CUR_SYM={KZT:'₸',RUB:'₽',USD:'$',EUR:'€'};
 
 // ── State ──
 let currency='KZT',currentType='expense',currentPeriod='week',historyPeriod='week',historyBank='',historySearch='',statsPeriod='month',statsCustomMonth=null;
+let historyCalMonth=new Date().toISOString().slice(0,7),historySelectedDay=null;
 let chartPie=null,chartBar=null;
 let txCache=null,txDirty=true;
 let learnedMap={};
@@ -763,7 +844,7 @@ const fmt=n=>Number(n).toLocaleString('ru-RU');
 const fmtCur=n=>fmt(n)+' '+CUR_SYM[currency];
 const today=()=>new Date().toISOString().slice(0,10);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-const getCat=id=>CAT_MAP.get(id)||{name:id,emoji:'&#128178;'};
+const getCat=id=>CAT_MAP.get(id)||{name:id,icon:'coin'};
 
 function dateRange(p){
   const now=new Date(),s=new Date();
@@ -903,11 +984,11 @@ async function refreshDashboard(){
   document.getElementById('dash-expense').textContent='-'+fmtCur(exp);
   const recent=[...txs].sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt).slice(0,7);
   const list=document.getElementById('recent-list');
-  if(!recent.length){list.innerHTML='<div class="empty-state"><span class="emoji">&#128221;</span>Пока нет записей</div>';return}
+  if(!recent.length){list.innerHTML=`<div class="empty-state"><span class="icon-wrap">${ico('doc',40)}</span>Пока нет записей</div>`;return}
   list.innerHTML=recent.map(t=>{
     const c=getCat(t.category),cls=t.type==='expense'?'expense':'income',sign=t.type==='expense'?'-':'+';
     const col=catColor(t.category),ava=personBadge(t.description);
-    const badge=ava?`<div class="recent-icon avatar" style="background:${ava.grad}">${ava.initial}</div>`:`<div class="recent-icon" style="background:${col}2e;box-shadow:inset 0 1px 1px rgba(255,255,255,.08),0 0 12px ${col}40">${c.emoji}</div>`;
+    const badge=ava?`<div class="recent-icon avatar" style="background:${ava.grad}">${ava.initial}</div>`:`<div class="recent-icon" style="background:${col}2e;color:${col};box-shadow:inset 0 1px 1px rgba(255,255,255,.08),0 0 12px ${col}40">${ico(c.icon,18)}</div>`;
     return`<div class="recent-item">${badge}<div class="recent-info"><div class="recent-desc">${t.description||c.name}</div><div class="recent-cat">${c.name}</div></div><div><div class="recent-amount ${cls}">${sign}${fmtCur(t.amount)}</div><div class="recent-date">${formatDateShort(t.date)}</div></div></div>`;
   }).join('');
 }
@@ -933,7 +1014,7 @@ async function handleSmartInput(){
     document.getElementById('smart-input').value='';
     document.getElementById('fallback-grid').classList.remove('show');
     const c=getCat(catId);
-    toastUndo(`${c.emoji} ${c.name} &middot; ${parsed.desc} &middot; ${fmtCur(parsed.amount)}`,tx.id);
+    toastUndo(`${icoInline(c.icon)}${c.name} &middot; ${parsed.desc} &middot; ${fmtCur(parsed.amount)}`,tx.id);
     await checkBudget(tx);
   }else{
     pendingInput=parsed;
@@ -944,14 +1025,14 @@ async function handleSmartInput(){
 async function showFallbackGrid(parsed){
   const fg=document.getElementById('fallback-grid');
   fg.classList.add('show');
-  document.getElementById('fallback-info').innerHTML=`&#128269; Не удалось определить категорию для &laquo;${parsed.desc}&raquo; (${fmtCur(parsed.amount)}). Выберите вручную:`;
+  document.getElementById('fallback-info').innerHTML=`${icoInline('search')}Не удалось определить категорию для &laquo;${parsed.desc}&raquo; (${fmtCur(parsed.amount)}). Выберите вручную:`;
   const grid=document.getElementById('cat-grid');
   const cats=CATS[currentType];
-  let tiles=cats.map(c=>`<div class="cat-btn" onclick="selectFallbackCat('${c.id}',this)"><span class="emoji">${c.emoji}</span>${c.name}</div>`).join('');
+  let tiles=cats.map(c=>`<div class="cat-btn" onclick="selectFallbackCat('${c.id}',this)"><span class="icon-wrap">${ico(c.icon,22)}</span>${c.name}</div>`).join('');
   if(currentType==='expense'){
     const goals=await dbAll('goals');
     registerGoalCategories(goals);
-    tiles+=goals.map(g=>`<div class="cat-btn" onclick="selectFallbackCat('goal_${g.id}',this)"><span class="emoji">&#127919;</span>${g.name}</div>`).join('');
+    tiles+=goals.map(g=>`<div class="cat-btn" onclick="selectFallbackCat('goal_${g.id}',this)"><span class="icon-wrap">${ico('goal',22)}</span>${g.name}</div>`).join('');
   }
   grid.innerHTML=tiles;
 }
@@ -972,7 +1053,7 @@ async function saveFallback(){
   document.getElementById('fallback-grid').classList.remove('show');
   selectedFallbackCat=null;pendingInput=null;
   const c=getCat(tx.category);
-  toastUndo(`${c.emoji} ${c.name} &middot; ${tx.description} &middot; ${fmtCur(tx.amount)}`,tx.id);
+  toastUndo(`${icoInline(c.icon)}${c.name} &middot; ${tx.description} &middot; ${fmtCur(tx.amount)}`,tx.id);
   await checkBudget(tx);
 }
 
@@ -990,7 +1071,7 @@ async function renderTemplates(){
   document.getElementById('templates-wrap').style.display='block';
   list.innerHTML=tmpls.map(t=>{
     const c=getCat(t.category);
-    return`<div class="tmpl-chip" onclick="useTmpl('${t.id}')">${c.emoji} ${t.name} ${fmtCur(t.amount)}</div>`;
+    return`<div class="tmpl-chip" onclick="useTmpl('${t.id}')">${icoInline(c.icon,13)}${t.name} ${fmtCur(t.amount)}</div>`;
   }).join('')+`<div class="tmpl-chip tmpl-add" onclick="openTmplModal()">+ Добавить</div>`;
 }
 
@@ -1000,13 +1081,13 @@ async function useTmpl(id){
   currentType=t.type||'expense';setType(currentType);
   const tx=await saveTx(t.name,t.amount,t.category);
   const c=getCat(t.category);
-  toastUndo(`${c.emoji} ${t.name} &middot; ${fmtCur(t.amount)}`,tx.id);
+  toastUndo(`${icoInline(c.icon)}${t.name} &middot; ${fmtCur(t.amount)}`,tx.id);
   await checkBudget(tx);
 }
 
 function openTmplModal(){
   const sel=document.getElementById('tmpl-cat');
-  sel.innerHTML=CATS.expense.map(c=>`<option value="${c.id}">${c.emoji} ${c.name}</option>`).join('');
+  sel.innerHTML=CATS.expense.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
   document.getElementById('tmpl-modal').classList.add('show');
 }
 function closeTmplModal(){document.getElementById('tmpl-modal').classList.remove('show')}
@@ -1042,6 +1123,7 @@ async function checkBudget(tx){
 // ── History ──
 function historyFilteredTxs(txs){
   let r=historyBank?txs.filter(t=>t.bank===historyBank):txs;
+  if(historyPeriod==='calendar')r=historySelectedDay?r.filter(t=>t.date===historySelectedDay):r.filter(t=>t.date.startsWith(historyCalMonth));
   if(historySearch.trim())r=r.filter(t=>(t.description||'').toLowerCase().includes(historySearch.trim().toLowerCase()));
   return r;
 }
@@ -1049,7 +1131,7 @@ function setHistorySearch(v){historySearch=v;refreshHistory()}
 async function refreshHistory(){
   const txs=historyFilteredTxs(filterPeriod([...(await getTxs())],historyPeriod)).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt);
   const list=document.getElementById('history-list');
-  if(!txs.length){list.innerHTML='<div class="empty-state"><span class="emoji">&#128221;</span>Нет записей</div>';return}
+  if(!txs.length){list.innerHTML=`<div class="empty-state"><span class="icon-wrap">${ico('doc',40)}</span>Нет записей</div>`;return}
   const groups={};txs.forEach(t=>{(groups[t.date]=groups[t.date]||[]).push(t)});
   let html='';
   for(const[date,items]of Object.entries(groups)){
@@ -1057,14 +1139,54 @@ async function refreshHistory(){
     items.forEach(t=>{
       const c=getCat(t.category),cls=t.type==='expense'?'expense':'income',sign=t.type==='expense'?'-':'+';
       const col=catColor(t.category),ava=personBadge(t.description);
-      const badge=ava?`<div class="recent-icon avatar" style="background:${ava.grad}">${ava.initial}</div>`:`<div class="recent-icon" style="background:${col}2e;box-shadow:inset 0 1px 1px rgba(255,255,255,.08),0 0 12px ${col}40">${c.emoji}</div>`;
-      html+=`<div class="recent-item">${badge}<div class="recent-info"><div class="recent-desc">${t.description||c.name}</div><div class="recent-cat">${c.name}</div></div><div class="recent-amount ${cls}">${sign}${fmtCur(t.amount)}</div><button class="del-btn" onclick="deleteTx('${t.id}')">&#10005;</button></div>`;
+      const badge=ava?`<div class="recent-icon avatar" style="background:${ava.grad}">${ava.initial}</div>`:`<div class="recent-icon" style="background:${col}2e;color:${col};box-shadow:inset 0 1px 1px rgba(255,255,255,.08),0 0 12px ${col}40">${ico(c.icon,18)}</div>`;
+      html+=`<div class="recent-item">${badge}<div class="recent-info"><div class="recent-desc">${t.description||c.name}</div><div class="recent-cat">${c.name}</div></div><div class="recent-amount ${cls}">${sign}${fmtCur(t.amount)}</div><button class="del-btn" onclick="deleteTx('${t.id}')">${ico('close',16)}</button></div>`;
     });
   }
   list.innerHTML=html;
 }
-function setHistoryPeriod(p,btn){historyPeriod=p;btn.parentElement.querySelectorAll('.period-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');refreshHistory()}
+function setHistoryPeriod(p,btn){
+  historyPeriod=p;
+  btn.parentElement.querySelectorAll('.period-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  document.getElementById('history-calendar').hidden=(p!=='calendar');
+  if(p==='calendar')renderHistoryCalendar();
+  refreshHistory();
+}
 function setHistoryBank(b){historyBank=b;refreshHistory()}
+async function renderHistoryCalendar(){
+  const txs=await getTxs();
+  const[y,mo]=historyCalMonth.split('-').map(Number);
+  const firstOfMonth=new Date(y,mo-1,1);
+  const startOffset=(firstOfMonth.getDay()+6)%7;
+  const daysInMonth=new Date(y,mo,0).getDate();
+  const txDaysSet=new Set(txs.filter(t=>t.date.startsWith(historyCalMonth)).map(t=>t.date));
+  document.getElementById('cal-month-label').textContent=firstOfMonth.toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
+  const weekdays=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  document.getElementById('cal-weekdays').innerHTML=weekdays.map(w=>`<div class="calendar-weekday">${w}</div>`).join('');
+  const todayStr=today();
+  let cells='';
+  for(let i=0;i<startOffset;i++)cells+='<div class="calendar-day muted"></div>';
+  for(let d=1;d<=daysInMonth;d++){
+    const dateStr=`${historyCalMonth}-${String(d).padStart(2,'0')}`;
+    const cls=['calendar-day'];
+    if(dateStr===todayStr)cls.push('today');
+    if(txDaysSet.has(dateStr))cls.push('has-tx');
+    if(dateStr===historySelectedDay)cls.push('selected');
+    cells+=`<div class="${cls.join(' ')}" onclick="selectHistoryDay('${dateStr}')">${d}</div>`;
+  }
+  document.getElementById('cal-days').innerHTML=cells;
+}
+function shiftHistoryCalMonth(delta){
+  const[y,mo]=historyCalMonth.split('-').map(Number);
+  const d=new Date(y,mo-1+delta,1);
+  historyCalMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  historySelectedDay=null;
+  renderHistoryCalendar();refreshHistory();
+}
+function selectHistoryDay(dateStr){
+  historySelectedDay=historySelectedDay===dateStr?null:dateStr;
+  renderHistoryCalendar();refreshHistory();
+}
 async function exportHistoryFiltered(){
   const txs=historyFilteredTxs(filterPeriod([...(await getTxs())],historyPeriod)).sort((a,b)=>b.date.localeCompare(a.date));
   if(!txs.length)return toast('Нет данных для экспорта');
@@ -1093,11 +1215,11 @@ async function refreshStats(){
   document.getElementById('stat-avg').textContent=fmtCur(Math.round(totalExp/days));
   const byCat={};expenses.forEach(t=>{byCat[t.category]=(byCat[t.category]||0)+t.amount});
   const sorted=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
-  document.getElementById('stat-top').innerHTML=sorted.length?getCat(sorted[0][0]).emoji+' '+getCat(sorted[0][0]).name:'-';
+  document.getElementById('stat-top').innerHTML=sorted.length?icoInline(getCat(sorted[0][0]).icon,16)+getCat(sorted[0][0]).name:'-';
   const bd=document.getElementById('cat-breakdown'),maxAmt=sorted.length?sorted[0][1]:1;
-  bd.innerHTML=sorted.map(([cat,amt])=>{
-    const c=getCat(cat),pct=totalExp?Math.round(amt/totalExp*100):0;
-    return`<div class="cat-list-item"><span style="font-size:20px">${c.emoji}</span><div class="cat-bar-wrap"><div style="font-size:13px;margin-bottom:4px">${c.name}</div><div class="cat-bar"><div class="cat-bar-fill" style="width:${amt/maxAmt*100}%"></div></div></div><div class="cat-amount">${fmtCur(amt)}</div><div class="cat-pct">${pct}%</div></div>`;
+  bd.innerHTML=sorted.map(([cat,amt],i)=>{
+    const c=getCat(cat),pct=totalExp?Math.round(amt/totalExp*100):0,col=statsColor(i,sorted.length),colBg=statsColor(i,sorted.length,.18);
+    return`<div class="cat-list-item"><span class="cat-list-icon" style="background:${colBg};color:${col}">${ico(c.icon,18)}</span><div class="cat-bar-wrap"><div style="font-size:13px;margin-bottom:4px">${c.name}</div><div class="cat-bar"><div class="cat-bar-fill" style="width:${amt/maxAmt*100}%;background:${col}"></div></div></div><div class="cat-amount">${fmtCur(amt)}</div><div class="cat-pct">${pct}%</div></div>`;
   }).join('')||'<div class="empty-state">Нет данных</div>';
   const byBank={};expenses.forEach(t=>{const k=t.bank||null;if(k)byBank[k]=(byBank[k]||0)+t.amount});
   const bankSorted=Object.entries(byBank).sort((a,b)=>b[1]-a[1]);
@@ -1107,7 +1229,7 @@ async function refreshStats(){
     const maxBankAmt=bankSorted[0][1];
     document.getElementById('bank-breakdown').innerHTML=bankSorted.map(([bank,amt])=>{
       const pct=totalExp?Math.round(amt/totalExp*100):0;
-      return`<div class="cat-list-item"><span style="font-size:20px">&#127974;</span><div class="cat-bar-wrap"><div style="font-size:13px;margin-bottom:4px">${BANK_NAMES[bank]||bank}</div><div class="cat-bar"><div class="cat-bar-fill" style="width:${amt/maxBankAmt*100}%"></div></div></div><div class="cat-amount">${fmtCur(amt)}</div><div class="cat-pct">${pct}%</div></div>`;
+      return`<div class="cat-list-item"><span class="cat-list-icon" style="background:var(--primary-light);color:var(--primary)">${ico('bank',18)}</span><div class="cat-bar-wrap"><div style="font-size:13px;margin-bottom:4px">${BANK_NAMES[bank]||bank}</div><div class="cat-bar"><div class="cat-bar-fill" style="width:${amt/maxBankAmt*100}%"></div></div></div><div class="cat-amount">${fmtCur(amt)}</div><div class="cat-pct">${pct}%</div></div>`;
     }).join('');
   }
   renderCharts(expenses,txs);
@@ -1134,8 +1256,8 @@ function renderCharts(expenses,allTxs){
   const gc='rgba(255,255,255,.08)',tc='#9a9a92';
   const byCat={};expenses.forEach(t=>{byCat[t.category]=(byCat[t.category]||0)+t.amount});
   const sorted=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
-  const colors=['#7c6cf5','#10b981','#f59e0b','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16','#06b6d4','#e11d48'];
-  const pieData={labels:sorted.map(([c])=>getCat(c).name),datasets:[{data:sorted.map(([,a])=>a),backgroundColor:colors.slice(0,sorted.length),borderWidth:0,borderRadius:6,spacing:3,hoverOffset:6}]};
+  const colors=sorted.map((_,i)=>statsColor(i,sorted.length));
+  const pieData={labels:sorted.map(([c])=>getCat(c).name),datasets:[{data:sorted.map(([,a])=>a),backgroundColor:colors,borderWidth:2,borderColor:'#0a0a0f',borderRadius:6,spacing:3,hoverOffset:6}]};
   const pieOpts={responsive:true,maintainAspectRatio:false,cutout:'74%',plugins:{legend:{position:'bottom',labels:{color:tc,padding:8,font:{size:11},usePointStyle:true,pointStyle:'circle'}},tooltip:TOOLTIP_STYLE}};
   if(chartPie){chartPie.data=pieData;chartPie.options=pieOpts;chartPie.update()}
   else chartPie=new Chart(document.getElementById('chart-pie'),{type:'doughnut',data:pieData,options:pieOpts,plugins:[centerTextPlugin]});
@@ -1188,7 +1310,10 @@ function showAddPlanForm(){
 async function refreshPlans(){
   await refreshBudgets();await refreshGoals();
   const sel=document.getElementById('budget-cat');
-  sel.innerHTML='<option value="general">&#128176; Общий лимит</option>'+CATS.expense.map(c=>`<option value="${c.id}">${c.emoji} ${c.name}</option>`).join('');
+  sel.innerHTML='<option value="general">Общий лимит</option>'+CATS.expense.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+}
+function planRing(pct,color,inner,extraClass){
+  return `<div class="plan-ring${extraClass?' '+extraClass:''}" style="background:conic-gradient(from 0deg,${color} ${pct}%,var(--bg3) ${pct}%)"><div class="plan-ring-inner${pct>=100?' done':''}" style="color:${color}">${inner}</div></div>`;
 }
 
 async function renderHomeBudgetRing(){
@@ -1208,16 +1333,17 @@ async function renderHomeBudgetRing(){
 async function refreshBudgets(){
   const budgets=await dbAll('budgets');
   const list=document.getElementById('budget-list');
-  if(!budgets.length){list.innerHTML='<div class="empty-state"><span class="emoji">&#128181;</span>Задайте месячный бюджет</div>';return}
+  if(!budgets.length){list.innerHTML=`<div class="empty-state"><span class="icon-wrap">${ico('wallet',40)}</span>Задайте месячный бюджет</div>`;return}
   const month=today().slice(0,7);
   const allTxs=await getTxs();
   const monthExp=allTxs.filter(t=>t.type==='expense'&&t.date.startsWith(month));
   list.innerHTML=budgets.sort((a,b)=>a.key==='general'?-1:1).map(b=>{
     const spent=b.key==='general'?monthExp.reduce((s,t)=>s+t.amount,0):monthExp.filter(t=>t.category===b.key).reduce((s,t)=>s+t.amount,0);
     const pct=Math.min(100,Math.round(spent/b.limit*100));
-    const color=pct>=100?'var(--red)':pct>=80?'var(--orange)':'var(--green)';
-    const name=b.key==='general'?'&#128176; Общий лимит':getCat(b.key).emoji+' '+getCat(b.key).name;
-    return`<div class="budget-card"><div class="budget-header"><div class="budget-name">${name}</div><button class="del-btn" onclick="delBudget('${b.key}')">&#10005;</button></div><div class="budget-bar"><div class="budget-bar-fill" style="width:${pct}%;background:${color}"></div></div><div class="budget-amounts"><span>${fmtCur(spent)} / ${fmtCur(b.limit)}</span><span class="budget-pct" style="color:${color}">${pct}%</span></div></div>`;
+    const color=pct>=100?'#ef4444':pct>=80?'#f59e0b':'#5b8cff';
+    const icon=b.key==='general'?'wallet':getCat(b.key).icon;
+    const name=b.key==='general'?'Общий лимит':getCat(b.key).name;
+    return`<div class="budget-card">${planRing(pct,color,pct+'%')}<div class="budget-info"><div class="budget-header"><div class="budget-name">${icoInline(icon,16)}${name}</div><button class="del-btn" onclick="delBudget('${b.key}')">${ico('close',16)}</button></div><div class="budget-amounts"><span>${fmtCur(spent)} / ${fmtCur(b.limit)}</span></div></div></div>`;
   }).join('');
 }
 
@@ -1237,7 +1363,7 @@ async function delBudget(key){if(!confirm('Удалить лимит?'))return;a
 function registerGoalCategories(goals){
   goals.forEach(g=>{
     const id='goal_'+g.id;
-    CAT_MAP.set(id,{id,name:g.name,emoji:'&#127919;'});
+    CAT_MAP.set(id,{id,name:g.name,icon:'goal'});
     CAT_TYPE[id]='expense';
   });
 }
@@ -1250,11 +1376,13 @@ async function refreshGoals(){
   const goals=await dbAll('goals');
   registerGoalCategories(goals);
   const list=document.getElementById('goals-list');
-  if(!goals.length){list.innerHTML='<div class="empty-state"><span class="emoji">&#127919;</span>Создайте первую цель!</div>';return}
+  if(!goals.length){list.innerHTML=`<div class="empty-state"><span class="icon-wrap">${ico('goal',40)}</span>Создайте первую цель!</div>`;return}
   list.innerHTML=goals.sort((a,b)=>a.createdAt-b.createdAt).map(g=>{
     const pct=Math.max(0,Math.min(100,Math.round(g.currentAmount/g.targetAmount*100)));
+    const done=pct>=100;
     const dl=g.deadline?new Date(g.deadline+'T00:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}):'';
-    return`<div class="goal-card"><div class="goal-name">${g.name}</div>${dl?`<div class="goal-dates">&#128197; ${dl}</div>`:''}<div class="goal-progress"><div class="goal-progress-fill" style="width:${pct}%;background:${pct>=100?'var(--green)':'var(--primary)'}"></div></div><div class="goal-amounts"><span>${fmtCur(g.currentAmount)} / ${fmtCur(g.targetAmount)}</span><span class="goal-pct">${pct}%</span></div><div class="goal-actions"><button class="goal-action-btn goal-add-btn" onclick="addToGoal('${g.id}')">+ Пополнить</button><button class="goal-action-btn goal-del-btn" onclick="deleteGoal('${g.id}')">Удалить</button></div></div>`;
+    const ring=planRing(pct,done?'#10b981':'#7c6cf5',done?ico('check',20):pct+'%','goal');
+    return`<div class="goal-card">${ring}<div class="goal-info"><div class="goal-name">${g.name}${done?`<span class="goal-badge">${ico('check',12)}Выполнено</span>`:''}</div>${dl?`<div class="goal-dates">${icoInline('calendar',13)}${dl}</div>`:''}<div class="goal-amounts"><span>${fmtCur(g.currentAmount)} / ${fmtCur(g.targetAmount)}</span></div><div class="goal-actions"><button class="goal-action-btn goal-add-btn" onclick="addToGoal('${g.id}')">${ico('plusCircle',15)}Пополнить</button><button class="goal-action-btn goal-del-btn" onclick="deleteGoal('${g.id}')">${ico('close',15)}Удалить</button></div></div></div>`;
   }).join('');
 }
 async function saveGoal(){
@@ -1443,7 +1571,7 @@ function parseFreedomPdf(text){
 
 function missRow(idx,desc,amount,date,type){
   const isIncome=type==='income';
-  return`<div class="${isIncome?'miss-income':'miss'}"><input type="checkbox" id="stmt-chk-${idx}" checked><label for="stmt-chk-${idx}">${isIncome?'&#10133;':'&#10060;'} ${desc} &mdash; ${isIncome?'+':'-'}${fmtCur(amount)} <span style="font-size:11px;color:var(--text3)">${date}</span></label></div>`;
+  return`<div class="${isIncome?'miss-income':'miss'}"><input type="checkbox" id="stmt-chk-${idx}" checked><label for="stmt-chk-${idx}">${icoInline(isIncome?'plusCircle':'close',14)}${desc} &mdash; ${isIncome?'+':'-'}${fmtCur(amount)} <span style="font-size:11px;color:var(--text3)">${date}</span></label></div>`;
 }
 
 let stmtBank='',stmtMode='pdf',stmtMissed=[],stmtRawText='',detectedBalance=null,stmtFileHash=null;
@@ -1488,7 +1616,7 @@ function renderBalanceBanner(bank,text){
   if(amount==null){banner.hidden=true;detectedBalance=null;return}
   detectedBalance={bank,amount};
   banner.hidden=false;
-  banner.innerHTML=`&#128179; Баланс ${BANK_NAMES[bank]} по выписке: <b>${fmtCur(amount)}</b> <button class="settings-btn" style="flex-shrink:0" onclick="applyDetectedBalance()">Обновить</button>`;
+  banner.innerHTML=`${icoInline('card',15)}Баланс ${BANK_NAMES[bank]} по выписке: <b>${fmtCur(amount)}</b> <button class="settings-btn" style="flex-shrink:0" onclick="applyDetectedBalance()">Обновить</button>`;
 }
 async function applyDetectedBalance(){
   if(!detectedBalance)return;
@@ -1509,14 +1637,14 @@ async function showPdfResults(bank,parsed){
   stmtMissed=[];
   parsed.forEach(p=>{
     const k=p.type+'|'+p.date.slice(5)+'|'+Math.round(p.amount);
-    if(txIndex.has(k)&&txIndex.get(k)>0){matched++;txIndex.set(k,txIndex.get(k)-1);html+=`<div class="match">&#9989; ${p.desc} &mdash; ${fmtCur(p.amount)}</div>`}
+    if(txIndex.has(k)&&txIndex.get(k)>0){matched++;txIndex.set(k,txIndex.get(k)-1);html+=`<div class="match">${icoInline('check',14)}${p.desc} &mdash; ${fmtCur(p.amount)}</div>`}
     else{const idx=stmtMissed.length;stmtMissed.push({desc:p.desc,amount:p.amount,date:p.date,type:p.type});html+=missRow(idx,p.desc,p.amount,p.date,p.type)}
   });
   const expenses=parsed.filter(p=>p.type==='expense'),incomes=parsed.filter(p=>p.type==='income');
   const missed=stmtMissed.length;
   const missedExpense=stmtMissed.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);
   const missedIncome=stmtMissed.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
-  document.getElementById('stmt-summary').innerHTML=`&#127974; <b>${BANK_NAMES[bank]}</b><br>&#128202; Расходов: <b>${expenses.length}</b>, доходов: <b>${incomes.length}</b>, совпадений: <b>${matched}</b><br>&#128683; Пропущено расходов: <b style="color:var(--red)">${fmtCur(missedExpense)}</b>, доходов: <b style="color:var(--green)">${fmtCur(missedIncome)}</b>`;
+  document.getElementById('stmt-summary').innerHTML=`${icoInline('bank',15)}<b>${BANK_NAMES[bank]}</b><br>${icoInline('bars',15)}Расходов: <b>${expenses.length}</b>, доходов: <b>${incomes.length}</b>, совпадений: <b>${matched}</b><br>${icoInline('close',15)}Пропущено расходов: <b style="color:var(--red)">${fmtCur(missedExpense)}</b>, доходов: <b style="color:var(--green)">${fmtCur(missedIncome)}</b>`;
   document.getElementById('stmt-batch-bar').hidden=!missed;
   document.getElementById('stmt-results').innerHTML=html||'<div class="empty-state">Все операции уже записаны!</div>';
 }
@@ -1535,7 +1663,7 @@ async function analyzeStatement(){
     const type=rawAmt>0?'income':'expense';
     let dateKey='';const dm=date.match(/(\d{2})[.\-\/](\d{2})/);if(dm)dateKey=dm[2]+'-'+dm[1];
     const k=type+'|'+dateKey+'|'+Math.round(amt);
-    if(txIndex.has(k)&&txIndex.get(k)>0){matched++;txIndex.set(k,txIndex.get(k)-1);html+=`<div class="match">&#9989; ${desc} &mdash; ${fmtCur(amt)}</div>`}
+    if(txIndex.has(k)&&txIndex.get(k)>0){matched++;txIndex.set(k,txIndex.get(k)-1);html+=`<div class="match">${icoInline('check',14)}${desc} &mdash; ${fmtCur(amt)}</div>`}
     else{
       let iso=today();const m=date.match(/(\d{4})[.\-\/](\d{2})[.\-\/](\d{2})/);
       if(m)iso=`${m[1]}-${m[2]}-${m[3]}`;else{const m2=date.match(/(\d{2})[.\-\/](\d{2})[.\-\/](\d{4})/);if(m2)iso=`${m2[3]}-${m2[2]}-${m2[1]}`}
@@ -1544,7 +1672,7 @@ async function analyzeStatement(){
     }
   });
   const missed=stmtMissed.length,totalMissed=stmtMissed.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0),totalMissedIncome=stmtMissed.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
-  document.getElementById('stmt-summary').innerHTML=`&#128202; Совпадений: <b>${matched}</b>, пропущено расходов: <b style="color:var(--red)">${fmtCur(totalMissed)}</b>, доходов: <b style="color:var(--green)">${fmtCur(totalMissedIncome)}</b>`;
+  document.getElementById('stmt-summary').innerHTML=`${icoInline('bars',15)}Совпадений: <b>${matched}</b>, пропущено расходов: <b style="color:var(--red)">${fmtCur(totalMissed)}</b>, доходов: <b style="color:var(--green)">${fmtCur(totalMissedIncome)}</b>`;
   document.getElementById('stmt-batch-bar').hidden=!missed;
   document.getElementById('stmt-results').innerHTML=html||'<div class="empty-state">Нет данных</div>';
 }
@@ -1602,21 +1730,26 @@ async function saveSetting(key,value){
 
 // ── Bank balances ──
 const BANK_KEYS=['kaspi','freedom','halyk','forte'];
-const BANK_GRADIENTS={
-  kaspi:'linear-gradient(135deg,#ff5f6d 0%,#a3122e 100%)',
-  forte:'linear-gradient(135deg,#f7971e 0%,#c2410c 100%)',
-  halyk:'linear-gradient(135deg,#12b876 0%,#065f46 100%)',
-  freedom:'linear-gradient(135deg,#8b6cf0 0%,#4c1d95 100%)'
-};
 const PERIOD_LABELS={week:'неделю',month:'месяц',year:'год'};
 async function renderBankBalances(){
   const vals={};let total=0,any=false;
   for(const k of BANK_KEYS){const v=parseFloat(await getSetting('bal_'+k))||0;vals[k]=v;if(v)any=true;total+=v}
   document.getElementById('bank-balances-card').hidden=false;
   document.getElementById('bank-total').textContent=fmtCur(total);
-  document.getElementById('bank-cards-scroll').innerHTML=any
-    ?BANK_KEYS.filter(k=>vals[k]).map(k=>`<div class="bank-card" style="background:${BANK_GRADIENTS[k]}"><div class="bank-card-top"><span>${BANK_NAMES[k]}</span><span class="bank-card-chip"></span></div><div class="bank-card-dots">•••• •••• ••••</div><div class="bank-card-balance">${fmtCur(vals[k])}</div></div>`).join('')
+  const activeBanks=BANK_KEYS.filter(k=>vals[k]);
+  const scrollEl=document.getElementById('bank-cards-scroll');
+  scrollEl.innerHTML=any
+    ?activeBanks.map(k=>`<div class="bank-card"><div class="bank-card-top"><span class="bank-card-name"><span class="bank-card-badge">${BANK_NAMES[k][0]}</span>${BANK_NAMES[k]}</span><span class="bank-card-chip"></span></div><div class="bank-card-dots">•••• •••• ••••</div><div class="bank-card-balance">${fmtCur(vals[k])}</div></div>`).join('')
     :'<div class="empty-state" style="padding:8px 0">Нажмите «Изменить», чтобы указать баланс</div>';
+  const pager=document.getElementById('bank-cards-pager');
+  pager.innerHTML=activeBanks.length>1?activeBanks.map((_,i)=>`<div class="bank-cards-pager-dot${i===0?' active':''}"></div>`).join(''):'';
+  if(!scrollEl.dataset.pagerBound){
+    scrollEl.dataset.pagerBound='1';
+    scrollEl.addEventListener('scroll',()=>{
+      const idx=Math.round(scrollEl.scrollLeft/(scrollEl.clientWidth||1));
+      document.querySelectorAll('#bank-cards-pager .bank-cards-pager-dot').forEach((d,i)=>d.classList.toggle('active',i===idx));
+    },{passive:true});
+  }
   const periodTxs=filterPeriod(await getTxs(),currentPeriod);
   const net=periodTxs.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
   const deltaEl=document.getElementById('bank-total-delta');
