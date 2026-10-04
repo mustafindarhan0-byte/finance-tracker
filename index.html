@@ -2978,10 +2978,10 @@ function renderStatus(){
 }
 function playStatusIntro(){
   introPending=false;
-  const el=document.getElementById('hero-level');if(!el)return;
+  const el=document.getElementById('hero-level');if(!el){renderStatus();return}
   const L=levelOf(xpTotalsSync().all);
   el.dataset.v=0;fxTicker(el,L,n=>String(Math.round(n)).padStart(2,'0'),900);
-  const hero=document.getElementById('hero');if(hero)setTimeout(()=>hero.classList.remove('hero-intro'),1200);
+  const hero=document.getElementById('hero');if(hero)requestAnimationFrame(()=>hero.classList.remove('hero-intro'));
 }
 
 // Hero photo (settings): square crop → 560 px JPEG ≤ 300 KB, stored as data URL in settings/avatar
@@ -3076,12 +3076,21 @@ async function startApp(){
   document.getElementById('view-setup').classList.remove('active');
   document.getElementById('view-status').classList.add('active');
   document.getElementById('bottom-nav').hidden=false;
-  const cur=await getSetting('currency');if(cur){currency=cur;document.getElementById('currency-sel').value=currency}
-  const learned=await dbAll('learned');learned.forEach(l=>{learnedMap[l.keyword]=l.category});
-  registerGoalCategories(await dbAll('goals'));
+  // the Status frame is drawn at once (empty data), so the screen is never a bare black grid while Firestore loads
+  introPending=!fxRM();
+  renderStatus();
+  const boot=window.fxBoot?fxBoot():Promise.resolve();
+  const load=(async()=>{
+    const [cur,learned,goals]=await Promise.all([getSetting('currency'),dbAll('learned'),dbAll('goals')]);
+    if(cur){currency=cur;document.getElementById('currency-sel').value=currency}
+    learned.forEach(l=>{learnedMap[l.keyword]=l.category});
+    registerGoalCategories(goals);
+  })();
   document.getElementById('smart-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();handleSmartInput()}});
-  buildMoneyTabs();switchView('status');moveLamp();
-  if(window.fxBoot){introPending=!fxRM();const wasIntro=introPending;await fxBoot();if(wasIntro){await refreshStatus();playStatusIntro()}else introPending=false}
+  buildMoneyTabs();moveLamp();
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view==='status'));
+  try{await Promise.all([boot,load]);await refreshStatus()}
+  finally{moveLamp();playStatusIntro()}
   if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 async function init(){

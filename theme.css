@@ -360,3 +360,5 @@ body.fx-paused *,body.fx-paused::after{animation-play-state:paused!important}
 .goal-card+.goal-card{margin-top:22px}
 .goal-card+.goal-card::before{content:'';position:absolute;left:44px;top:-22px;height:22px;width:1px;background:linear-gradient(var(--line-2),var(--money))}
 .plan-ring-inner.done{color:var(--money)!important}
+.hero-fig{transition:opacity 1s var(--ease-out,ease),filter 1s var(--ease-out,ease)}
+.hero-intro .hero-fig{opacity:0;filter:blur(14px)}
