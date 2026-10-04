@@ -507,14 +507,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="stat-card"><div class="label">Топ категория</div><div class="value" id="stat-top">-</div></div>
   </div>
   <div class="card"><div class="card-title">Расходы за период</div>
-    <div class="sphere-wrap">
-      <div class="sphere">
-        <div class="sphere-blob b1"></div>
-        <div class="sphere-blob b2"></div>
-        <div class="sphere-blob b3"></div>
-        <div class="sphere-blob b4"></div>
-        <div class="sphere-shine"></div>
-      </div>
+    <div class="ring-wrap">
+      <svg id="ring-svg" viewBox="0 0 200 200" aria-hidden="true"></svg>
       <div class="sphere-center">
         <div class="sphere-label" id="sphere-label">ВСЕГО</div>
         <div class="sphere-total" id="sphere-total">0</div>
@@ -560,6 +554,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </div>
 </div>
 
+<!-- DEBTS -->
+<div id="view-debts" class="view"><div class="container">
+  <div class="header"><h1>Рассрочки</h1><button class="header-btn" onclick="toggleDebtForm()" aria-label="Добавить">+</button></div>
+  <div id="debts-body"></div>
+</div></div>
+
+<!-- ALLOCATION -->
+<div id="view-alloc" class="view"><div class="container">
+  <div class="header"><h1>Распределение</h1></div>
+  <div id="alloc-body"></div>
+</div></div>
+
 <!-- SETTINGS -->
 <div id="view-settings" class="view">
 <div class="container">
@@ -572,6 +578,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="settings-item" style="border:none">
       <div><div class="settings-label">Синхронизировать сейчас</div></div>
       <button class="settings-btn" onclick="syncNow()">Обновить</button>
+    </div>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <div class="settings-item" style="border:none">
+      <div><div class="settings-label">Фото героя</div><div class="settings-desc">Экран «Статус», квадрат до 560 px</div></div>
+      <div style="display:flex;gap:6px"><label class="settings-btn" style="cursor:pointer">Выбрать<input type="file" accept="image/*" hidden onchange="setAvatar(event)"></label><button class="settings-btn" onclick="resetAvatar()">Сброс</button></div>
     </div>
   </div>
   <div class="card" style="margin-top:12px">
@@ -660,6 +672,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </div>
 </div>
 
+<div id="cmd-layer" class="cmd-layer" hidden>
+  <div class="cmd-top">
+    <div class="cmd-seg"><button id="cmd-exp" class="on" onclick="cmdSetType('expense')">Расход</button><button id="cmd-inc" onclick="cmdSetType('income')">Доход</button></div>
+    <button class="header-btn" onclick="closeCmd()" aria-label="Закрыть"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div class="cmd-field" id="cmd-field"><input id="cmd-input" class="cmd-input" type="text" autocomplete="off" autocapitalize="off" placeholder="кофе 500" oninput="cmdUpdate()" onkeydown="cmdKey(event)" aria-label="Команда"></div>
+  <div id="cmd-chips" class="cmd-chips"></div>
+  <div id="cmd-cats" class="cat-grid" hidden></div>
+  <div id="cmd-templates"></div>
+  <div class="cmd-hint">кофе 500 · тренировка #зал вт 18:00 · + разобрал образ диска #dfir</div>
+</div>
 <nav class="bottom-nav" id="bottom-nav" hidden>
   <span class="nav-lamp" id="nav-lamp" aria-hidden="true"></span>
   <button class="nav-btn active" data-view="status" onclick="switchView('status',this)" aria-label="Статус"><span class="icon"><svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg></span></button>
@@ -732,6 +755,7 @@ const CATS={
     {id:'education',name:'Обучение',icon:'education'},
     {id:'gifts',name:'Подарки',icon:'gifts'},
     {id:'subscriptions',name:'Подписки',icon:'subscriptions'},
+    {id:'debts',name:'Рассрочки',icon:'card'},
     {id:'other_exp',name:'Другое',icon:'other_exp'}
   ],
   income:[
@@ -743,25 +767,17 @@ const CATS={
 };
 const CAT_MAP=new Map();
 Object.values(CATS).flat().forEach(c=>CAT_MAP.set(c.id,c));
-const CAT_COLORS={
-  food:'#f59e0b',groceries:'#10b981',transport:'#3b82f6',home:'#8b6cf0',
-  health:'#ef4444',clothes:'#14b8a6',fun:'#ec4899',telecom:'#06b6d4',
-  education:'#6366f1',gifts:'#e11d48',subscriptions:'#a855f7',other_exp:'#6b7280',
-  salary:'#10b981',freelance:'#7c6cf5',gift_income:'#ec4899',other_inc:'#6b7280'
-};
-function catColor(id){if(id&&id.startsWith('goal_'))return'#8b6cf0';return CAT_COLORS[id]||'#6b7280'}
-// Harmonized indigo→violet tonal family for Stats (chart + breakdown) — hue drifts blue→violet
-// as amount rank increases, lightness alternates so neighboring slices stay distinguishable.
+const CAT_COLORS={};
+Object.entries(CATS).forEach(([k,arr])=>arr.forEach(c=>{CAT_COLORS[c.id]=k==='income'?'#E9C46A':'#D8D8D2'}));
+function catColor(id){if(id&&id.startsWith('goal_'))return'#E9C46A';return CAT_COLORS[id]||'#9A9A92'}
+// Monochrome ramp for Stats: lightness falls with amount rank (the active segment is drawn in --money)
 function statsColor(i,n,alpha){
-  const hue=220+(n<=1?0:(65*i/(n-1)));
-  const light=i%2===0?58:47;
-  return `hsla(${hue.toFixed(0)}, 78%, ${light}%, ${alpha==null?1:alpha})`;
+  const light=n<=1?88:Math.round(90-48*i/(n-1));
+  return `hsla(45, 6%, ${light}%, ${alpha==null?1:alpha})`;
 }
 const AVATAR_GRADIENTS=[
-  'linear-gradient(135deg,#5b8cff,#8b6cf0)','linear-gradient(135deg,#f59e0b,#ef4444)',
-  'linear-gradient(135deg,#10b981,#06b6d4)','linear-gradient(135deg,#ec4899,#8b5cf6)',
-  'linear-gradient(135deg,#6366f1,#a855f7)','linear-gradient(135deg,#14b8a6,#3b82f6)',
-  'linear-gradient(135deg,#f97316,#ec4899)','linear-gradient(135deg,#84cc16,#10b981)'
+  'linear-gradient(135deg,#3a3a3e,#1c1c1f)','linear-gradient(135deg,#2c2c30,#555559)',
+  'linear-gradient(135deg,#444448,#202022)','linear-gradient(135deg,#505054,#2a2a2d)'
 ];
 function avatarGradient(name){
   let hash=0;for(let i=0;i<name.length;i++)hash=(hash*31+name.charCodeAt(i))|0;
@@ -815,6 +831,8 @@ const firebaseConfig={
 
 // ── Firestore-backed storage (replaces IndexedDB; store names/keys mirror the old object stores) ──
 let fsDb=null,spaceRef=null;
+const EXTRA_STORES=['tasks','taskLog','habits','habitChecks','journal','debts','allocations','workoutPlans','workouts','bodyWeights','xpLog'];
+const ALL_STORES=['transactions','goals','budgets','templates','settings','learned',...EXTRA_STORES];
 const STORE_KEY_FIELD={budgets:'key',settings:'key',learned:'keyword',habitChecks:'key',bodyWeights:'key'};
 function docId(s,d){return encodeURIComponent(String(d[STORE_KEY_FIELD[s]||'id']))}
 async function dbPut(s,d){await spaceRef.collection(s).doc(docId(s,d)).set(d)}
@@ -881,7 +899,7 @@ function downloadLegacyBackup(legacy){
   a.href=url;a.download=`finance-backup-before-sync-${today()}.json`;a.click();URL.revokeObjectURL(url);
 }
 async function uploadLegacyData(legacy){
-  for(const s of['transactions','goals','budgets','templates','settings','learned','tasks','taskLog','habits','habitChecks']){
+  for(const s of ALL_STORES){
     const items=legacy[s]||[];if(!items.length)continue;
     for(let i=0;i<items.length;i+=450){
       const batch=fsDb.batch();
@@ -1010,6 +1028,7 @@ function toastUndo(msg,txId){
   undoTimer=setTimeout(()=>el.classList.remove('show'),3500);
 }
 async function undoTx(id){
+  await goalRollback(id);
   await dbDel('transactions',id);dirtyTx();
   document.getElementById('toast').classList.remove('show');
   toast('Отменено');
@@ -1098,7 +1117,7 @@ async function refreshDashboard(){
   const txs=filterPeriod(await getTxs(),currentPeriod);
   const inc=txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
   const exp=txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
-  document.getElementById('dash-balance').textContent=fmtCur(inc-exp);
+  fxTicker(document.getElementById('dash-balance'),inc-exp,n=>fmtCur(Math.round(n)),800);
   document.getElementById('dash-income').textContent='+'+fmtCur(inc);
   document.getElementById('dash-expense').textContent='-'+fmtCur(exp);
   const recent=[...txs].sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt).slice(0,7);
@@ -1167,7 +1186,6 @@ async function saveFallback(){
   if(!pendingInput||!selectedFallbackCat)return toast('Выберите категорию');
   if(pendingInput.desc)await learnCategory(pendingInput.desc,selectedFallbackCat);
   const tx=await saveTx(pendingInput.desc,pendingInput.amount,selectedFallbackCat);
-  if(selectedFallbackCat.startsWith('goal_'))await contributeToGoal(selectedFallbackCat.slice(5),tx.amount);
   document.getElementById('smart-input').value='';
   document.getElementById('fallback-grid').classList.remove('show');
   selectedFallbackCat=null;pendingInput=null;
@@ -1179,6 +1197,7 @@ async function saveFallback(){
 async function saveTx(desc,amount,catId){
   const tx={id:uid(),type:currentType,amount,category:catId,description:desc,date:today(),createdAt:Date.now(),source:'manual'};
   await dbPut('transactions',tx);dirtyTx();
+  if(catId&&catId.startsWith('goal_'))await contributeToGoal(catId.slice(5),amount);
   return tx;
 }
 
@@ -1314,7 +1333,7 @@ async function exportHistoryFiltered(){
   a.href=url;a.download=`finance-${historyBank||'all'}-${today()}.json`;a.click();URL.revokeObjectURL(url);
   toast(`Экспортировано: ${txs.length}`);
 }
-async function deleteTx(id){if(!confirm('Удалить запись?'))return;await dbDel('transactions',id);dirtyTx();refreshHistory();toast('Удалено')}
+async function deleteTx(id){if(!confirm('Удалить запись?'))return;await goalRollback(id);await dbDel('transactions',id);dirtyTx();refreshHistory();toast('Удалено')}
 
 // ── Stats ──
 async function refreshStats(){
@@ -1338,9 +1357,10 @@ async function refreshStats(){
   const byCat={};expenses.forEach(t=>{byCat[t.category]=(byCat[t.category]||0)+t.amount});
   const sorted=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
   document.getElementById('stat-top').innerHTML=sorted.length?icoInline(getCat(sorted[0][0]).icon,16)+escapeHtml(getCat(sorted[0][0]).name):'-';
+  buildRing(sorted,totalExp);
   document.getElementById('sphere-legend').innerHTML=sorted.map(([cat,amt],i)=>{
     const c=getCat(cat),col=statsColor(i,sorted.length);
-    return`<div class="sphere-legend-item" data-name="${escapeHtml(c.name)}" data-amt="${fmtCur(amt)}" onmouseenter="sphereShow(this)" onmouseleave="sphereReset()" onclick="sphereToggle(this)"><span class="sphere-legend-dot" style="background:${col}"></span>${escapeHtml(c.name)}</div>`;
+    return`<div class="sphere-legend-item" data-i="${i}" data-name="${escapeHtml(c.name)}" data-amt="${fmtCur(amt)}" onmouseenter="sphereShow(this)" onmouseleave="sphereReset()" onclick="sphereToggle(this)"><span class="sphere-legend-dot" style="background:${col}"></span>${escapeHtml(c.name)}</div>`;
   }).join('');
   const bd=document.getElementById('cat-breakdown'),maxAmt=sorted.length?sorted[0][1]:1;
   bd.innerHTML=sorted.map(([cat,amt],i)=>{
@@ -1360,14 +1380,35 @@ async function refreshStats(){
   }
   renderCharts(txs);
 }
+// Monochrome ring: one arc per category, the hovered/selected one lights up in --money
+function buildRing(sorted,total){
+  const svg=document.getElementById('ring-svg');if(!svg)return;
+  const N='http://www.w3.org/2000/svg';svg.innerHTML='';
+  const track=document.createElementNS(N,'circle');track.setAttribute('cx',100);track.setAttribute('cy',100);track.setAttribute('r',84);track.setAttribute('class','ring-track');svg.appendChild(track);
+  let cum=0;
+  sorted.forEach(([cat,amt],i)=>{
+    const pct=total?amt/total*100:0,len=Math.max(0,pct-.8);
+    const c=document.createElementNS(N,'circle');
+    c.setAttribute('cx',100);c.setAttribute('cy',100);c.setAttribute('r',84);c.setAttribute('pathLength',100);
+    c.setAttribute('class','ring-seg');c.dataset.i=i;c.style.stroke=statsColor(i,sorted.length);
+    c.setAttribute('stroke-dasharray',len+' '+(100-len));c.setAttribute('stroke-dashoffset',-cum);
+    svg.appendChild(c);
+    if(window.fxRM&&!fxRM())c.animate([{strokeDasharray:'0 100'},{strokeDasharray:len+' '+(100-len)}],{duration:700,delay:i*70,easing:'cubic-bezier(.65,0,.35,1)',fill:'backwards'});
+    cum+=pct;
+  });
+  fxTicker(document.getElementById('sphere-total'),total,n=>fmtCur(Math.round(n)),700);
+}
+function ringHot(i){document.querySelectorAll('.ring-seg').forEach(s=>s.classList.toggle('on',i!=null&&s.dataset.i===String(i)))}
 function sphereShow(el){
   document.getElementById('sphere-label').textContent=el.dataset.name;
   document.getElementById('sphere-total').textContent=el.dataset.amt;
+  ringHot(el.dataset.i);
 }
 function sphereReset(){
   if(document.querySelector('.sphere-legend-item.active'))return;
   document.getElementById('sphere-label').textContent='ВСЕГО';
   document.getElementById('sphere-total').textContent=sphereTotalStr;
+  ringHot(null);
 }
 function sphereToggle(el){
   const wasActive=el.classList.contains('active');
@@ -1376,7 +1417,7 @@ function sphereToggle(el){
   else sphereReset();
 }
 
-const TOOLTIP_STYLE={backgroundColor:'#1c1a2e',titleColor:'#f5f5f7',bodyColor:'#f5f5f7',borderColor:'rgba(139,108,240,.4)',borderWidth:1,padding:10,cornerRadius:10,displayColors:true,boxPadding:4,titleFont:{weight:'600'}};
+const TOOLTIP_STYLE={backgroundColor:'#0B0B0C',titleColor:'#F2F2EF',bodyColor:'#F2F2EF',borderColor:'rgba(255,255,255,.18)',borderWidth:1,padding:10,cornerRadius:10,displayColors:true,boxPadding:4,titleFont:{weight:'600'}};
 function renderCharts(allTxs){
   const gc='rgba(255,255,255,.08)',tc='#9a9a92';
   const byDay={},incByDay={};
@@ -1384,16 +1425,16 @@ function renderCharts(allTxs){
   const allDates=[...new Set([...Object.keys(byDay),...Object.keys(incByDay)])].sort().slice(-14);
   const barCtx=document.getElementById('chart-bar').getContext('2d');
   const expGrad=barCtx.createLinearGradient(0,0,0,220);
-  expGrad.addColorStop(0,'rgba(139,108,240,.35)');expGrad.addColorStop(1,'rgba(139,108,240,0)');
+  expGrad.addColorStop(0,'rgba(242,242,239,.16)');expGrad.addColorStop(1,'rgba(242,242,239,0)');
   const incGrad=barCtx.createLinearGradient(0,0,0,220);
-  incGrad.addColorStop(0,'rgba(16,185,129,.3)');incGrad.addColorStop(1,'rgba(16,185,129,0)');
+  incGrad.addColorStop(0,'rgba(233,196,106,.18)');incGrad.addColorStop(1,'rgba(233,196,106,0)');
   const lineGrad=barCtx.createLinearGradient(0,0,340,0);
-  lineGrad.addColorStop(0,'#5b8cff');lineGrad.addColorStop(.55,'#8b6cf0');lineGrad.addColorStop(1,'#c66cf0');
+  lineGrad.addColorStop(0,'#F2F2EF');lineGrad.addColorStop(1,'#F2F2EF');
   const barData={
     labels:allDates.map(d=>new Date(d+'T00:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'short'})),
     datasets:[
-      {label:'Расходы',data:allDates.map(d=>byDay[d]||0),borderColor:lineGrad,backgroundColor:expGrad,fill:true,tension:.4,pointRadius:0,pointHoverRadius:5,pointHoverBackgroundColor:'#8b6cf0',borderWidth:2.5},
-      {label:'Доходы',data:allDates.map(d=>incByDay[d]||0),borderColor:'#10b981',backgroundColor:incGrad,fill:true,tension:.4,pointRadius:0,pointHoverRadius:5,pointHoverBackgroundColor:'#10b981',borderWidth:2.5}
+      {label:'Расходы',data:allDates.map(d=>byDay[d]||0),borderColor:lineGrad,backgroundColor:expGrad,fill:true,tension:.4,pointRadius:0,pointHoverRadius:5,pointHoverBackgroundColor:'#F2F2EF',borderWidth:1.5},
+      {label:'Доходы',data:allDates.map(d=>incByDay[d]||0),borderColor:'#E9C46A',backgroundColor:incGrad,fill:true,tension:.4,pointRadius:0,pointHoverRadius:5,pointHoverBackgroundColor:'#E9C46A',borderWidth:1.5}
     ]
   };
   const barOpts={responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{labels:{color:tc,usePointStyle:true,pointStyle:'circle'}},tooltip:TOOLTIP_STYLE},scales:{x:{ticks:{color:tc,font:{size:10}},grid:{display:false}},y:{ticks:{color:tc},grid:{color:gc}}}};
@@ -1441,7 +1482,7 @@ async function renderHomeBudgetRing(){
   const month=today().slice(0,7);
   const spent=(await getTxs()).filter(t=>t.type==='expense'&&t.date.startsWith(month)).reduce((s,t)=>s+t.amount,0);
   const pct=Math.min(100,Math.round(spent/general.limit*100));
-  const arc=pct>=100?'#ef4444,#f59e0b':pct>=80?'#f59e0b,#f59e0b':'#5b8cff,#c66cf0';
+  const arc=pct>=100?'#FF5A5F,#FF5A5F':pct>=80?'#E9C46A,#E9C46A':'#F2F2EF,#F2F2EF';
   card.hidden=false;
   document.getElementById('home-budget-ring').style.background=`conic-gradient(from 0deg,${arc.split(',')[0]} 0%,${arc.split(',')[1]} ${pct}%,var(--bg3) ${pct}%)`;
   document.getElementById('home-budget-ring-pct').textContent=pct+'%';
@@ -1457,7 +1498,7 @@ async function refreshBudgets(){
   list.innerHTML=budgets.sort((a,b)=>a.key==='general'?-1:1).map(b=>{
     const spent=b.key==='general'?monthExp.reduce((s,t)=>s+t.amount,0):monthExp.filter(t=>t.category===b.key).reduce((s,t)=>s+t.amount,0);
     const pct=Math.min(100,Math.round(spent/b.limit*100));
-    const color=pct>=100?'#ef4444':pct>=80?'#f59e0b':'#5b8cff';
+    const color=pct>=100?'#FF5A5F':pct>=80?'#E9C46A':'#F2F2EF';
     const icon=b.key==='general'?'wallet':getCat(b.key).icon;
     const name=b.key==='general'?'Общий лимит':getCat(b.key).name;
     return`<div class="budget-card">${planRing(pct,color,pct+'%')}<div class="budget-info"><div class="budget-header"><div class="budget-name">${icoInline(icon,16)}${name}</div><button class="del-btn" onclick="delBudget('${b.key}')">${ico('close',16)}</button></div><div class="budget-amounts"><span>${fmtCur(spent)} / ${fmtCur(b.limit)}</span></div></div></div>`;
@@ -1485,8 +1526,13 @@ function registerGoalCategories(goals){
   });
 }
 async function contributeToGoal(id,amount){
-  const goals=await dbAll('goals');const g=goals.find(x=>x.id===id);if(!g)return;
-  g.currentAmount+=amount;await dbPut('goals',g);
+  // Atomic: concurrent devices / rapid repeats never lose an increment; negative amount = rollback
+  try{await spaceRef.collection('goals').doc(encodeURIComponent(String(id))).update({currentAmount:firebase.firestore.FieldValue.increment(amount)})}
+  catch(e){console.warn('contributeToGoal:',e.message)}
+}
+async function goalRollback(txId){
+  const t=(await getTxs()).find(x=>x.id===txId);
+  if(t&&t.category&&t.category.startsWith('goal_'))await contributeToGoal(t.category.slice(5),-t.amount);
 }
 
 async function refreshGoals(){
@@ -1498,7 +1544,7 @@ async function refreshGoals(){
     const pct=Math.max(0,Math.min(100,Math.round(g.currentAmount/g.targetAmount*100)));
     const done=pct>=100;
     const dl=g.deadline?new Date(g.deadline+'T00:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}):'';
-    const ring=planRing(pct,done?'#10b981':'#7c6cf5',done?ico('check',20):pct+'%','goal');
+    const ring=planRing(pct,done?'#E9C46A':'#F2F2EF',done?ico('check',20):pct+'%','goal');
     return`<div class="goal-card">${ring}<div class="goal-info"><div class="goal-name">${escapeHtml(g.name)}${done?`<span class="goal-badge">${ico('check',12)}Выполнено</span>`:''}</div>${dl?`<div class="goal-dates">${icoInline('calendar',13)}${dl}</div>`:''}<div class="goal-amounts"><span>${fmtCur(g.currentAmount)} / ${fmtCur(g.targetAmount)}</span></div><div class="goal-actions"><button class="goal-action-btn goal-add-btn" onclick="addToGoal('${g.id}')">${ico('plusCircle',15)}Пополнить</button><button class="goal-action-btn goal-del-btn" onclick="deleteGoal('${g.id}')">${ico('close',15)}Удалить</button></div></div></div>`;
   }).join('');
 }
@@ -1808,6 +1854,7 @@ async function addSelectedStmt(){
   isAddingStmt=true;
   toast(`Добавляем ${toAdd.length}...`);
   try{
+    const goalAdds={};
     for(let i=0;i<toAdd.length;i+=450){
       const chunk=toAdd.slice(i,i+450);
       const batch=fsDb.batch();
@@ -1816,10 +1863,12 @@ async function addSelectedStmt(){
         const catId=await classify(item.desc,type)||(type==='income'?'other_inc':'other_exp');
         const tx={id:uid(),type,amount:item.amount,category:catId,description:item.desc,date:item.date,createdAt:Date.now(),source:'statement'};
         if(stmtMode==='pdf'&&stmtBank)tx.bank=stmtBank;
+        if(catId.startsWith('goal_'))goalAdds[catId.slice(5)]=(goalAdds[catId.slice(5)]||0)+item.amount;
         batch.set(spaceRef.collection('transactions').doc(docId('transactions',tx)),tx);
       }
       await batch.commit();
     }
+    for(const[g,amt]of Object.entries(goalAdds))await contributeToGoal(g,amt);
     dirtyTx();
     if(stmtFileHash)await spaceRef.collection('importedStatements').doc(stmtFileHash).set({bank:stmtBank,importedAt:Date.now(),count:toAdd.length});
     toast(`Добавлено: ${toAdd.length}`);
@@ -1888,9 +1937,9 @@ async function saveBankBalances(){
 function setCurrency(c){currency=c;saveSetting('currency',c);refreshDashboard()}
 
 async function exportData(){
-  const[txs,goals,budgets,templates,settings,learned,tasks,taskLog,habits,habitChecks]=await Promise.all(['transactions','goals','budgets','templates','settings','learned','tasks','taskLog','habits','habitChecks'].map(dbAll));
-  const data=JSON.stringify({transactions:txs,goals,budgets,templates,settings,learned,tasks,taskLog,habits,habitChecks,currency,exportDate:new Date().toISOString()},null,2);
-  const blob=new Blob([data],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  const data=Object.fromEntries(await Promise.all(ALL_STORES.map(async s=>[s,await dbAll(s)])));
+  const json=JSON.stringify({...data,currency,exportDate:new Date().toISOString()},null,2);
+  const blob=new Blob([json],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download=`finance-${today()}.json`;a.click();URL.revokeObjectURL(url);toast('Экспорт завершён');
 }
 
@@ -1909,7 +1958,7 @@ async function clearAll(){
   if(!confirm('Удалить ВСЕ данные? Это необратимо!'))return;
   if(!confirm('Точно уверены?'))return;
   try{
-    await Promise.all([dbClear('transactions'),dbClear('goals'),dbClear('budgets'),dbClear('templates'),dbClear('learned'),dbClear('settings'),dbClear('importedStatements'),dbClear('tasks'),dbClear('taskLog'),dbClear('habits'),dbClear('habitChecks')]);
+    await Promise.all([dbClear('transactions'),dbClear('goals'),dbClear('budgets'),dbClear('templates'),dbClear('learned'),dbClear('settings'),dbClear('importedStatements'),...EXTRA_STORES.map(dbClear)]);
     dirtyTx();dirtyTasks();learnedMap={};settingsCache=null;currency='KZT';
     toast('Все данные удалены');refreshDashboard();
   }catch(err){
@@ -1921,7 +1970,25 @@ async function clearAll(){
 const LISTS=[{id:'inbox',name:'Входящие'},{id:'dfir',name:'DFIR'},{id:'money',name:'Деньги'},{id:'gym',name:'Зал'},{id:'home',name:'Быт'}];
 const listName=id=>(LISTS.find(l=>l.id===id)||LISTS[0]).name;
 let tasksCache=null,tasksDirty=true,habitsCache=null,habitsDirty=true,checksCache=null,checksDirty=true,logCache=null,logDirty=true;
-function dirtyTasks(){tasksDirty=habitsDirty=checksDirty=logDirty=true}
+function dirtyTasks(){tasksDirty=habitsDirty=checksDirty=logDirty=true;dirtyCols()}
+// Generic write-through caches for the newer collections (journal, debts, xpLog, ...)
+const colCache={};
+async function getCol(name){
+  const c=colCache[name]||(colCache[name]={data:null,dirty:true});
+  if(c.dirty||!c.data){c.data=await dbAll(name);c.dirty=false}
+  return c.data;
+}
+function dirtyCols(){Object.values(colCache).forEach(c=>c.dirty=true)}
+async function colPut(name,item){
+  const arr=await getCol(name),f=STORE_KEY_FIELD[name]||'id',i=arr.findIndex(x=>x[f]===item[f]);
+  if(i>=0)arr[i]=item;else arr.push(item);
+  await dbPut(name,item);
+}
+async function colDel(name,id){
+  const arr=await getCol(name),f=STORE_KEY_FIELD[name]||'id',i=arr.findIndex(x=>String(x[f])===String(id));
+  if(i>=0)arr.splice(i,1);
+  await dbDel(name,id);
+}
 async function getTasks(){if(!tasksDirty&&tasksCache)return tasksCache;tasksCache=await dbAll('tasks');tasksDirty=false;return tasksCache}
 async function getHabits(){if(!habitsDirty&&habitsCache)return habitsCache;habitsCache=await dbAll('habits');habitsDirty=false;return habitsCache}
 async function getChecks(){if(!checksDirty&&checksCache)return checksCache;checksCache=await dbAll('habitChecks');checksDirty=false;return checksCache}
@@ -1959,7 +2026,8 @@ function nextOccurrence(rep,after){
 function nextDue(task){const t=today();return nextOccurrence(task.repeat,task.due&&task.due>t?task.due:t)}
 
 const taskUndo={};
-async function completeTask(id){
+async function completeTask(id,opts){
+  opts=opts||{};
   await Promise.all([getTasks(),getTaskLog()]);
   const t=tasksCache.find(x=>x.id===id);if(!t)return;
   const log={id:uid(),taskId:t.id,title:t.title,list:t.list,date:today(),at:Date.now()};
@@ -1976,6 +2044,9 @@ async function completeTask(id){
   }catch(err){
     toast('Не удалось сохранить: '+err.message);dirtyTasks();refreshTasks();return;
   }
+  const rec=taskUndo[log.id];rec.undos=[];
+  for(const hk of taskCompleteHooks){try{const u=await hk(t,log,opts);if(u)rec.undos.push(u)}catch(e){console.warn('task hook',e)}}
+  checkAchievements();
   toastUndoTask(`${icoInline('tasks')}${escapeHtml(t.title)}${nd?' &rarr; '+escapeHtml(formatTaskDate(nd)):''}`,log.id);
 }
 function toastUndoTask(msg,logId){
@@ -1987,6 +2058,7 @@ function toastUndoTask(msg,logId){
 }
 async function undoTask(logId){
   const rec=taskUndo[logId];if(!rec)return;delete taskUndo[logId];
+  for(const u of (rec.undos||[]).slice().reverse()){try{await u()}catch(e){console.warn('undo hook',e)}}
   await Promise.all([getTasks(),getTaskLog()]);
   const t=tasksCache.find(x=>x.id===rec.taskId);if(!t)return;
   const restored={...t,...rec.prev};
@@ -2010,19 +2082,31 @@ function habitStreak(hid,checks){
   let n=0;while(set.has(d)){n++;d=addDays(d,-1)}
   return n;
 }
-async function toggleHabit(hid){
-  await getChecks();
+async function toggleHabit(hid,el){
+  await Promise.all([getChecks(),getHabits()]);
   const date=today(),key=`${hid}_${date}`;
-  const i=checksCache.findIndex(c=>c.key===key);
+  const i=checksCache.findIndex(c=>c.key===key),hab=habitsCache.find(x=>x.id===hid);
   try{
-    if(i>=0){checksCache.splice(i,1);renderTasks();await dbDel('habitChecks',key)}
-    else{const c={key,habitId:hid,date};checksCache.push(c);renderTasks();await dbPut('habitChecks',c)}
+    if(i>=0){checksCache.splice(i,1);renderTasks();await dbDel('habitChecks',key);await revokeXp('habit_'+key)}
+    else{
+      const c={key,habitId:hid,date};checksCache.push(c);
+      if(window.fxQuestDone&&el)fxQuestDone(el,20);
+      renderTasks();await dbPut('habitChecks',c);
+      await awardXp('habit_'+key,hab&&hab.sphere,20,'habit');
+      checkAchievements();
+    }
   }catch(err){toast('Не удалось сохранить: '+err.message);dirtyTasks();refreshTasks()}
+}
+async function setHabitSphere(id,val){
+  await getHabits();
+  const h0=habitsCache.find(x=>x.id===id);if(!h0)return;
+  const upd={...h0,sphere:val||null};cachePut(habitsCache,upd);
+  try{await dbPut('habits',upd)}catch(err){toast('Не удалось сохранить: '+err.message)}
 }
 async function addHabit(){
   const name=(prompt('Название привычки')||'').trim();if(!name)return;
   const habits=await getHabits();
-  const h={id:uid(),name,order:Math.max(0,...habits.map(x=>x.order||0))+1,archived:false,createdAt:Date.now()};
+  const h={id:uid(),name,sphere:null,order:Math.max(0,...habits.map(x=>x.order||0))+1,archived:false,createdAt:Date.now()};
   cachePut(habitsCache,h);renderTasks();
   try{await dbPut('habits',h)}catch(err){toast('Не удалось сохранить: '+err.message);dirtyTasks();refreshTasks()}
 }
@@ -2043,7 +2127,7 @@ function formatTaskDate(s){
 // ── Tasks screen ──
 let editingTaskId=null,tasksLaterOpen=false,habitsEditing=false;
 async function refreshTasks(){
-  await Promise.all([getTasks(),getHabits(),getChecks(),getTaskLog()]);
+  await Promise.all([getTasks(),getHabits(),getChecks(),getTaskLog(),getCol('journal')]);
   renderTasks();
 }
 function cmpTasks(a,b){
@@ -2070,7 +2154,7 @@ function taskRowHtml(t,showDate){
     t.repeat?ico('repeat',13):'',
     `<span class="task-badge">${escapeHtml(listName(t.list))}</span>`
   ].join('');
-  const row=`<div class="task-row" data-id="${escapeHtml(t.id)}" onclick="editTask(this.dataset.id)"><button class="task-check" aria-label="Выполнить" data-id="${escapeHtml(t.id)}" onclick="event.stopPropagation();completeTask(this.dataset.id)"></button><div class="task-main"><div class="task-title">${escapeHtml(t.title)}</div><div class="task-meta">${meta}</div></div></div>`;
+  const row=`<div class="task-row" data-id="${escapeHtml(t.id)}" onclick="editTask(this.dataset.id)"><button class="task-check" aria-label="Выполнить" data-id="${escapeHtml(t.id)}" onclick="event.stopPropagation();completeTask(this.dataset.id,{el:this})"></button><div class="task-main"><div class="task-title">${escapeHtml(t.title)}</div><div class="task-meta">${meta}</div></div></div>`;
   return `<div class="task-item">${row}${editingTaskId===t.id?taskEditHtml(t):''}</div>`;
 }
 function taskEditHtml(t){
@@ -2108,9 +2192,9 @@ function renderTasks(){
   const hs=habits.filter(h=>!h.archived).sort((a,b)=>(a.order||0)-(b.order||0));
   document.getElementById('habits-edit-btn').textContent=habitsEditing?'Готово':'Настроить';
   let hh=hs.map(h=>{
-    if(habitsEditing)return `<div class="habit-row" style="cursor:default"><div class="habit-name">${escapeHtml(h.name)}</div><button class="del-btn" data-id="${escapeHtml(h.id)}" onclick="archiveHabit(this.dataset.id)" aria-label="Архивировать">${ico('close',16)}</button></div>`;
+    if(habitsEditing)return `<div class="habit-row" style="cursor:default"><div class="habit-name">${escapeHtml(h.name)}</div><select class="currency-select" data-id="${escapeHtml(h.id)}" onchange="setHabitSphere(this.dataset.id,this.value)" aria-label="Сфера"><option value="">Без сферы</option>${Object.entries(SPHERES).map(([k,v])=>`<option value="${k}"${h.sphere===k?' selected':''}>${v}</option>`).join('')}</select><button class="del-btn" data-id="${escapeHtml(h.id)}" onclick="archiveHabit(this.dataset.id)" aria-label="Архивировать">${ico('close',16)}</button></div>`;
     const done=checks.some(c=>c.key===`${h.id}_${t0}`),n=habitStreak(h.id,checks);
-    return `<div class="habit-row" data-id="${escapeHtml(h.id)}" onclick="toggleHabit(this.dataset.id)"><div class="habit-check${done?' done':''}">${done?ico('check',14):''}</div><div class="habit-name">${escapeHtml(h.name)}</div><div class="habit-streak${n?' on':''}">${ico('flame',16)}${n}</div></div>`;
+    return `<div class="habit-row" data-id="${escapeHtml(h.id)}" onclick="toggleHabit(this.dataset.id,this.querySelector('.habit-check'))"><div class="habit-check${done?' done':''}">${done?ico('check',14):''}</div><div class="habit-name">${escapeHtml(h.name)}</div><div class="habit-streak${n?' on':''}">${ico('flame',16)}${n}</div></div>`;
   }).join('');
   if(habitsEditing)hh+=`<button class="settings-btn" style="margin-top:10px" onclick="addHabit()">+ Добавить привычку</button>`;
   else if(!hs.length)hh='<div class="empty-state" style="padding:12px 0">Нет привычек — нажмите «Настроить»</div>';
@@ -2128,6 +2212,7 @@ function renderTasks(){
     html+='<div class="task-section-title">Без даты</div>';
     LISTS.forEach(l=>{const items=nodate.filter(t=>(LISTS.some(x=>x.id===t.list)?t.list:'inbox')===l.id);if(items.length)html+=`<div class="task-sublist">${l.name}</div>`+items.map(t=>taskRowHtml(t,false)).join('')});
   }
+  renderJournalToday();
   document.getElementById('tasks-list').innerHTML=html||'<div class="empty-state"><span class="icon-wrap">'+ico('tasks',40)+'</span>Задач нет</div>';
 }
 function toggleTasksLater(){tasksLaterOpen=!tasksLaterOpen;renderTasks()}
@@ -2200,17 +2285,533 @@ function parseQuickTask(text){
     if(!ok)break;
     words.pop();
   }
-  return{title:words.join(' ').trim(),list,due,time};
+  return{title:words.join(' ').trim(),list,due,time,tagged:gotList};
 }
 async function addQuickTask(){
   const input=document.getElementById('task-quick');
   const p=parseQuickTask(input.value);
   if(!p.title)return toast('Введите название задачи');
-  await getTasks();
-  const t={id:uid(),title:p.title,list:p.list,due:p.due,time:p.time,repeat:null,done:false,doneAt:null,createdAt:Date.now(),source:'app'};
-  cachePut(tasksCache,t);input.value='';renderTasks();
+  input.value='';
+  let t;try{t=await createTask(p)}catch(e){return}
+  renderTasks();
   toast(`Добавлено: ${t.title}${t.due?' · '+formatTaskDate(t.due):''}${t.time?' '+t.time:''}`);
-  try{await dbPut('tasks',t)}catch(err){toast('Не удалось сохранить: '+err.message);dirtyTasks();refreshTasks()}
+}
+
+// ── Game layer: XP, levels, ranks, cooling, seasons, achievements ──
+const SPHERES={money:'Деньги',dfir:'DFIR',body:'Тело'};
+const SPHERE_OF_LIST={dfir:'dfir',gym:'body',money:'money'};
+const xpToNext=L=>1000+150*L;
+function cumXp(L){let s=0;for(let k=1;k<L;k++)s+=xpToNext(k);return s}
+function levelOf(xp){let L=1;while(xp>=cumXp(L+1))L++;return L}
+function levelInfo(xp){const L=levelOf(xp),a=cumXp(L),b=cumXp(L+1);return{level:L,into:Math.max(0,xp-a),need:b-a,pct:Math.max(0,Math.min(1,(xp-a)/(b-a)))}}
+function rankOf(L){if(L<=4)return'Стажёр';if(L<=14)return'Tier 1, аналитик первой линии';if(L<=29)return'Tier 2';if(L<=49)return'Tier 3';return'Lead'}
+function nextRankAt(L){return L<5?5:L<15?15:L<30?30:L<50?50:null}
+function daysBetween(a,b){return Math.round((parseLocalDate(b)-parseLocalDate(a))/86400000)}
+function weekStart(d){return addDays(d,-(isoWeekday(d)-1))}
+
+async function xpTotals(){
+  const log=await getCol('xpLog'),t={all:0,money:0,dfir:0,body:0};
+  log.forEach(e=>{t.all+=e.amount;if(e.sphere&&t[e.sphere]!=null)t[e.sphere]+=e.amount});
+  return t;
+}
+async function levelsNow(){
+  const t=await xpTotals();
+  return{all:levelOf(t.all),money:levelOf(t.money),dfir:levelOf(t.dfir),body:levelOf(t.body),totals:t};
+}
+function refreshStatusIfVisible(){const v=document.getElementById('view-status');if(v&&v.classList.contains('active'))renderStatus()}
+function notifyLevelChange(b,a){
+  const ups=[];
+  if(a.all>b.all)ups.push({kind:'all',from:b.all,to:a.all});
+  for(const s of Object.keys(SPHERES))if(a[s]>b[s])ups.push({kind:s,from:b[s],to:a[s]});
+  if(ups.length&&window.fxLevelUp)fxLevelUp(ups[0],a);
+}
+// Deterministic ids (task_<logId>, habit_<key>, journal_<id>, workout_<id>, ...) make every XP award revocable
+async function awardXp(id,sphere,amount,source){
+  if(!amount)return null;
+  const before=await levelsNow();
+  const e={id,date:today(),at:Date.now(),sphere:sphere||null,amount,source};
+  await colPut('xpLog',e);
+  notifyLevelChange(before,await levelsNow());
+  refreshStatusIfVisible();
+  return e;
+}
+async function revokeXp(id){await colDel('xpLog',id);refreshStatusIfVisible()}
+
+// Task completion hooks: fn(task,log,opts) → undo function | null
+const taskCompleteHooks=[];
+taskCompleteHooks.push(async(t,log,opts)=>{
+  if(opts&&opts.noXp)return null;
+  await awardXp('task_'+log.id,SPHERE_OF_LIST[t.list]||null,t.xp!=null?t.xp:20,'task');
+  return()=>revokeXp('task_'+log.id);
+});
+
+// Cooling: a sphere with no positive XP for 14 days drops to the start of its previous level (once per idle period)
+const COOL_DAYS=14,COOL_WARN_FROM=11;
+function sphereIdleDays(log,s){
+  const es=log.filter(e=>e.sphere===s);
+  if(!es.some(e=>e.amount>0))return null;
+  const last=es.reduce((m,e)=>((e.amount>0||String(e.id).startsWith('cool_'))&&e.date>m)?e.date:m,'');
+  return daysBetween(last,today());
+}
+async function runCooling(){
+  const log=await getCol('xpLog'),t=today();
+  for(const s of Object.keys(SPHERES)){
+    const idle=sphereIdleDays(log,s);
+    if(idle==null||idle<COOL_DAYS)continue;
+    const xp=log.filter(e=>e.sphere===s).reduce((a,e)=>a+e.amount,0),L=levelOf(xp);
+    if(L<=1)continue;
+    const amount=cumXp(L-1)-xp;
+    if(amount>=0)continue;
+    await colPut('xpLog',{id:`cool_${s}_${t}`,date:t,at:Date.now(),sphere:s,amount,source:'cooling'});
+  }
+}
+async function coolingWarnings(){
+  const log=await getCol('xpLog'),out={};
+  for(const s of Object.keys(SPHERES)){
+    const idle=sphereIdleDays(log,s);
+    if(idle!=null&&idle>=COOL_WARN_FROM&&idle<COOL_DAYS)out[s]=COOL_DAYS-idle;
+  }
+  return out;
+}
+
+// Seasons
+const SEASONS=[{id:1,name:'Верблюд',start:'2026-10-01',end:'2026-12-29',phases:[
+ {name:'Фундамент',month:'октябрь',text:'DFIR недели 1–4, программа A/B/C, первые +2,5 кг, система задач запущена'},
+ {name:'Подушка',month:'ноябрь',text:'Таймлайн и память в DFIR, старт брекетов, взносы в подушку'},
+ {name:'Рывок',month:'декабрь',text:'Полный кейс от образа до отчёта, выбор сертификата'}],
+ reward:'Вес 75 кг, ранг Tier 2, Сезон 2 — Лев'},
+ {id:2,name:'Лев',start:'2026-12-30',end:'2027-03-29',phases:[],reward:''}];
+function seasonNow(){const t=today();return SEASONS.find(s=>t>=s.start&&t<=s.end)||(t<SEASONS[0].start?SEASONS[0]:SEASONS[SEASONS.length-1])}
+
+// Achievements
+const ACHIEVEMENTS=[
+ {id:'streak7',name:'7 дней без пропуска',desc:'Любая привычка 7 дней подряд'},
+ {id:'streak30',name:'30 дней без пропуска',desc:'Любая привычка 30 дней подряд'},
+ {id:'plus25',name:'+2,5 кг',desc:'Первый рост рабочего веса'},
+ {id:'trainWeek',name:'Первая тренировочная неделя 3/3',desc:'Три тренировки за неделю'},
+ {id:'noDebts',name:'Без долгов',desc:'Закрыта последняя рассрочка'},
+ {id:'firstGoal',name:'Первая копилка заполнена',desc:'Цель достигла 100%'},
+ {id:'dfirWeek',name:'Неделя DFIR 2/2',desc:'Оба повторения DFIR за неделю'},
+ {id:'firstCase',name:'Первый кейс',desc:'Выполнена неделя 11 DFIR'},
+ {id:'tier2',name:'Tier 2',desc:'Достигнут 15-й уровень'},
+ {id:'seasonEnd',name:'Финал сезона',desc:'Сезон дошёл до финала'},
+ {id:'quests100',name:'100 квестов',desc:'Сто выполненных задач'},
+ {id:'journal30',name:'Журнал: 30 записей',desc:'Тридцать записей в журнале'}
+];
+async function getAchievements(){return (await getSetting('achievements'))||{}}
+let achBusy=false;
+async function checkAchievements(){
+  if(achBusy)return;achBusy=true;
+  try{
+    const [log,habits,checks,journal,workouts,debts,goals,lv,have]=await Promise.all([getTaskLog(),getHabits(),getChecks(),getCol('journal'),getCol('workouts'),getCol('debts'),dbAll('goals'),levelsNow(),getAchievements()]);
+    const t=today(),done={};
+    const streaks=habits.filter(h=>!h.archived).map(h=>habitStreak(h.id,checks));
+    done.streak7=streaks.some(n=>n>=7);done.streak30=streaks.some(n=>n>=30);
+    const wDone=workouts.filter(w=>w.done).sort((a,b)=>a.date.localeCompare(b.date));
+    const last={};let grew=false;
+    wDone.forEach(w=>(w.entries||[]).forEach(en=>{if(last[en.exId]!=null&&en.weight>last[en.exId])grew=true;if(en.weight)last[en.exId]=en.weight}));
+    done.plus25=grew;
+    const perWeek={};wDone.forEach(w=>{const k=weekStart(w.date);perWeek[k]=(perWeek[k]||0)+1});
+    done.trainWeek=Object.values(perWeek).some(n=>n>=3);
+    done.noDebts=debts.length>0&&debts.every(d=>d.closed);
+    done.firstGoal=goals.some(g=>g.targetAmount>0&&g.currentAmount>=g.targetAmount);
+    const dw={};log.filter(l=>l.taskId==='seed_dfir_wed'||l.taskId==='seed_dfir_lab').forEach(l=>{const k=weekStart(l.date);(dw[k]=dw[k]||new Set()).add(l.taskId)});
+    done.dfirWeek=Object.values(dw).some(s=>s.size>=2);
+    done.firstCase=log.some(l=>l.taskId==='seed_dfir_w11');
+    done.tier2=lv.all>=15;
+    done.seasonEnd=t>=SEASONS[0].end;
+    done.quests100=log.length>=100;
+    done.journal30=journal.length>=30;
+    const fresh=ACHIEVEMENTS.filter(a=>done[a.id]&&!have[a.id]);
+    if(!fresh.length)return;
+    const upd={...have};fresh.forEach(a=>upd[a.id]=t);
+    await saveSetting('achievements',upd);
+    fresh.forEach(a=>{toast('Достижение: '+a.name);if(window.fxAchievement)fxAchievement(a)});
+  }catch(e){console.warn('achievements',e)}
+  finally{achBusy=false}
+}
+
+// ── Journal & command line ([+]) ──
+const TAG_SPHERE={dfir:'dfir','деньги':'money',money:'money','зал':'body','тело':'body',body:'body',gym:'body','быт':null,home:null};
+const sphereColor=s=>({money:'var(--money)',dfir:'var(--dfir)',body:'var(--body)'}[s]||'var(--fog)');
+const hhmm=ms=>{const d=new Date(ms);return pad2(d.getHours())+':'+pad2(d.getMinutes())};
+function extractJournal(body){
+  let sphere=null;
+  const text=body.replace(/#([A-Za-zА-Яа-яЁё]+)/g,(m,tag)=>{const k=tag.toLowerCase();if(k in TAG_SPHERE){sphere=TAG_SPHERE[k];return ''}return m}).replace(/\s+/g,' ').trim();
+  return{text,sphere};
+}
+async function addJournal(text,sphere){
+  const e={id:uid(),text,sphere:sphere||null,date:today(),at:Date.now()};
+  await colPut('journal',e);
+  await awardXp('journal_'+e.id,e.sphere,5,'journal');
+  checkAchievements();
+  return e;
+}
+async function deleteJournal(id){
+  await colDel('journal',id);await revokeXp('journal_'+id);
+  renderJournalToday();
+}
+function renderJournalToday(){
+  const el=document.getElementById('journal-today');if(!el)return;
+  const list=((colCache.journal&&colCache.journal.data)||[]).filter(e=>e.date===today()).sort((a,b)=>b.at-a.at);
+  el.innerHTML=list.length?'<div class="task-section-title">Журнал</div>'+list.map(e=>`<div class="jr-row"><span class="jr-time">${hhmm(e.at)}</span><span class="jr-dot" style="--c:${sphereColor(e.sphere)}"></span><span class="jr-text">${escapeHtml(e.text)}</span><button class="del-btn" data-id="${escapeHtml(e.id)}" onclick="deleteJournal(this.dataset.id)" aria-label="Удалить">${ico('close',14)}</button></div>`).join(''):'';
+}
+
+async function createTask(p){
+  await getTasks();
+  const t={id:uid(),title:p.title,list:p.list||'inbox',due:p.due||'',time:p.time||'',repeat:null,done:false,doneAt:null,createdAt:Date.now(),source:'app'};
+  cachePut(tasksCache,t);
+  try{await dbPut('tasks',t)}catch(err){toast('Не удалось сохранить: '+err.message);dirtyTasks();throw err}
+  return t;
+}
+
+let cmdType='expense',cmdSeq=0,cmdState=null;
+function refreshActive(){
+  const v=document.querySelector('.view.active');if(!v)return;
+  const n=v.id.slice(5);
+  ({status:refreshStatus,quests:refreshTasks,body:refreshBody,home:refreshDashboard,history:refreshHistory,stats:refreshStats,plans:refreshPlans}[n]||(()=>{}))();
+}
+function openCmd(){
+  const L=document.getElementById('cmd-layer');L.hidden=false;
+  const tw=document.getElementById('templates-wrap'),host=document.getElementById('cmd-templates');
+  if(tw&&host&&tw.parentElement!==host)host.appendChild(tw);
+  renderTemplates();
+  const inp=document.getElementById('cmd-input');inp.value='';
+  document.getElementById('cmd-chips').innerHTML='';document.getElementById('cmd-cats').hidden=true;cmdState=null;
+  requestAnimationFrame(()=>{L.classList.add('show');inp.focus()});
+}
+function closeCmd(){const L=document.getElementById('cmd-layer');L.classList.remove('show');setTimeout(()=>{if(!L.classList.contains('show'))L.hidden=true},220)}
+function cmdSetType(t){
+  cmdType=t;
+  document.getElementById('cmd-exp').classList.toggle('on',t==='expense');
+  document.getElementById('cmd-inc').classList.toggle('on',t==='income');
+  cmdUpdate();
+}
+async function cmdParse(s){
+  s=(s||'').trim();if(!s)return null;
+  if(s[0]==='+'){const j=extractJournal(s.slice(1));return j.text?{kind:'journal',text:j.text,sphere:j.sphere}:null}
+  const q=parseQuickTask(s);
+  if(q.tagged||q.due||q.time)return{kind:'task',title:q.title,list:q.list,due:q.due,time:q.time};
+  const p=parseInput(s);
+  if(p&&p.amount>0){
+    let type=cmdType,cat=p.desc?await classify(p.desc,type):null;
+    if(!cat&&type==='expense'&&p.desc){const ci=await classify(p.desc,'income');if(ci){type='income';cat=ci}}
+    return{kind:'tx',type,desc:p.desc,amount:p.amount,cat};
+  }
+  return{kind:'task',title:s,list:'inbox',due:'',time:''};
+}
+function cmdChipHtml(st){
+  if(st.kind==='journal')return `<span class="cmd-chip" id="cmd-chip"><b>Журнал</b>${st.sphere?' · '+escapeHtml(SPHERES[st.sphere]):''} · ${escapeHtml(st.text)}</span>`;
+  if(st.kind==='task')return `<span class="cmd-chip" id="cmd-chip"><b>Задача</b> · ${escapeHtml(listName(st.list))}${st.due?' · '+escapeHtml(formatTaskDate(st.due)):''}${st.time?' · '+escapeHtml(st.time):''} · ${escapeHtml(st.title)}</span>`;
+  const c=st.cat?getCat(st.cat).name:'выберите категорию';
+  return `<span class="cmd-chip" id="cmd-chip"><b>${st.type==='income'?'Доход':'Расход'}</b> · ${escapeHtml(c)} · ${fmtCur(st.amount)}${st.desc?' · '+escapeHtml(st.desc):''}</span>`;
+}
+async function cmdUpdate(){
+  const seq=++cmdSeq,st=await cmdParse(document.getElementById('cmd-input').value);
+  if(seq!==cmdSeq)return;
+  cmdState=st;
+  document.getElementById('cmd-chips').innerHTML=st?cmdChipHtml(st):'';
+  document.getElementById('cmd-cats').hidden=true;
+}
+function cmdKey(e){
+  if(e.key==='Enter'){e.preventDefault();cmdSubmit()}
+  else if(e.key==='Escape')closeCmd();
+}
+async function cmdSubmit(){
+  const st=cmdState||await cmdParse(document.getElementById('cmd-input').value);
+  if(!st)return;
+  if(st.kind==='tx'&&!st.cat){cmdShowCats(st);return}
+  await cmdSave(st);
+}
+async function cmdShowCats(st){
+  const box=document.getElementById('cmd-cats');
+  const tile=(id,ic,name)=>'<div class="cat-btn" data-c="'+id+'" onclick="cmdPickCat(this.dataset.c)"><span class="icon-wrap">'+ico(ic,22)+'</span>'+escapeHtml(name)+'</div>';
+  const head='<div class="cmd-hint" style="grid-column:1/-1">Не удалось определить категорию — выберите:</div>';
+  const base=CATS[st.type].map(c=>tile(c.id,c.icon,c.name)).join('');
+  box.innerHTML=head+base;box.hidden=false;
+  if(st.type==='expense'){
+    const goals=await dbAll('goals');registerGoalCategories(goals);
+    if(!box.hidden&&goals.length)box.innerHTML=head+base+goals.map(g=>tile('goal_'+g.id,'goal',g.name)).join('');
+  }
+}
+async function cmdPickCat(id){
+  if(!cmdState)return;
+  if(cmdState.desc)await learnCategory(cmdState.desc,id);
+  cmdState.cat=id;document.getElementById('cmd-chips').innerHTML=cmdChipHtml(cmdState);
+  await cmdSave(cmdState);
+}
+async function cmdSave(st){
+  const chip=document.getElementById('cmd-chip'),nav=document.querySelector('.nav-btn[data-view="'+(st.kind==='tx'?'money':'quests')+'"]');
+  fxFlash(document.getElementById('cmd-field'));
+  try{
+    if(st.kind==='journal'){await addJournal(st.text,st.sphere);toast('Журнал: '+st.text)}
+    else if(st.kind==='task'){const t=await createTask(st);toast('Задача: '+t.title+(t.due?' · '+formatTaskDate(t.due):''))}
+    else{
+      currentType=st.type;
+      const tx=await saveTx(st.desc,st.amount,st.cat),c=getCat(st.cat);
+      toastUndo(`${icoInline(c.icon)}${escapeHtml(c.name)} &middot; ${escapeHtml(st.desc)} &middot; ${fmtCur(st.amount)}`,tx.id);
+      await checkBudget(tx);
+    }
+  }catch(err){toast('Не удалось сохранить: '+err.message);return}
+  if(window.fxFly)fxFly(chip,nav);
+  setTimeout(closeCmd,180);
+  setTimeout(refreshActive,260);
+}
+
+// ── Module 3: installments (рассрочки) ──
+const fmtNum=n=>String(n).replace('.',',');
+function nextPayDate(day){return nextOccurrence({type:'monthly',day},addDays(today(),-1))}
+function debtLastPayment(d,nextDate){
+  const n=Math.max(1,Math.ceil(d.remaining/d.monthly));let cur=nextDate;
+  for(let i=1;i<n;i++)cur=nextOccurrence({type:'monthly',day:d.payDay},cur)||cur;
+  return{n,date:cur};
+}
+async function refreshDebts(){await Promise.all([getCol('debts'),getTasks()]);renderDebts()}
+function toggleDebtForm(){const f=document.getElementById('debt-form');if(f)f.hidden=!f.hidden}
+function renderDebts(){
+  const el=document.getElementById('debts-body');if(!el)return;
+  const debts=(colCache.debts&&colCache.debts.data)||[],tasks=tasksCache||[];
+  const active=debts.filter(d=>!d.closed).sort((a,b)=>a.createdAt-b.createdAt),closed=debts.filter(d=>d.closed);
+  const card=d=>{
+    const tk=tasks.find(t=>t.debtId===d.id),nextDate=(tk&&tk.due)||nextPayDate(d.payDay),lp=debtLastPayment(d,nextDate);
+    const paid=d.total>0?Math.max(0,Math.min(1,(d.total-d.remaining)/d.total)):0;
+    return `<div class="card debt-card spot"><div class="debt-top"><div><div class="debt-name">${escapeHtml(d.name)}</div><div class="debt-bank">${escapeHtml(d.bank||'')}</div></div><button class="del-btn" data-id="${escapeHtml(d.id)}" onclick="deleteDebt(this.dataset.id)" aria-label="Удалить">${ico('close',16)}</button></div>
+      <div class="debt-rem disp">${fmtCur(d.remaining)}</div><div class="debt-cap">остаток из ${fmtCur(d.total)}</div>
+      <div class="bar"><i style="transform:scaleX(${paid})"></i></div>
+      <div class="debt-meta"><span>Платёж: ${fmtCur(d.monthly)} · ${d.payDay}-го</span><span>Следующий: ${escapeHtml(formatTaskDate(nextDate))}</span></div>
+      <div class="debt-meta"><span>Последний платёж: ${escapeHtml(formatTaskDate(lp.date))} (${lp.n} мес.)</span></div></div>`;
+  };
+  el.innerHTML=`<div id="debt-form" class="card" hidden>
+    <div class="card-title">Новая рассрочка</div>
+    <input type="text" id="dbt-name" placeholder="Название">
+    <select id="dbt-bank" class="currency-select">${['Kaspi','Halyk','Forte','Freedom','Другой'].map(b=>`<option>${b}</option>`).join('')}</select>
+    <input type="number" id="dbt-total" placeholder="Общая сумма" inputmode="decimal">
+    <input type="number" id="dbt-remaining" placeholder="Остаток" inputmode="decimal">
+    <input type="number" id="dbt-monthly" placeholder="Платёж в месяц" inputmode="decimal">
+    <input type="number" id="dbt-day" placeholder="День платежа (1–31)" inputmode="numeric" min="1" max="31">
+    <button class="save-btn primary" onclick="saveDebt()">Сохранить</button></div>`
+    +(active.length?active.map(card).join(''):'<div class="empty-state">Рассрочек нет</div>')
+    +(closed.length?`<div class="task-section-title">Закрыто</div>`+closed.map(d=>`<div class="recent-item"><div class="recent-info"><div class="recent-desc">${escapeHtml(d.name)}</div><div class="recent-cat">${fmtCur(d.total)}</div></div></div>`).join(''):'');
+}
+async function saveDebt(){
+  const g=id=>document.getElementById(id).value;
+  const name=g('dbt-name').trim(),total=parseFloat(g('dbt-total')),remaining=parseFloat(g('dbt-remaining')),monthly=parseFloat(g('dbt-monthly')),payDay=parseInt(g('dbt-day'),10);
+  if(!name||!(total>0)||!(remaining>=0)||!(monthly>0)||!(payDay>=1&&payDay<=31))return toast('Заполните все поля корректно');
+  const d={id:uid(),name,bank:g('dbt-bank'),total,remaining,monthly,payDay,createdAt:Date.now(),closed:false};
+  await colPut('debts',d);
+  const t={id:uid(),title:'Платёж: '+name,list:'money',due:nextPayDate(payDay),time:'10:00',repeat:{type:'monthly',day:payDay},done:false,doneAt:null,createdAt:Date.now(),source:'debt',debtId:d.id};
+  await getTasks();cachePut(tasksCache,t);await dbPut('tasks',t);
+  toast('Рассрочка добавлена');renderDebts();
+}
+async function deleteDebt(id){
+  if(!confirm('Удалить рассрочку и её задачу?'))return;
+  await colDel('debts',id);
+  await getTasks();
+  for(const t of tasksCache.filter(x=>x.debtId===id)){await dbDel('tasks',t.id)}
+  tasksCache=tasksCache.filter(x=>x.debtId!==id);
+  renderDebts();
+}
+// Completing a debt task: expense in «Рассрочки», remaining -= payment, +30 XP; closing deletes the task
+taskCompleteHooks.push(async(t,log)=>{
+  if(t.source!=='debt'||!t.debtId)return null;
+  const debts=await getCol('debts'),d=debts.find(x=>x.id===t.debtId);
+  if(!d||d.closed)return null;
+  const pay=Math.min(d.monthly,d.remaining),prev={...d};
+  currentType='expense';
+  const tx=await saveTx('Рассрочка: '+d.name,pay,'debts');
+  const upd={...d,remaining:d.remaining-pay};
+  const closing=upd.remaining<=0;
+  if(closing){upd.remaining=0;upd.closed=true}
+  await colPut('debts',upd);
+  await awardXp('debt_'+log.id,'money',30,'debt');
+  let removed=null;
+  if(closing){
+    removed=tasksCache.find(x=>x.id===t.id)||null;
+    await dbDel('tasks',t.id);
+    const i=tasksCache.findIndex(x=>x.id===t.id);if(i>=0)tasksCache.splice(i,1);
+    renderTasks();
+  }
+  return async()=>{
+    await dbDel('transactions',tx.id);dirtyTx();
+    await colPut('debts',prev);await revokeXp('debt_'+log.id);
+    if(removed){cachePut(tasksCache,removed);await dbPut('tasks',removed)}
+  };
+});
+
+// ── Module 4: salary allocation ──
+async function getAllocScheme(){return (await getSetting('allocScheme'))||{life:0,chain:[]}}
+let allocScheme=null,allocPlanState=null;
+async function refreshAlloc(){
+  await Promise.all([getCol('allocations'),getCol('debts')]);
+  allocScheme=await getAllocScheme();
+  allocScheme.goals=await dbAll('goals');
+  renderAlloc();
+}
+function renderAlloc(){
+  const el=document.getElementById('alloc-body');if(!el||!allocScheme)return;
+  const sc=allocScheme,goals=sc.goals||[];
+  const rows=sc.chain.map((c,i)=>`<div class="al-row">
+    <select class="currency-select" data-i="${i}" onchange="allocSet(this.dataset.i,'goalId',this.value)">${goals.map(g=>`<option value="${escapeHtml(g.id)}"${g.id===c.goalId?' selected':''}>${escapeHtml(g.name)}</option>`).join('')}</select>
+    <select class="currency-select" data-i="${i}" onchange="allocSet(this.dataset.i,'mode',this.value)"><option value="fill"${c.mode==='fill'?' selected':''}>до цели</option><option value="fixed"${c.mode==='fixed'?' selected':''}>фиксировано</option></select>
+    ${c.mode==='fixed'?`<input type="number" inputmode="decimal" value="${escapeHtml(c.amount||0)}" data-i="${i}" onchange="allocSet(this.dataset.i,'amount',this.value)">`:''}
+    <button class="del-btn" data-i="${i}" onclick="allocMove(this.dataset.i,-1)" aria-label="Выше">${ico('chevUp',14)}</button>
+    <button class="del-btn" data-i="${i}" onclick="allocMove(this.dataset.i,1)" aria-label="Ниже">${ico('chevDown',14)}</button>
+    <button class="del-btn" data-i="${i}" onclick="allocDel(this.dataset.i)" aria-label="Убрать">${ico('close',14)}</button></div>`).join('');
+  const hist=((colCache.allocations&&colCache.allocations.data)||[]).slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
+  el.innerHTML=`<div class="card"><div class="card-title">Схема</div>
+    <label class="al-label">Жизнь — остаётся на карте и становится бюджетом месяца</label>
+    <input type="number" inputmode="decimal" id="al-life" value="${escapeHtml(sc.life||0)}" onchange="allocSetLife(this.value)">
+    <div class="al-chain">${rows||'<div class="empty-state" style="padding:12px 0">Копилок в цепочке нет</div>'}</div>
+    ${goals.length?'<button class="settings-btn" onclick="allocAdd()">+ Копилка в цепочку</button>':'<div class="cmd-hint">Сначала создайте цели в «Планы → Цели»</div>'}</div>
+    <div class="card"><div class="card-title">Распределить зарплату</div>
+    <div class="al-row"><input type="number" inputmode="decimal" id="al-salary" placeholder="Получено, ₸"><button class="settings-btn" onclick="allocPreview()">Показать</button></div>
+    <div id="al-preview"></div></div>`
+    +(hist.length?`<div class="card"><div class="card-title">Прошлые распределения</div>${hist.map(a=>`<div class="recent-item"><div class="recent-info"><div class="recent-desc">${escapeHtml(a.date)}</div><div class="recent-cat">${a.parts.map(p=>escapeHtml(p.label)+' '+fmtCur(p.amount)).join(' · ')}</div></div><div class="recent-amount">${fmtCur(a.salary)}</div></div>`).join('')}</div>`:'');
+}
+async function allocSave(){const s={life:allocScheme.life,chain:allocScheme.chain};await saveSetting('allocScheme',s)}
+function allocSetLife(v){allocScheme.life=Math.max(0,parseFloat(v)||0);allocSave()}
+function allocAdd(){const g=allocScheme.goals[0];if(!g)return;allocScheme.chain.push({goalId:g.id,mode:'fill'});allocSave();renderAlloc()}
+function allocSet(i,k,v){const c=allocScheme.chain[+i];if(!c)return;c[k]=k==='amount'?(parseFloat(v)||0):v;if(k==='mode'&&v==='fixed'&&c.amount==null)c.amount=0;allocSave();renderAlloc()}
+function allocMove(i,d){i=+i;const j=i+d,ch=allocScheme.chain;if(j<0||j>=ch.length)return;[ch[i],ch[j]]=[ch[j],ch[i]];allocSave();renderAlloc()}
+function allocDel(i){allocScheme.chain.splice(+i,1);allocSave();renderAlloc()}
+// Pure planning function: steps are cut in order when the salary is short
+function allocPlan(S,scheme,goals,debts){
+  let left=S;const parts=[];
+  const take=(label,want,extra)=>{const a=Math.max(0,Math.min(want,left));left-=a;parts.push({label,amount:a,...extra});return a};
+  const debtSum=debts.filter(d=>!d.closed).reduce((s,d)=>s+Math.min(d.monthly,d.remaining),0);
+  if(debtSum>0)take('Рассрочки (платят свои задачи)',debtSum,{kind:'debt'});
+  take('Жизнь',scheme.life||0,{kind:'life'});
+  for(const c of scheme.chain){
+    const g=goals.find(x=>x.id===c.goalId);if(!g)continue;
+    const want=c.mode==='fixed'?(c.amount||0):Math.max(0,g.targetAmount-g.currentAmount);
+    take(g.name,want,{kind:'goal',goalId:g.id});
+  }
+  return{parts,rest:left};
+}
+async function allocPreview(){
+  const S=parseFloat(document.getElementById('al-salary').value);
+  if(!(S>0))return toast('Введите сумму зарплаты');
+  const goals=await dbAll('goals'),debts=await getCol('debts');
+  allocPlanState={S,...allocPlan(S,allocScheme,goals,debts)};
+  const p=allocPlanState;
+  document.getElementById('al-preview').innerHTML=p.parts.map(x=>`<div class="recent-item"><div class="recent-info"><div class="recent-desc">${escapeHtml(x.label)}</div></div><div class="recent-amount">${fmtCur(x.amount)}</div></div>`).join('')
+    +`<div class="recent-item"><div class="recent-info"><div class="recent-desc">Остаток (не распределён)</div></div><div class="recent-amount">${fmtCur(p.rest)}</div></div>`
+    +`<button class="save-btn primary" onclick="allocConfirm()">Подтвердить</button>`;
+}
+async function allocConfirm(){
+  const p=allocPlanState;if(!p)return;allocPlanState=null;
+  const a={id:uid(),date:today(),salary:p.S,parts:p.parts.map(x=>({label:x.label,amount:x.amount}))};
+  for(const x of p.parts)if(x.kind==='goal'&&x.amount>0)await contributeToGoal(x.goalId,x.amount);
+  const life=p.parts.find(x=>x.kind==='life');
+  if(life&&life.amount>0)await dbPut('budgets',{key:'general',limit:life.amount});
+  await colPut('allocations',a);
+  await awardXp('alloc_'+a.id,'money',30,'allocation');
+  await getTasks();
+  const st=tasksCache.find(t=>!t.done&&t.title==='Распределить зарплату');
+  if(st)await completeTask(st.id,{noXp:true});
+  checkAchievements();
+  toast('Зарплата распределена');
+  refreshAlloc();
+}
+
+// ── Module 5: workouts and body weight ──
+let wk=null,wkCur=0;
+const wcol=n=>(colCache[n]&&colCache[n].data)||[];
+function lastDoneEntry(exId){
+  const ws=wcol('workouts').filter(w=>w.done).sort((a,b)=>b.date.localeCompare(a.date)||(b.at||0)-(a.at||0));
+  for(const w of ws){const en=(w.entries||[]).find(e=>e.exId===exId&&(e.reps||[]).some(r=>r!=null));if(en)return en}
+  return null;
+}
+// All sets at repsMax → weight + step; otherwise the same weight; no history → empty
+function suggestWeight(ex){
+  const last=lastDoneEntry(ex.id);
+  if(!last||last.weight==null||last.weight==='')return null;
+  const ok=(last.reps||[]).length>=ex.sets&&last.reps.every(r=>r!=null&&r>=ex.repsMax);
+  return ok&&ex.step?+(last.weight+ex.step).toFixed(2):last.weight;
+}
+async function refreshBody(){
+  await Promise.all([getCol('workoutPlans'),getCol('workouts'),getCol('bodyWeights'),getTasks()]);
+  if(!wk){wk=wcol('workouts').find(w=>!w.done&&w.date===today())||null}
+  renderBody();
+}
+function planById(id){return wcol('workoutPlans').find(p=>p.id===id)}
+function pendingWorkoutTask(){
+  const ts=(tasksCache||[]).filter(t=>t.workoutPlan&&!t.done).sort((a,b)=>(a.due||'').localeCompare(b.due||''));
+  return ts.find(t=>t.due===today())||ts.find(t=>t.due>today())||null;
+}
+async function startWorkout(planId,taskId){
+  const plan=planById(planId);if(!plan)return toast('План не найден');
+  wk={id:uid(),planId,taskId:taskId||null,date:today(),at:Date.now(),done:false,
+    entries:plan.exercises.map(ex=>({exId:ex.id,weight:suggestWeight(ex),reps:Array(ex.sets).fill(null)}))};
+  wkCur=0;await colPut('workouts',wk);renderBody();
+}
+function wkSave(){return colPut('workouts',wk)}
+function setWeight(v){const e=wk.entries[wkCur];e.weight=v===''?null:parseFloat(String(v).replace(',','.'));wkSave();renderBody(true)}
+function setReps(i,v){
+  const e=wk.entries[wkCur],ex=planById(wk.planId).exercises[wkCur];
+  e.reps[+i]=v===''?null:parseInt(v,10);wkSave();
+  if(e.reps.length&&e.reps.every(r=>r!=null))fxFlash(document.getElementById('sets-wrap'));
+  renderBody(true);
+}
+function pickExercise(i){wkCur=+i;renderBody()}
+async function finishWorkout(){
+  if(!wk)return;
+  wk.done=true;wk.at=Date.now();await wkSave();
+  const w=wk;wk=null;
+  if(w.taskId){await getTasks();if(tasksCache.some(t=>t.id===w.taskId&&!t.done))await completeTask(w.taskId,{noXp:true})}
+  await awardXp('workout_'+w.id,'body',60,'workout');
+  checkAchievements();
+  toast('Тренировка завершена');renderBody();
+}
+async function cancelWorkout(){
+  if(!wk||!confirm('Отменить тренировку?'))return;
+  await colDel('workouts',wk.id);wk=null;renderBody();
+}
+async function saveBodyWeight(){
+  const kg=parseFloat(String(document.getElementById('bw-input').value).replace(',','.'));
+  if(!(kg>20&&kg<400))return toast('Введите вес в кг');
+  await colPut('bodyWeights',{key:today(),date:today(),kg});
+  toast('Вес записан: '+fmtNum(kg)+' кг');renderBody();
+}
+function sparkline(points,goal){
+  if(points.length<1)return '<div class="cmd-hint">Записей веса пока нет</div>';
+  const W=300,H=90,vals=points.map(p=>p.kg).concat(goal?[goal]:[]),mn=Math.min(...vals)-1,mx=Math.max(...vals)+1;
+  const x=i=>points.length===1?W/2:(i/(points.length-1))*(W-16)+8,y=v=>H-8-((v-mn)/(mx-mn))*(H-16);
+  const path=points.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(p.kg).toFixed(1)).join(' ');
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${goal?`<line x1="0" x2="${W}" y1="${y(goal)}" y2="${y(goal)}" stroke="var(--body)" stroke-width="1" stroke-dasharray="3 4" opacity=".8"/>`:''}<path id="spark-path" d="${path}" fill="none" stroke="var(--bone)" stroke-width="2" stroke-linejoin="round"/>${points.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p.kg)}" r="2.5" fill="var(--bone)"/>`).join('')}</svg>`;
+}
+let bodyDrawn=false;
+function renderBody(keepFocus){
+  const root=document.getElementById('body-root');if(!root)return;
+  const act=document.activeElement&&document.activeElement.dataset&&document.activeElement.dataset.k,
+        selS=document.activeElement&&document.activeElement.selectionStart;
+  const bw=wcol('bodyWeights').slice().sort((a,b)=>a.date.localeCompare(b.date)),lastBw=bw[bw.length-1];
+  let html='<div class="header"><h1>Тело</h1></div>';
+  if(wk){
+    const plan=planById(wk.planId),ex=plan.exercises[wkCur],en=wk.entries[wkCur],last=lastDoneEntry(ex.id);
+    const delta=(en.weight!=null&&last&&last.weight!=null)?+(en.weight-last.weight).toFixed(2):null;
+    const cap=ex.step===0?'своим весом':(delta==null?'первая запись — введите вес':(delta>0?`сегодня +${fmtNum(delta)} кг`:delta<0?`сегодня ${fmtNum(delta)} кг`:'как в прошлый раз'));
+    html+=`<div class="card hud wk-hero"><div class="card-title">${escapeHtml(plan.name)} · ${wkCur+1}/${plan.exercises.length}</div>
+      ${ex.step===0?'<div class="kg-input kg-static disp">'+ex.repsMin+(ex.repsMax!==ex.repsMin?'–'+ex.repsMax:'')+'</div>':`<input class="kg-input disp" data-k="w" inputmode="decimal" value="${en.weight==null?'':fmtNum(en.weight)}" placeholder="—" onchange="setWeight(this.value)" aria-label="Рабочий вес, кг">`}
+      <div class="kg-cap">${escapeHtml(ex.name.toLowerCase())}, ${escapeHtml(cap)}</div>
+      <div class="sets" id="sets-wrap">${en.reps.map((r,i)=>`<input class="set-input disp" data-k="s${i}" inputmode="numeric" value="${r==null?'':r}" placeholder="${ex.repsMax}" onchange="setReps(${i},this.value)" aria-label="Подход ${i+1}">`).join('')}</div>
+      <div class="cmd-hint">${ex.sets}×${ex.repsMin}${ex.repsMax!==ex.repsMin?'–'+ex.repsMax:''}${ex.step?' · шаг '+fmtNum(ex.step)+' кг':''}</div></div>
+      <div class="card">${plan.exercises.map((e,i)=>{const done=wk.entries[i].reps.every(r=>r!=null);return `<div class="habit-row ex-row${i===wkCur?' cur':''}" onclick="pickExercise(${i})"><div class="habit-check${done?' done':''}">${done?ico('check',14):''}</div><div class="habit-name">${escapeHtml(e.name)}</div><div class="cmd-hint">${wk.entries[i].weight!=null?fmtNum(wk.entries[i].weight)+' кг':''}</div></div>`}).join('')}</div>
+      <button class="save-btn primary" onclick="finishWorkout()">Завершить тренировку</button>
+      <button class="save-btn neutral" onclick="cancelWorkout()">Отменить</button>`;
+  }else{
+    const tk=pendingWorkoutTask(),plans=wcol('workoutPlans').sort((a,b)=>a.id.localeCompare(b.id));
+    html+=`<div class="card hud"><div class="card-title">Тренировка дня</div>`
+      +(tk?`<div class="kg-input disp kg-static" style="font-size:64px">${escapeHtml(tk.workoutPlan)}</div><div class="kg-cap">${escapeHtml(tk.title)} · ${escapeHtml(formatTaskDate(tk.due))}${tk.time?' · '+escapeHtml(tk.time):''}</div><button class="save-btn primary" data-p="${escapeHtml(tk.workoutPlan)}" data-t="${escapeHtml(tk.id)}" onclick="startWorkout(this.dataset.p,this.dataset.t)">${tk.due===today()?'Начать':'Начать сейчас'}</button>`:'<div class="empty-state" style="padding:14px 0">Тренировок в плане нет</div>')
+      +`<div class="body-plans">${plans.map(p=>`<button class="settings-btn" data-p="${escapeHtml(p.id)}" onclick="startWorkout(this.dataset.p,null)">${escapeHtml(p.name)}</button>`).join('')}</div></div>`;
+  }
+  const lastW=lastBw?lastBw.kg:null;
+  html+=`<div class="card"><div class="card-title">Вес тела${lastW?' · '+fmtNum(lastW)+' кг':''}</div>
+    <div class="al-row"><input type="number" step="0.1" inputmode="decimal" id="bw-input" placeholder="кг" value=""><button class="settings-btn" onclick="saveBodyWeight()">Записать</button></div>
+    ${sparkline(bw.slice(-12),75)}<div class="cmd-hint">цель 75 кг</div></div>`;
+  root.innerHTML=html;
+  const sp=document.getElementById('spark-path');if(sp&&!bodyDrawn){fxDraw(sp,1100);bodyDrawn=true}
+  if(keepFocus&&act){const n=root.querySelector('[data-k="'+act+'"]');if(n){n.focus();try{n.setSelectionRange(selS,selS)}catch(e){}}}
 }
 
 // ── Shell: navigation, money sub-tabs, quest tabs ──
@@ -2219,7 +2820,7 @@ const MONEY_LABELS={home:'Главная',history:'История',stats:'Ста
 function navKeyOf(n){return MONEY_VIEWS.includes(n)?'money':n==='settings'?'status':n==='add'?'quests':n}
 const reducedMotion=()=>window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 function fxViewTransition(fn){
-  if(document.startViewTransition&&!reducedMotion()){try{document.startViewTransition(fn);return}catch(e){}}
+  if(document.startViewTransition&&!reducedMotion()){try{const vt=document.startViewTransition(fn);['ready','finished','updateCallbackDone'].forEach(k=>vt[k]&&vt[k].catch(()=>{}));return}catch(e){}}
   fn();
 }
 function moveLamp(){
@@ -2280,16 +2881,167 @@ function moveQInd(){
   if(!b||!ind)return;
   ind.style.transform='translateX('+b.offsetLeft+'px) scaleX('+(b.offsetWidth/100)+')';
 }
-function renderSeason(){}
-function renderWeek(){}
-async function refreshStatus(){renderStatus()}
+// ── Status screen (hero, bento, daily quest) ──
+const xpLogSync=()=>(colCache.xpLog&&colCache.xpLog.data)||[];
+function xpTotalsSync(){const t={all:0,money:0,dfir:0,body:0};xpLogSync().forEach(e=>{t.all+=e.amount;if(e.sphere&&t[e.sphere]!=null)t[e.sphere]+=e.amount});return t}
+function coolingSync(){
+  const log=xpLogSync(),out={};
+  for(const s of Object.keys(SPHERES)){const idle=sphereIdleDays(log,s);if(idle!=null&&idle>=COOL_WARN_FROM&&idle<COOL_DAYS)out[s]=COOL_DAYS-idle}
+  return out;
+}
+const MONTHS_GEN=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+const WD_SHORT=['пн','вт','ср','чт','пт','сб','вс'];
+const dayWord=n=>{const a=n%10,b=n%100;return b>=11&&b<=14?'дней':a===1?'день':a>=2&&a<=4?'дня':'дней'};
+let statusAvatar=null,heroPrev=null,introPending=false;
+async function refreshStatus(){
+  await Promise.all([getTasks(),getHabits(),getChecks(),getTaskLog(),getCol('xpLog'),getCol('journal')]);
+  statusAvatar=await getSetting('avatar');
+  renderStatus();
+}
+function statusSummary(){
+  const tasks=tasksCache||[],habits=(habitsCache||[]).filter(h=>!h.archived),checks=checksCache||[],log=logCache||[],t0=today();
+  const doneT=log.filter(l=>l.date===t0).length,doneH=habits.filter(h=>checks.some(c=>c.key===`${h.id}_${t0}`)).length;
+  const openT=tasks.filter(t=>!t.done&&t.due&&t.due<=t0),openH=habits.filter(h=>!checks.some(c=>c.key===`${h.id}_${t0}`));
+  return{doneT,doneH,openT,openH,total:doneT+doneH+openT.length+openH.length,done:doneT+doneH};
+}
 function renderStatus(){
-  document.getElementById('status-root').innerHTML='<div class="header"><h1>Система</h1><button class="header-btn" data-v="settings" onclick="switchView(this.dataset.v)" aria-label="Настройки">'+ico('settings',20)+'</button></div>';
+  const root=document.getElementById('status-root');if(!root)return;
+  const tot=xpTotalsSync(),warn=coolingSync(),sm=statusSummary(),t0=today();
+  const hero=levelInfo(tot.all),L=hero.level;
+  const d=parseLocalDate(t0),dateStr=WD_SHORT[isoWeekday(t0)-1]+', '+d.getDate()+' '+MONTHS_GEN[d.getMonth()];
+  const habits=(habitsCache||[]).filter(h=>!h.archived),checks=checksCache||[];
+  const bestStreak=habits.reduce((m,h)=>Math.max(m,habitStreak(h.id,checks)),0);
+  const dfirWeek=(tasksCache||[]).filter(t=>!t.done&&/^DFIR неделя \d+/.test(t.title)).sort((a,b)=>(a.due||'').localeCompare(b.due||''))[0];
+  const sal=(tasksCache||[]).filter(t=>t.title==='Распределить зарплату'&&t.due).sort((a,b)=>a.due.localeCompare(b.due))[0];
+  const mq=[`${sm.done}/${sm.total} квестов`,`серия ${bestStreak}`];
+  if(dfirWeek)mq.push((dfirWeek.title.match(/^DFIR неделя \d+/)||['DFIR'])[0]);
+  if(sal){const n=daysBetween(t0,sal.due);mq.push(`до зарплаты ${n} ${dayWord(n)}`)}
+  Object.keys(warn).forEach(s=>mq.push(`${SPHERES[s]} остынет через ${warn[s]} ${dayWord(warn[s])}`));
+  const src=statusAvatar||'figure.jpg';
+  const tile=(s,wide)=>{
+    const info=levelInfo(tot[s]),w=warn[s];
+    return `<div class="tile spot tilt${wide?' wide':''}${w!=null?' cooling':''}" style="--c:var(--${s})"><div class="t-name">${SPHERES[s]}</div><div class="t-lvl disp">${info.level}</div><div class="bar"><i style="transform:scaleX(${info.pct.toFixed(3)})"></i></div><div class="t-sub">${w!=null?`<span class="t-warn">остынет через ${w} ${dayWord(w)}</span>`:`${fmt(Math.round(info.into))} / ${fmt(info.need)} XP`}</div></div>`;
+  };
+  const taskRows=sm.openT.slice(0,5).map(t=>`<div class="qrow"><button class="task-check" aria-label="Выполнить" data-id="${escapeHtml(t.id)}" onclick="completeTask(this.dataset.id,{el:this})"></button><span class="qt">${escapeHtml(t.title)}</span><span class="qxp">+${t.xp!=null?t.xp:20}</span></div>`).join('');
+  const habRows=sm.openH.map(h=>`<div class="qrow" data-id="${escapeHtml(h.id)}" onclick="toggleHabit(this.dataset.id,this.querySelector('.habit-check'))"><div class="habit-check"></div><span class="qt">${escapeHtml(h.name)}</span><span class="qxp">+20</span></div>`).join('');
+  const risk=habits.filter(h=>habitStreak(h.id,checks)>0&&!checks.some(c=>c.key===`${h.id}_${t0}`));
+  const foot=risk.length?`серия «${escapeHtml(risk[0].name)}» (${habitStreak(risk[0].id,checks)}) оборвётся`:Object.keys(warn).length?`${SPHERES[Object.keys(warn)[0]]} остынет через ${warn[Object.keys(warn)[0]]} ${dayWord(warn[Object.keys(warn)[0]])}`:'штрафа нет';
+  const ev=upcomingEvents(tasksCache||[],t0,7).slice(0,3);
+  const prevXp=heroPrev?heroPrev.into:hero.into,prevPct=heroPrev?heroPrev.pct:hero.pct;
+  root.innerHTML=`<div class="st-head"><div class="st-title">▸ СИСТЕМА</div><div class="st-date">${dateStr}</div><button class="header-btn" data-v="settings" onclick="switchView(this.dataset.v)" aria-label="Настройки">${ico('settings',20)}</button></div>
+  <div class="marquee" id="st-marquee" aria-label="Сводка дня"></div>
+  <div class="hero hud${introPending?' hero-intro':''}" id="hero">
+    <div class="hero-plate">УРОВЕНЬ</div>
+    <div class="hero-num disp outline" id="hero-level" style="font-size:${L>=100?130:200}px">${introPending?'00':String(L).padStart(2,'0')}</div>
+    <div class="hero-rings" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="hero-fig" aria-hidden="true"><img class="hf-glow" src="${src}" alt=""><img class="hf-main" src="${src}" alt=""></div>
+    <div class="hero-rank">${escapeHtml(rankOf(L))}</div>
+  </div>
+  <div class="xpbar"><span>XP</span><div class="bar"><i id="xp-fill" style="transform:scaleX(${prevPct.toFixed(3)})"></i></div><span id="hero-xp">${fmt(Math.round(prevXp))} / ${fmt(hero.need)}</span></div>
+  <div class="bento">${tile('money')}${tile('dfir')}${tile('body',true)}</div>
+  <div class="card hud spot qw"><div class="qw-head"><span>Квест дня</span><span class="qw-count">${sm.done}/${sm.total}</span></div>${taskRows}${habRows}${(!taskRows&&!habRows)?'<div class="cmd-hint" style="padding:10px 0">На сегодня всё выполнено</div>':''}<div class="qw-foot">если не выполнить: ${foot}</div></div>
+  <div class="card"><div class="card-title">Ближайшее</div>${ev.length?ev.map(e=>`<div class="upc-row"><div class="upc-when">${escapeHtml(formatTaskDate(e.date))}${e.time?' · '+escapeHtml(e.time):''}</div><div class="upc-title">${escapeHtml(e.title)}${e.repeat?ico('repeat',12):''}</div></div>`).join(''):'<div class="cmd-hint">Ближайших событий нет</div>'}</div>`;
+  if(window.fxMarquee)fxMarquee(document.getElementById('st-marquee'),mq.map(escapeHtml).join(' &nbsp;•&nbsp; '));
+  // тикеры: XP и полоса дотягиваются, уровень считается
+  requestAnimationFrame(()=>{const f=document.getElementById('xp-fill');if(f)f.style.transform=`scaleX(${hero.pct.toFixed(3)})`});
+  const xe=document.getElementById('hero-xp');
+  if(xe&&heroPrev&&heroPrev.into!==hero.into){xe.dataset.v=heroPrev.into;fxTicker(xe,hero.into,n=>fmt(Math.round(n))+' / '+fmt(hero.need))}
+  heroPrev={into:hero.into,pct:hero.pct,level:L};
 }
-async function refreshBody(){
-  document.getElementById('body-root').innerHTML='<div class="header"><h1>Тело</h1></div><div class="empty-state">Тренировки появятся здесь</div>';
+function playStatusIntro(){
+  introPending=false;
+  const el=document.getElementById('hero-level');if(!el)return;
+  const L=levelOf(xpTotalsSync().all);
+  el.dataset.v=0;fxTicker(el,L,n=>String(Math.round(n)).padStart(2,'0'),900);
+  const hero=document.getElementById('hero');if(hero)setTimeout(()=>hero.classList.remove('hero-intro'),1200);
 }
-function openCmd(){switchView('add')}
+
+// Hero photo (settings): square crop → 560 px JPEG ≤ 300 KB, stored as data URL in settings/avatar
+async function setAvatar(ev){
+  const f=ev.target.files[0];if(!f)return;
+  try{
+    const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=URL.createObjectURL(f)});
+    const s=Math.min(img.width,img.height),c=document.createElement('canvas');c.width=c.height=560;
+    c.getContext('2d').drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,560,560);
+    let q=.9,url=c.toDataURL('image/jpeg',q);
+    while(url.length*0.75>300*1024&&q>.4){q-=.1;url=c.toDataURL('image/jpeg',q)}
+    if(url.length*0.75>300*1024)return toast('Фото слишком большое');
+    await saveSetting('avatar',url);statusAvatar=url;toast('Фото героя обновлено');
+  }catch(e){toast('Не удалось прочитать изображение')}
+  ev.target.value='';
+}
+async function resetAvatar(){await saveSetting('avatar',null);statusAvatar=null;toast('Возвращено стандартное фото')}
+
+// ── Quests → Season ──
+const ACH_ICON={streak7:'flame',streak30:'flame',plus25:'bars',trainWeek:'calendar',noDebts:'card',firstGoal:'goal',dfirWeek:'search',firstCase:'doc',tier2:'check',seasonEnd:'goal',quests100:'tasks',journal30:'doc'};
+async function renderSeason(){
+  const el=document.getElementById('q-season');if(!el)return;
+  const s=seasonNow(),t0=today(),have=await getAchievements();
+  const total=daysBetween(s.start,s.end),el_=Math.max(0,Math.min(total,daysBetween(s.start,t0))),left=Math.max(0,daysBetween(t0,s.end));
+  const monthIdx=Math.max(0,Math.min(s.phases.length-1,parseLocalDate(t0).getMonth()-9));
+  const endD=parseLocalDate(s.end);
+  el.innerHTML=`<div class="season"><div class="season-word disp outline-dim" aria-hidden="true">${escapeHtml(s.name.toUpperCase())}</div>
+    <div class="season-top"><div class="card-title">Сезон ${s.id} · ${escapeHtml(s.name)}</div><div class="cmd-hint">${escapeHtml(s.start)} — ${escapeHtml(s.end)} · осталось ${left} ${dayWord(left)}</div><div class="bar" style="--c:var(--bone)"><i style="transform:scaleX(${(el_/total).toFixed(3)})"></i></div></div>
+    <div class="roadmap"><svg class="rm-svg" viewBox="0 0 24 100" preserveAspectRatio="none" aria-hidden="true"><path id="rm-line" d="M12 0V100" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="1"/></svg>
+      ${s.phases.map((p,i)=>`<div class="rm-phase${i===monthIdx?' hud now':''}"><div class="rm-dot"></div><div class="rm-month">${escapeHtml(p.month)}</div><div class="rm-name">${escapeHtml(p.name)}</div><div class="rm-text">${escapeHtml(p.text)}</div></div>`).join('')}
+      ${s.reward?`<div class="rm-phase final"><div class="rm-dot"></div><div class="rm-month">${endD.getDate()} ${MONTHS_GEN[endD.getMonth()]} · финал</div><div class="rm-text">${escapeHtml(s.reward)}</div></div>`:''}</div>
+    <div class="card-title" style="margin-top:20px">Достижения</div>
+    <div class="ach-grid">${ACHIEVEMENTS.map(a=>{const got=have[a.id];return `<div class="ach tilt${got?' got':''}" title="${escapeHtml(a.desc)}"><div class="ach-ic">${ico(ACH_ICON[a.id]||'check',26)}</div><div class="ach-name">${escapeHtml(a.name)}</div><div class="ach-date">${got?escapeHtml(got):escapeHtml(a.desc)}</div></div>`}).join('')}</div></div>`;
+  const p=document.getElementById('rm-line');if(p)fxDraw(p,1100);
+}
+
+// ── Quests → Week ──
+let weekOffset=0,weekText='';
+function weekShift(d){weekOffset+=d;if(weekOffset>0)weekOffset=0;renderWeek()}
+async function renderWeek(){
+  const el=document.getElementById('q-week');if(!el)return;
+  await Promise.all([getTasks(),getHabits(),getChecks(),getTaskLog(),getCol('journal'),getCol('workouts'),getCol('xpLog'),getCol('workoutPlans')]);const txAll=await getTxs();
+  const t0=today(),ws=addDays(weekStart(t0),weekOffset*7),we=addDays(ws,6),inW=d=>d>=ws&&d<=we;
+  const log=logCache.filter(l=>inW(l.date)),jr=colCache.journal.data.filter(j=>inW(j.date)),wo=colCache.workouts.data.filter(w=>w.done&&inW(w.date));
+  const planned=new Set(tasksCache.filter(t=>t.workoutPlan).map(t=>t.id));
+  const failed=tasksCache.filter(t=>!t.done&&t.due&&inW(t.due)&&t.due<t0);
+  const tasksDone=log.length,tasksPlanned=tasksDone+failed.length;
+  const elapsed=Math.max(1,Math.min(7,daysBetween(ws,t0<we?t0:we)+1));
+  const habits=habitsCache.filter(h=>!h.archived),chk=checksCache.filter(c=>inW(c.date));
+  const hDone=chk.filter(c=>habits.some(h=>h.id===c.habitId)).length,hPct=habits.length?Math.round(hDone/(habits.length*elapsed)*100):0;
+  const woDoneLogs=log.filter(l=>planned.has(l.taskId)).length,woFailed=failed.filter(t=>t.workoutPlan).length,woPlanned=Math.max(wo.length,woDoneLogs)+woFailed;
+  const spent=txAll.filter(t=>t.type==='expense'&&inW(t.date)),spentSum=spent.reduce((s,t)=>s+t.amount,0);
+  const byCat={};spent.forEach(t=>byCat[t.category]=(byCat[t.category]||0)+t.amount);
+  const top=Object.entries(byCat).sort((a,b)=>b[1]-a[1]).slice(0,2).map(([c])=>getCat(c).name);
+  const xp={money:0,dfir:0,body:0};colCache.xpLog.data.filter(e=>inW(e.date)).forEach(e=>{if(e.sphere&&xp[e.sphere]!=null)xp[e.sphere]+=e.amount});
+  const ach=await getAchievements(),achW=ACHIEVEMENTS.filter(a=>ach[a.id]&&inW(ach[a.id]));
+  const fmtD=d=>d.slice(8,10)+'.'+d.slice(5,7);
+  // timeline
+  const tl=[];
+  log.forEach(l=>tl.push({at:l.at,date:l.date,text:'✓ '+l.title,sphere:SPHERE_OF_LIST[l.list]||null}));
+  jr.forEach(j=>tl.push({at:j.at,date:j.date,text:j.text,sphere:j.sphere,journal:true}));
+  wo.filter(w=>!w.taskId).forEach(w=>tl.push({at:w.at||0,date:w.date,text:(planById(w.planId)?planById(w.planId).name:'Тренировка'),sphere:'body'}));
+  achW.forEach(a=>tl.push({at:parseLocalDate(ach[a.id]).getTime()+86399000,date:ach[a.id],text:'Достижение: '+a.name,sphere:null}));
+  tl.sort((a,b)=>a.at-b.at);
+  const lastW=wo.slice().sort((a,b)=>(a.at||0)-(b.at||0)).pop();
+  let liftTxt='';
+  if(lastW){const pl=planById(lastW.planId),en=(lastW.entries||[]).find(e=>e.weight!=null&&(e.reps||[]).some(r=>r!=null));if(en){const ex=pl&&pl.exercises.find(x=>x.id===en.exId);liftTxt=` (${(ex?ex.name:en.exId).toLowerCase()} ${fmtNum(en.weight)} × ${en.reps.filter(r=>r!=null).join(',')})`}}
+  const lines=[`Неделя ${fmtD(ws)}–${fmtD(we)}`,
+    `Задачи: ${tasksDone} из ${tasksPlanned}${failed.length?` (сорвано: ${failed.map(t=>t.title).join('; ')})`:''}`,
+    `Привычки: ${hPct}%${habits.length?` (${habits.map(h=>`${h.name} ${chk.filter(c=>c.habitId===h.id).length}/${elapsed}`).join(', ')})`:''}`,
+    `Тренировки: ${wo.length} из ${woPlanned}${liftTxt}`,
+    `Траты: ${fmtCur(spentSum)}${top.length?` (топ: ${top.join(', ')})`:''}`,
+    `Опыт: ${Object.keys(SPHERES).map(s=>`${SPHERES[s]} ${xp[s]>=0?'+':''}${xp[s]}`).join(', ')}`,
+    'Журнал:',...jr.sort((a,b)=>a.at-b.at).map(j=>`- ${WD_SHORT[isoWeekday(j.date)-1]} ${hhmm(j.at)} ${j.text}`)];
+  weekText=lines.join('\n');
+  const big=(n,l)=>`<div class="wk-stat spot"><div class="wk-num disp" data-n="${n}">${n}</div><div class="wk-lbl">${l}</div></div>`;
+  let lastDay='';
+  el.innerHTML=`<div class="wk-nav"><button class="header-btn" onclick="weekShift(-1)" aria-label="Предыдущая неделя">${ico('chevLeft',18)}</button><div class="wk-range">${fmtD(ws)}–${fmtD(we)}${weekOffset===0?' · эта неделя':''}</div><button class="header-btn" onclick="weekShift(1)" aria-label="Следующая неделя"${weekOffset===0?' disabled style="opacity:.3"':''}>${ico('chevRight',18)}</button></div>
+    <div class="wk-grid">${big(tasksDone+'/'+tasksPlanned,'задачи')}${big(hPct+'%','привычки')}${big(wo.length+'/'+woPlanned,'тренировки')}${big(fmt(Math.round(spentSum/1000))+'к','траты, ₸')}</div>
+    <div class="card"><div class="card-title">Опыт за неделю</div><div class="wk-xp">${Object.keys(SPHERES).map(s=>`<span style="--c:var(--${s})"><i></i>${SPHERES[s]} ${xp[s]>=0?'+':''}${xp[s]}</span>`).join('')}</div></div>
+    <div class="card"><div class="card-title">Таймлайн</div>${tl.length?tl.map(e=>{const h=e.date!==lastDay?`<div class="tl-day">${WD_SHORT[isoWeekday(e.date)-1]}, ${e.date.slice(8,10)}.${e.date.slice(5,7)}</div>`:'';lastDay=e.date;return h+`<div class="jr-row"><span class="jr-time">${e.journal||e.at>0&&!String(e.text).startsWith('Достижение')?hhmm(e.at):''}</span><span class="jr-dot" style="--c:${sphereColor(e.sphere)}"></span><span class="jr-text">${escapeHtml(e.text)}</span></div>`}).join(''):'<div class="cmd-hint">На этой неделе событий нет</div>'}</div>
+    <button class="save-btn primary" onclick="copyWeek()">Копировать для Claude</button><pre id="week-fallback" class="wk-fallback" hidden></pre>`;
+}
+async function copyWeek(){
+  try{await navigator.clipboard.writeText(weekText);toast('Скопировано')}
+  catch(e){const p=document.getElementById('week-fallback');p.textContent=weekText;p.hidden=false;const r=document.createRange();r.selectNodeContents(p);const s=getSelection();s.removeAllRanges();s.addRange(r);toast('Выделено — скопируйте вручную')}
+}
+
 
 // ── Init ──
 async function startApp(){
@@ -2301,6 +3053,7 @@ async function startApp(){
   registerGoalCategories(await dbAll('goals'));
   document.getElementById('smart-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();handleSmartInput()}});
   buildMoneyTabs();switchView('status');moveLamp();
+  if(window.fxBoot){introPending=!fxRM();const wasIntro=introPending;await fxBoot();if(wasIntro){await refreshStatus();playStatusIntro()}else introPending=false}
   if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 async function init(){

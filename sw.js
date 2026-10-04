@@ -1,8 +1,19 @@
-const CACHE_NAME = 'finance-v29';
+const CACHE_NAME = 'finance-v30';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
+  './theme.css',
+  './fx.js',
+  './figure.jpg',
+  './icon.svg',
+  './icon-180.png',
+  './icon-192.png',
+  './icon-512.png',
+  './fonts/tektur-cyrillic.woff2',
+  './fonts/tektur-latin.woff2',
+  './fonts/golos-cyrillic.woff2',
+  './fonts/golos-latin.woff2',
   'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
