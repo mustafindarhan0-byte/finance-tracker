@@ -939,6 +939,7 @@ async function createNewSpace(){
   await connectSpace(spaceId);
   await spaceRef.collection('_meta').doc('info').set({createdAt:Date.now()});
   localStorage.setItem('syncSpace',spaceId);
+  localStorage.setItem('syncCode',code);
   const legacy=await readLegacyIndexedDB();
   if(hasAnyLegacyData(legacy)){
     document.getElementById('setup-status').textContent='Переносим существующие данные...';
@@ -1032,6 +1033,7 @@ async function undoTx(id){
   await dbDel('transactions',id);dirtyTx();
   document.getElementById('toast').classList.remove('show');
   toast('Отменено');
+  checkAchievements();
 }
 
 function showWarning(msg,color){
@@ -1812,6 +1814,23 @@ async function showPdfResults(bank,parsed){
   document.getElementById('stmt-results').innerHTML=html||'<div class="empty-state">Все операции уже записаны!</div>';
 }
 
+// CSV helpers: decimal comma / thousands separators, and ISO or dd.mm[.yyyy] dates → match key "mm-dd"
+function parseStmtAmount(s){
+  let v=String(s==null?'':s).replace(/[\s ]/g,'').replace(/[^\d.,\-+]/g,'');
+  const lc=v.lastIndexOf(','),ld=v.lastIndexOf('.');
+  if(lc>=0&&ld>=0)v=lc>ld?v.replace(/\./g,'').replace(',','.'):v.replace(/,/g,'');
+  else if(lc>=0)v=/,\d{1,2}$/.test(v)&&v.indexOf(',')===lc?v.replace(',','.'):v.replace(/,/g,'');
+  const n=parseFloat(v);return isFinite(n)?n:0;
+}
+function parseStmtDate(s){
+  s=String(s||'');let m=s.match(/(\d{4})[.\-\/](\d{2})[.\-\/](\d{2})/);
+  if(m)return{iso:m[1]+'-'+m[2]+'-'+m[3],key:m[2]+'-'+m[3]};
+  m=s.match(/(\d{2})[.\-\/](\d{2})[.\-\/](\d{4})/);
+  if(m)return{iso:m[3]+'-'+m[2]+'-'+m[1],key:m[2]+'-'+m[1]};
+  m=s.match(/(\d{2})[.\-\/](\d{2})/);
+  return m?{iso:null,key:m[2]+'-'+m[1]}:{iso:null,key:''};
+}
+
 async function analyzeStatement(){
   stmtMode='csv';
   const dateCol=document.getElementById('map-date').value,amtCol=document.getElementById('map-amount').value,descCol=document.getElementById('map-desc').value;
@@ -1821,15 +1840,14 @@ async function analyzeStatement(){
   let matched=0,html='';
   stmtMissed=[];
   stmtData.forEach(row=>{
-    const rawAmt=parseFloat((row[amtCol]||'0').replace(/[^\d.\-]/g,'')),amt=Math.abs(rawAmt);
+    const rawAmt=parseStmtAmount(row[amtCol]),amt=Math.abs(rawAmt);
     const desc=row[descCol]||'',date=row[dateCol]||'';if(amt===0)return;
     const type=rawAmt>0?'income':'expense';
-    let dateKey='';const dm=date.match(/(\d{2})[.\-\/](\d{2})/);if(dm)dateKey=dm[2]+'-'+dm[1];
+    const pd=parseStmtDate(date),dateKey=pd.key;
     const k=type+'|'+dateKey+'|'+Math.round(amt);
     if(txIndex.has(k)&&txIndex.get(k)>0){matched++;txIndex.set(k,txIndex.get(k)-1);html+=`<div class="match">${icoInline('check',14)}${escapeHtml(desc)} &mdash; ${fmtCur(amt)}</div>`}
     else{
-      let iso=today();const m=date.match(/(\d{4})[.\-\/](\d{2})[.\-\/](\d{2})/);
-      if(m)iso=`${m[1]}-${m[2]}-${m[3]}`;else{const m2=date.match(/(\d{2})[.\-\/](\d{2})[.\-\/](\d{4})/);if(m2)iso=`${m2[3]}-${m2[2]}-${m2[1]}`}
+      const iso=pd.iso||today();
       const idx=stmtMissed.length;stmtMissed.push({desc,amount:amt,date:iso,type});
       html+=missRow(idx,desc,amt,date,type);
     }
@@ -1938,6 +1956,7 @@ function setCurrency(c){currency=c;saveSetting('currency',c);refreshDashboard()}
 
 async function exportData(){
   const data=Object.fromEntries(await Promise.all(ALL_STORES.map(async s=>[s,await dbAll(s)])));
+  if(data.settings)data.settings=data.settings.filter(x=>x.key!=='geminiKey');
   const json=JSON.stringify({...data,currency,exportDate:new Date().toISOString()},null,2);
   const blob=new Blob([json],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download=`finance-${today()}.json`;a.click();URL.revokeObjectURL(url);toast('Экспорт завершён');
@@ -2026,10 +2045,16 @@ function nextOccurrence(rep,after){
 function nextDue(task){const t=today();return nextOccurrence(task.repeat,task.due&&task.due>t?task.due:t)}
 
 const taskUndo={};
+const completing=new Set();
 async function completeTask(id,opts){
   opts=opts||{};
+  if(completing.has(id))return;
+  completing.add(id);
+  try{await completeTaskInner(id,opts)}finally{completing.delete(id)}
+}
+async function completeTaskInner(id,opts){
   await Promise.all([getTasks(),getTaskLog()]);
-  const t=tasksCache.find(x=>x.id===id);if(!t)return;
+  const t=tasksCache.find(x=>x.id===id);if(!t||t.done)return;
   const log={id:uid(),taskId:t.id,title:t.title,list:t.list,date:today(),at:Date.now()};
   const nd=t.repeat?nextDue(t):null;
   const upd={...t};
@@ -2293,6 +2318,7 @@ async function addQuickTask(){
   if(!p.title)return toast('Введите название задачи');
   input.value='';
   let t;try{t=await createTask(p)}catch(e){return}
+  if(t.due&&t.due>addDays(today(),1))tasksLaterOpen=true;
   renderTasks();
   toast(`Добавлено: ${t.title}${t.due?' · '+formatTaskDate(t.due):''}${t.time?' '+t.time:''}`);
 }
@@ -2423,8 +2449,10 @@ async function checkAchievements(){
     done.quests100=log.length>=100;
     done.journal30=journal.length>=30;
     const fresh=ACHIEVEMENTS.filter(a=>done[a.id]&&!have[a.id]);
-    if(!fresh.length)return;
-    const upd={...have};fresh.forEach(a=>upd[a.id]=t);
+    // an achievement earned today is withdrawn if the action behind it was undone today; older ones stay (history)
+    const lost=ACHIEVEMENTS.filter(a=>have[a.id]===t&&!done[a.id]);
+    if(!fresh.length&&!lost.length)return;
+    const upd={...have};fresh.forEach(a=>upd[a.id]=t);lost.forEach(a=>delete upd[a.id]);
     await saveSetting('achievements',upd);
     fresh.forEach(a=>{toast('Достижение: '+a.name);if(window.fxAchievement)fxAchievement(a)});
   }catch(e){console.warn('achievements',e)}
