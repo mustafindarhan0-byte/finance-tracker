@@ -195,18 +195,17 @@ window.fxAchievement=function(a){
   b.animate([{transform:'translate(-50%,-20px)',opacity:0},{transform:'translate(-50%,0)',opacity:1,offset:.15},{transform:'translate(-50%,0)',opacity:1,offset:.85},{transform:'translate(-50%,-10px)',opacity:0}],{duration:2600,fill:'both'}).onfinish=()=>b.remove();
 };
 
-// A1 — экран загрузки «световое кольцо» (~3 с), тап пропускает. Раз в день.
+// A1 — экран загрузки «световое кольцо» (~3 с), тап пропускает. При каждом открытии приложения.
 window.fxBoot=function(){
   return new Promise(resolve=>{
-    let seen=false;try{seen=localStorage.getItem('bootDay')===(window.today?today():'')}catch(e){}
-    try{localStorage.setItem('bootDay',window.today?today():'')}catch(e){}
-    if(seen||RM()){resolve();return}
+    if(RM()){resolve();return}
     const ov=mk('boot');
     ov.innerHTML='<div class="boot-stage"><div class="boot-ring"></div><svg class="boot-arcs" viewBox="0 0 200 200"><circle cx="100" cy="100" r="86" fill="none" stroke="#E6EEFF" stroke-width="3" stroke-linecap="round" stroke-dasharray="48 28"/><circle cx="100" cy="100" r="70" fill="none" stroke="#9EBBFF" stroke-width="2" stroke-linecap="round" stroke-dasharray="26 40"/></svg><div class="boot-core"></div><div class="boot-drop"></div></div><div class="boot-word disp">СИСТЕМА</div>';
     const ring=ov.querySelector('.boot-ring'),arcs=ov.querySelector('.boot-arcs'),core=ov.querySelector('.boot-core'),drop=ov.querySelector('.boot-drop'),word=ov.querySelector('.boot-word');
     let done=false;
     const finish=()=>{if(done)return;done=true;ov.animate([{opacity:1},{opacity:0}],{duration:300,fill:'forwards'}).onfinish=()=>{ov.remove();resolve()}};
     ov.addEventListener('click',finish);
+    setTimeout(()=>{if(!ov.isConnected)return;done=true;ov.remove();resolve()},6000); // страховка: оверлей не должен блокировать приложение
     ring.style.transform='rotateX(88deg)';arcs.style.opacity=0;word.style.opacity=0;drop.style.opacity=0;
     (async()=>{
       await ring.animate([{transform:'rotateX(88deg)'},{transform:'rotateX(0deg)'}],{duration:900,easing:'cubic-bezier(.65,0,.35,1)',fill:'forwards'}).finished.catch(()=>{});
