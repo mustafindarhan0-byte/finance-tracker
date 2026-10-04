@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="core" cx="45%" cy="42%" r="60%">
+      <stop offset="0" stop-color="#2A1760"/>
+      <stop offset=".6" stop-color="#0F0726"/>
+      <stop offset="1" stop-color="#040209"/>
+    </radialGradient>
+    <linearGradient id="iri" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F1E4FF"/>
+      <stop offset=".28" stop-color="#B48BFF"/>
+      <stop offset=".55" stop-color="#6440E6"/>
+      <stop offset=".8" stop-color="#4FB8FF"/>
+      <stop offset="1" stop-color="#F3C46B"/>
+    </linearGradient>
+    <linearGradient id="band" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#D9C2FF" stop-opacity=".95"/>
+      <stop offset=".4" stop-color="#8A5CFF" stop-opacity=".75"/>
+      <stop offset=".75" stop-color="#3D2AA8" stop-opacity=".35"/>
+      <stop offset="1" stop-color="#5FC2FF" stop-opacity=".8"/>
+    </linearGradient>
+    <radialGradient id="glass" cx="38%" cy="30%" r="75%">
+      <stop offset="0" stop-color="#B9A4FF" stop-opacity=".9"/>
+      <stop offset=".35" stop-color="#5A3FD0" stop-opacity=".65"/>
+      <stop offset=".75" stop-color="#1C1150" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#4FB8FF" stop-opacity=".55"/>
+    </radialGradient>
+    <filter id="b10" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="10"/></filter>
+    <filter id="b4" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="4"/></filter>
+    <filter id="b2" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="1.5"/></filter>
+    <clipPath id="orb"><circle cx="256" cy="256" r="178"/></clipPath>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#000"/>
+  <circle cx="256" cy="256" r="182" fill="none" stroke="url(#iri)" stroke-width="22" opacity=".35" filter="url(#b10)"/>
+  <circle cx="256" cy="256" r="178" fill="url(#core)"/>
+  <g clip-path="url(#orb)">
+    <g class="swirl">
+      <ellipse cx="256" cy="250" rx="200" ry="118" transform="rotate(-38 256 256)" fill="none" stroke="url(#band)" stroke-width="54" filter="url(#b4)"/>
+      <ellipse cx="256" cy="250" rx="200" ry="118" transform="rotate(-38 256 256)" fill="none" stroke="#FFFFFF" stroke-width="3" opacity=".7" filter="url(#b2)"/>
+      <ellipse cx="256" cy="250" rx="174" ry="92" transform="rotate(-38 256 256)" fill="none" stroke="#E7D3FF" stroke-width="2" opacity=".5"/>
+    </g>
+    <circle cx="270" cy="266" r="104" fill="url(#glass)"/>
+    <path d="M186 232a92 92 0 0 1 96-66" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity=".55" filter="url(#b2)"/>
+    <path d="M352 300a104 104 0 0 1-60 64" fill="none" stroke="#5FC2FF" stroke-width="6" stroke-linecap="round" opacity=".7" filter="url(#b2)"/>
+    <ellipse cx="168" cy="156" rx="78" ry="30" transform="rotate(-42 168 156)" fill="#F1E4FF" opacity=".45" filter="url(#b10)"/>
+    <path d="M150 380c50 34 120 44 186 18" fill="none" stroke="#F3C46B" stroke-width="7" stroke-linecap="round" opacity=".6" filter="url(#b4)"/>
+  </g>
+  <circle cx="256" cy="256" r="177" fill="none" stroke="url(#iri)" stroke-width="2.5"/>
+</svg>

@@ -1,2 +1,5 @@
 node_modules/
 .claude/
+HANDOFF.md
+assets_src/seed-v1.json
+assets_src/

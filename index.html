@@ -3,21 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="theme-color" content="#0a0a0a">
+<meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
 <title>Finance Tracker</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore-compat.js"></script>
+<script src="fx.js"></script>
 <style>
 :root{
   --bg:#0a0a0f;--bg2:#161620;--bg3:#262436;
   --text:#f5f5f7;--text2:#9a98a8;--text3:#68667a;
-  --primary:#7c6cf5;--primary-light:#211d3d;--on-primary:#f5f5f7;
-  --gradient:linear-gradient(135deg,#5b8cff 0%,#8b6cf0 55%,#c66cf0 100%);
+  --primary:#F2F2EF;--primary-light:#211d3d;--on-primary:#f5f5f7;
+  --gradient:linear-gradient(135deg,#F2F2EF 0%,#F2F2EF 55%,#F2F2EF 100%);
   --green:#10b981;--green-light:#0d2818;
   --red:#ef4444;--red-light:#3a1113;
   --orange:#f59e0b;--orange-light:#3a2705;
@@ -28,13 +30,13 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:radial-gradient(ellipse 900px 500px at 50% -10%,#1c1830 0%,var(--bg) 60%) var(--bg);color:var(--text);min-height:100vh;padding-bottom:calc(var(--nav-h)+36px);-webkit-tap-highlight-color:transparent;overflow-x:hidden;position:relative}
 .container{max-width:480px;margin:0 auto;padding:0 16px;position:relative;z-index:1}
-.bottom-nav{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));left:16px;right:16px;max-width:448px;margin:0 auto;height:var(--nav-h);background:rgba(22,22,32,.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(139,108,240,.15);border-radius:999px;display:flex;justify-content:space-around;align-items:center;z-index:100;box-shadow:0 10px 30px rgba(0,0,0,.5)}
-.nav-btn{background:none;border:none;color:var(--text3);font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:6px 12px;border-radius:var(--radius-sm);transition:.2s}
+.bottom-nav{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));left:16px;right:16px;max-width:448px;margin:0 auto;height:var(--nav-h);background:rgba(22,22,32,.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.15);border-radius:999px;display:flex;justify-content:space-around;align-items:center;z-index:100;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.nav-btn{background:none;border:none;color:var(--text3);font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:6px 6px;border-radius:var(--radius-sm);transition:.2s}
 .nav-btn .icon{display:flex;align-items:center;justify-content:center}
 .nav-btn.active{color:var(--primary)}
 .view{display:none;padding:16px 0;animation:fadeIn .2s}.view.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.card{background:var(--bg2);border:1px solid rgba(124,108,245,.1);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
+.card{background:var(--bg2);border:1px solid rgba(255,255,255,.1);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
 .card-title{font-size:13px;color:var(--text2);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
 .header{display:flex;align-items:center;justify-content:space-between;padding:12px 0}
 .header h1{font-size:20px;font-weight:700}
@@ -43,13 +45,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .empty-state .icon-wrap{margin-bottom:12px;display:flex;justify-content:center;opacity:.6}
 .period-tabs{display:flex;gap:6px;margin-bottom:16px}
 .period-tab{flex:1;padding:8px;border:none;border-radius:999px;background:var(--bg3);color:var(--text2);font-size:13px;cursor:pointer;font-weight:500;transition:.2s}
-.period-tab.active{background:var(--gradient);color:#fff;box-shadow:0 2px 10px rgba(124,108,245,.35)}
+/* Подвкладки */
+.sub-view { display: none }
+.sub-view.active { display: block }
 
 /* Dashboard */
-.balance-card{background:linear-gradient(160deg,#241f42 0%,var(--bg2) 55%);border:1px solid rgba(139,108,240,.22);color:var(--text);border-radius:var(--radius);padding:20px;margin-bottom:16px;text-align:center;position:relative;overflow:hidden}
+.balance-card{background:linear-gradient(160deg,#241f42 0%,var(--bg2) 55%);border:1px solid rgba(255,255,255,.22);color:var(--text);border-radius:var(--radius);padding:20px;margin-bottom:16px;text-align:center;position:relative;overflow:hidden}
 .balance-card::before{content:'';position:absolute;top:-40%;right:-20%;width:70%;height:180%;background:var(--gradient);opacity:.14;filter:blur(30px);pointer-events:none}
 .balance-label{font-size:13px;color:var(--text2);margin-bottom:4px;position:relative}
-.balance-amount{font-size:34px;font-weight:700;background:var(--gradient);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 20px rgba(139,108,240,.35));position:relative}
+.balance-amount{font-size:34px;font-weight:700;background:var(--gradient);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 20px rgba(255,255,255,.35));position:relative}
 .balance-row{display:flex;gap:12px;margin-top:16px;position:relative}
 .balance-box{flex:1;background:rgba(255,255,255,.03);border:1px solid var(--bg3);border-radius:var(--radius-sm);padding:10px;text-align:center}
 .balance-box .label{font-size:11px;color:var(--text2)}
@@ -57,7 +61,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .balance-box.income .amount{color:var(--green)}
 .balance-box.expense .amount{color:var(--red)}
 .budget-ring-card{display:flex;align-items:center;gap:16px}
-.budget-ring{width:80px;height:80px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative;filter:drop-shadow(0 0 10px rgba(124,108,245,.25))}
+.budget-ring{width:80px;height:80px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative;filter:drop-shadow(0 0 10px rgba(255,255,255,.25))}
 .budget-ring::before{content:'';position:absolute;inset:8px;border-radius:50%;background:var(--bg2)}
 .budget-ring-pct{position:relative;font-size:17px;font-weight:700}
 .budget-ring-info{flex:1;font-size:14px;color:var(--text2)}
@@ -82,7 +86,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .smart-input{width:100%;padding:16px 50px 16px 16px;border:2px solid var(--bg3);border-radius:var(--radius);font-size:18px;background:var(--bg2);color:var(--text);outline:none;transition:.2s}
 .smart-input:focus{border-color:var(--primary)}
 .smart-input::placeholder{color:var(--text3)}
-.smart-send{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:none;border-radius:50%;background:var(--gradient);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 14px rgba(139,108,240,.4)}
+.smart-send{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:none;border-radius:50%;background:var(--gradient);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 14px rgba(255,255,255,.4)}
 .smart-hint{font-size:12px;color:var(--text3);margin-top:6px;text-align:center}
 
 .templates-wrap{margin-bottom:16px}
@@ -103,7 +107,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .save-btn{width:100%;padding:14px;border:none;border-radius:999px;font-size:16px;font-weight:600;cursor:pointer;margin-top:12px;transition:.2s}
 .save-btn.expense{background:var(--red);color:#fff}
 .save-btn.income{background:var(--green);color:#fff}
-.save-btn.primary{background:var(--gradient);color:#fff;box-shadow:0 4px 20px rgba(139,108,240,.35)}
+.save-btn.primary{background:var(--gradient);color:#fff;box-shadow:0 4px 20px rgba(255,255,255,.35)}
 .save-btn.neutral{background:var(--bg3);color:var(--text)}
 .save-btn:active{transform:scale(.98)}
 
@@ -122,7 +126,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .date-group{font-size:13px;font-weight:600;color:var(--text2);padding:8px 0;margin-top:8px}
 .del-btn{background:none;border:none;color:var(--text3);cursor:pointer;padding:4px 8px;margin-left:8px;display:inline-flex;align-items:center}
 .del-btn:hover{color:var(--red)}
-.calendar-wrap{background:var(--bg2);border:1px solid rgba(124,108,245,.1);border-radius:var(--radius);padding:14px;margin-bottom:16px;box-shadow:var(--shadow)}
+.calendar-wrap{background:var(--bg2);border:1px solid rgba(255,255,255,.1);border-radius:var(--radius);padding:14px;margin-bottom:16px;box-shadow:var(--shadow)}
 .calendar-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .calendar-nav-btn{background:var(--bg3);border:none;color:var(--text2);width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
 .calendar-month-label{font-weight:600;font-size:14px;text-transform:capitalize}
@@ -138,26 +142,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 /* Stats */
 #view-stats{position:relative}
 #view-stats::before,#view-stats::after{content:'';position:absolute;border-radius:50%;filter:blur(60px);z-index:0;pointer-events:none}
-#view-stats::before{width:240px;height:240px;background:rgba(124,108,245,.2);top:-30px;right:-70px}
+#view-stats::before{width:240px;height:240px;background:rgba(255,255,255,.2);top:-30px;right:-70px}
 #view-stats::after{width:200px;height:200px;background:rgba(59,130,246,.18);top:420px;left:-70px}
 .stat-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
-.stat-card{background:var(--bg2);border:1px solid rgba(124,108,245,.1);border-radius:var(--radius-sm);padding:12px;box-shadow:var(--shadow)}
+.stat-card{background:var(--bg2);border:1px solid rgba(255,255,255,.1);border-radius:var(--radius-sm);padding:12px;box-shadow:var(--shadow)}
 .stat-card .label{font-size:12px;color:var(--text2)}
-.stat-card .value{font-size:20px;font-weight:700;margin-top:2px;color:var(--primary);text-shadow:0 0 16px rgba(124,108,245,.3)}
-.chart-container{position:relative;height:250px;margin:16px 0;filter:drop-shadow(0 0 14px rgba(124,108,245,.15))}
+.stat-card .value{font-size:20px;font-weight:700;margin-top:2px;color:var(--primary);text-shadow:0 0 16px rgba(255,255,255,.3)}
+.chart-container{position:relative;height:250px;margin:16px 0;filter:drop-shadow(0 0 14px rgba(255,255,255,.15))}
 
 /* Stats: animated liquid-glass sphere replacing the old doughnut chart */
 .sphere-wrap{position:relative;width:200px;height:200px;margin:24px auto}
-.sphere{position:absolute;inset:0;border-radius:50%;overflow:hidden;clip-path:circle(50%);background:#050508;box-shadow:0 0 70px rgba(124,108,245,.4),0 0 24px rgba(198,108,240,.25),inset 0 0 30px rgba(0,0,0,.7);animation:sphereSpin 24s linear infinite}
+.sphere{position:absolute;inset:0;border-radius:50%;overflow:hidden;clip-path:circle(50%);background:#050508;box-shadow:0 0 70px rgba(255,255,255,.4),0 0 24px rgba(198,108,240,.25),inset 0 0 30px rgba(0,0,0,.7);animation:sphereSpin 24s linear infinite}
 .sphere-blob{position:absolute;border-radius:50%;filter:blur(22px);mix-blend-mode:screen;opacity:.95}
-.sphere-blob.b1{width:75%;height:75%;top:-15%;left:-15%;background:radial-gradient(circle,#5b8cff 0%,rgba(91,140,255,0) 70%);animation:blobFloat1 9s ease-in-out infinite}
-.sphere-blob.b2{width:85%;height:85%;bottom:-25%;right:-20%;background:radial-gradient(circle,#c66cf0 0%,rgba(198,108,240,0) 70%);animation:blobFloat2 12s ease-in-out infinite}
-.sphere-blob.b3{width:65%;height:65%;top:15%;right:-15%;background:radial-gradient(circle,#8b6cf0 0%,rgba(139,108,240,0) 70%);animation:blobFloat3 10.5s ease-in-out infinite}
+.sphere-blob.b1{width:75%;height:75%;top:-15%;left:-15%;background:radial-gradient(circle,#F2F2EF 0%,rgba(91,140,255,0) 70%);animation:blobFloat1 9s ease-in-out infinite}
+.sphere-blob.b2{width:85%;height:85%;bottom:-25%;right:-20%;background:radial-gradient(circle,#F2F2EF 0%,rgba(198,108,240,0) 70%);animation:blobFloat2 12s ease-in-out infinite}
+.sphere-blob.b3{width:65%;height:65%;top:15%;right:-15%;background:radial-gradient(circle,#F2F2EF 0%,rgba(255,255,255,0) 70%);animation:blobFloat3 10.5s ease-in-out infinite}
 .sphere-blob.b4{width:55%;height:55%;bottom:5%;left:0%;background:radial-gradient(circle,#ec4899 0%,rgba(236,72,153,0) 70%);animation:blobFloat1 14s ease-in-out infinite reverse}
 .sphere-shine{position:absolute;top:6%;left:12%;width:46%;height:36%;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.6),rgba(255,255,255,0) 70%);filter:blur(4px)}
 .sphere-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;text-align:center}
 .sphere-label{font-size:11px;color:rgba(255,255,255,.7);letter-spacing:.5px}
-.sphere-total{font-size:23px;font-weight:700;color:#fff;text-shadow:0 0 16px rgba(255,255,255,.65),0 0 34px rgba(139,108,240,.65);margin-top:3px}
+.sphere-total{font-size:23px;font-weight:700;color:#fff;text-shadow:0 0 16px rgba(255,255,255,.65),0 0 34px rgba(255,255,255,.65);margin-top:3px}
 @keyframes sphereSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 @keyframes blobFloat1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(12%,9%) scale(1.15)}}
 @keyframes blobFloat2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-13%,-7%) scale(1.1)}}
@@ -178,21 +182,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 /* Plans (budget+goals) */
 .sub-tabs{display:flex;gap:6px;margin-bottom:16px}
 .sub-tab{flex:1;padding:10px;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;transition:.2s;background:var(--bg3);color:var(--text2)}
-.sub-tab.active{background:var(--gradient);color:#fff;box-shadow:0 2px 10px rgba(124,108,245,.35)}
+.sub-tab.active{background:var(--gradient);color:#fff;box-shadow:0 2px 10px rgba(255,255,255,.35)}
 .sub-view{display:none}.sub-view.active{display:block}
 
-.budget-card{background:var(--bg2);border:1px solid rgba(124,108,245,.1);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow);display:flex;align-items:center;gap:14px}
+.budget-card{background:var(--bg2);border:1px solid rgba(255,255,255,.1);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow);display:flex;align-items:center;gap:14px}
 .budget-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
 .budget-name{font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px}
 .budget-limit{font-size:13px;color:var(--text2)}
 .budget-info{flex:1;min-width:0}
 .budget-amounts{display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-top:2px}
 .budget-pct{font-weight:600}
-.plan-ring{width:60px;height:60px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative;filter:drop-shadow(0 0 10px rgba(124,108,245,.25))}
+.plan-ring{width:60px;height:60px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative;filter:drop-shadow(0 0 10px rgba(255,255,255,.25))}
 .plan-ring::before{content:'';position:absolute;inset:6px;border-radius:50%;background:var(--bg2)}
 .plan-ring-inner{position:relative;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center}
 
-.goal-card{background:var(--bg2);border:1px solid rgba(124,108,245,.1);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow);display:flex;align-items:center;gap:14px}
+.goal-card{background:var(--bg2);border:1px solid rgba(255,255,255,.1);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow);display:flex;align-items:center;gap:14px}
 .goal-info{flex:1;min-width:0}
 .goal-name{font-weight:600;font-size:16px;margin-bottom:2px;display:flex;align-items:center;gap:8px}
 .goal-dates{font-size:12px;color:var(--text2);margin-bottom:6px;display:flex;align-items:center;gap:5px}
@@ -256,6 +260,45 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .modal{background:var(--bg2);border-radius:var(--radius) var(--radius) 0 0;padding:20px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;animation:slideUp .2s}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:none}}
 
+/* Tasks & habits */
+.tasks-done-month{font-size:12px;color:var(--text2);text-align:right}
+.upc-row{display:flex;gap:10px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--bg3)}
+.upc-row:last-child{border:none}
+.upc-when{font-size:12px;font-weight:600;color:var(--primary);min-width:104px;flex-shrink:0}
+.upc-title{flex:1;min-width:0;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.upc-title svg{display:inline-block;vertical-align:-3px;margin-left:4px;opacity:.7}
+.habit-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--bg3);cursor:pointer;user-select:none}
+.habit-row:last-child{border:none}
+.habit-check{width:26px;height:26px;border-radius:50%;border:2px solid var(--text3);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s}
+.habit-check.done{background:var(--gradient);border-color:transparent;box-shadow:0 0 12px rgba(255,255,255,.5)}
+.habit-name{flex:1;font-size:14px;min-width:0}
+.habit-streak{display:flex;align-items:center;gap:4px;font-size:13px;font-weight:600;color:var(--text3)}
+.habit-streak.on{color:var(--orange)}
+.habit-streak svg{opacity:.45}.habit-streak.on svg{opacity:1}
+.task-section-title{font-size:13px;font-weight:600;color:var(--text2);padding:14px 0 2px;text-transform:uppercase;letter-spacing:.5px}
+.task-section-title.overdue{color:var(--red)}
+.task-section-title.fold{display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none}
+.task-sublist{font-size:12px;color:var(--text3);padding:10px 0 0}
+.task-item{border-bottom:1px solid var(--bg3)}
+.task-row{display:flex;align-items:center;gap:12px;padding:11px 0;cursor:pointer}
+.task-check{width:26px;height:26px;border-radius:50%;border:2px solid var(--text3);background:none;flex-shrink:0;cursor:pointer;padding:0;transition:.15s}
+.task-check:active{transform:scale(.88);border-color:var(--primary)}
+.task-main{flex:1;min-width:0}
+.task-title{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.task-meta{display:flex;align-items:center;gap:8px;margin-top:3px;font-size:12px;color:var(--text2);min-height:16px}
+.task-meta .late{color:var(--red);font-weight:600}
+.task-meta svg{display:block;opacity:.7}
+.task-badge{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--bg3);color:var(--text2)}
+.task-edit{display:flex;flex-direction:column;gap:8px;padding:2px 0 14px}
+.task-edit .settings-input,.task-edit .currency-select{margin-top:0;width:100%;min-width:0}
+.task-edit-row{display:flex;gap:8px}
+.te-weekdays{display:flex;gap:6px;flex-wrap:wrap}
+.te-weekdays[hidden]{display:none}
+.te-weekdays label{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text2);background:var(--bg3);padding:6px 9px;border-radius:999px;cursor:pointer}
+.te-weekdays input{accent-color:var(--primary)}
+.task-edit-actions{display:flex;gap:8px}
+.task-cancel-btn{background:var(--bg3);color:var(--text2)}
+
 /* Setup / sync */
 .setup-wrap{padding-top:60px;text-align:center}
 .setup-wrap .icon-wrap{margin-bottom:16px;display:flex;justify-content:center}
@@ -269,19 +312,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 /* Desktop/laptop: max effect tier — glass cards + glow, gated behind width so phones never pay for it */
 @media(min-width:768px){
   body::before,body::after{content:'';position:fixed;border-radius:50%;filter:blur(90px);z-index:0;pointer-events:none}
-  body::before{width:520px;height:520px;background:rgba(124,108,245,.16);top:-12%;left:8%}
+  body::before{width:520px;height:520px;background:rgba(255,255,255,.16);top:-12%;left:8%}
   body::after{width:420px;height:420px;background:rgba(59,130,246,.14);bottom:-8%;right:8%}
   .card,.balance-card,.budget-card,.goal-card,.stat-card,.bottom-nav,.modal{
     background:rgba(22,24,21,.62);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
   }
   .balance-card{background:linear-gradient(160deg,rgba(26,29,20,.78) 0%,rgba(22,24,21,.5) 55%)}
-  .balance-amount{text-shadow:0 0 32px rgba(124,108,245,.45)}
-  .save-btn.primary,.smart-send,.stmt-batch-add{box-shadow:0 6px 24px rgba(124,108,245,.4)}
-  .budget-ring{filter:drop-shadow(0 0 16px rgba(124,108,245,.4))}
+  .balance-amount{text-shadow:0 0 32px rgba(255,255,255,.45)}
+  .save-btn.primary,.smart-send,.stmt-batch-add{box-shadow:0 6px 24px rgba(255,255,255,.4)}
+  .budget-ring{filter:drop-shadow(0 0 16px rgba(255,255,255,.4))}
 }
 </style>
+<link rel="stylesheet" href="theme.css">
 </head>
 <body>
+<div class="fx-grid" aria-hidden="true"></div>
+<div class="fx-vignette" aria-hidden="true"></div>
 
 <div id="toast" class="toast"></div>
 <div id="warning" class="warning-banner"></div>
@@ -305,6 +351,42 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   </div>
 </div>
 </div>
+
+<!-- STATUS -->
+<div id="view-status" class="view"><div class="container" id="status-root"></div></div>
+
+<!-- QUESTS -->
+<div id="view-quests" class="view">
+<div class="container">
+  <div class="header"><h1 id="quests-title">Квесты</h1></div>
+  <div class="q-tabs" id="q-tabs">
+    <button class="q-tab active" data-q="today" onclick="setQuestTab('today')">Сегодня</button>
+    <button class="q-tab" data-q="season" onclick="setQuestTab('season')">Сезон</button>
+    <button class="q-tab" data-q="week" onclick="setQuestTab('week')">Неделя</button>
+    <span class="q-ind" id="q-ind"></span>
+  </div>
+  <div id="q-today">
+  <div class="header"><h1 id="tasks-title">Сегодня</h1><div class="tasks-done-month" id="tasks-done-month"></div></div>
+  <div class="card"><div class="card-title">Ближайшее</div><div id="tasks-upcoming"></div></div>
+  <div class="card">
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">Привычки <button class="settings-btn" id="habits-edit-btn" onclick="toggleHabitsEdit()" style="font-size:12px;padding:4px 10px">Настроить</button></div>
+    <div id="habits-list"></div>
+  </div>
+  <div class="smart-input-wrap">
+    <input type="text" class="smart-input" id="task-quick" placeholder="Новая задача" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();addQuickTask()}">
+    <button class="smart-send" onclick="addQuickTask()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+  </div>
+  <div class="smart-hint">Например: Тренировка A #зал вт 18:00</div>
+  <div id="tasks-list"></div>
+  <div id="journal-today"></div>
+  </div>
+  <div id="q-season" hidden></div>
+  <div id="q-week" hidden></div>
+</div>
+</div>
+
+<!-- BODY -->
+<div id="view-body" class="view"><div class="container" id="body-root"></div></div>
 
 <!-- HOME -->
 <div id="view-home" class="view">
@@ -481,7 +563,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <!-- SETTINGS -->
 <div id="view-settings" class="view">
 <div class="container">
-  <div class="header"><h1>Настройки</h1><button class="header-btn" onclick="switchView('home')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+  <div class="header"><h1>Настройки</h1><button class="header-btn" onclick="switchView('status')" aria-label="Закрыть"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
   <div class="card">
     <div class="settings-item">
       <div><div class="settings-label">Код синхронизации</div><div class="settings-desc">Для подключения другого устройства</div></div>
@@ -579,18 +661,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </div>
 
 <nav class="bottom-nav" id="bottom-nav" hidden>
-  <button class="nav-btn active" data-view="home" onclick="switchView('home',this)"><span class="icon"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4l8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9"/></svg></span>Главная</button>
-  <button class="nav-btn" data-view="history" onclick="switchView('history',this)"><span class="icon"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>История</button>
-  <button class="nav-btn" data-view="add" onclick="switchView('add',this)" style="position:relative;top:-8px"><span class="icon" style="background:var(--gradient);color:#fff;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 2px 14px rgba(139,108,240,.45)">+</span></button>
-  <button class="nav-btn" data-view="stats" onclick="switchView('stats',this)"><span class="icon"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M12 20V4M20 20v-7"/></svg></span>Стата</button>
-  <button class="nav-btn" data-view="plans" onclick="switchView('plans',this)"><span class="icon"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5.3"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/></svg></span>Планы</button>
+  <span class="nav-lamp" id="nav-lamp" aria-hidden="true"></span>
+  <button class="nav-btn active" data-view="status" onclick="switchView('status',this)" aria-label="Статус"><span class="icon"><svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg></span></button>
+  <button class="nav-btn" data-view="quests" onclick="switchView('quests',this)" aria-label="Квесты"><span class="icon"><svg width="24" height="24" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm4.7 7.7-5.4 5.6a1 1 0 0 1-1.4 0l-2.6-2.6a1 1 0 1 1 1.4-1.4l1.9 1.9 4.7-4.9a1 1 0 0 1 1.4 1.4Z"/></svg></span></button>
+  <button class="nav-btn nav-add" data-view="add" onclick="openCmd()" aria-label="Добавить"><span class="icon"><svg viewBox="0 0 24 24"><path d="M10.5 4h3v6.5H20v3h-6.5V20h-3v-6.5H4v-3h6.5z"/></svg></span></button>
+  <button class="nav-btn" data-view="body" onclick="switchView('body',this)" aria-label="Тело"><span class="icon"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M2 9.5h2.2v5H2zM19.8 9.5H22v5h-2.2zM5 7h2.4v10H5zM16.6 7H19v10h-2.4zM7.4 11h9.2v2H7.4z"/></svg></span></button>
+  <button class="nav-btn" data-view="money" onclick="switchView('money',this)" aria-label="Деньги"><span class="icon"><svg width="24" height="24" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20ZM7.5 8h9v2h-3.5v6h-2v-6H7.5Z"/></svg></span></button>
 </nav>
 
 <script>
 // ── Categories ──
 // ── Icons (inline SVG via currentColor — replaces emoji so style/color are ours to control) ──
 const ICON_PATHS={
-  food:'<path d="M6 2v7a2 2 0 0 0 4 0V2M8 2v20M18 2c-2.2 2-2.5 5.3-2.5 8.2 0 2 1.1 3.3 2.5 3.3s2.5-1.3 2.5-3.3C20.5 7.3 20.2 4 18 2ZM18 13.5V22"/>',
+  status:'<path d="M12 2.099l-9 6.997v12.904h6v-6h6v6h6v-12.904l-9-6.997z" fill="currentColor" stroke="none"/>',
+  quests:'<path d="M21 11V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6M12 12h9M12 16h6M16 8h3" stroke="currentColor" stroke-width="2"/>',
+  body:'<path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="currentColor" stroke="none"/>',
+  money:'<path d="M20 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/><path d="M20 7V5.5A1.5 1.5 0 0 0 18.5 4H6"/><circle cx="17" cy="13.5" r="1.3" fill="currentColor" stroke="none"/>',
   groceries:'<path d="M9 8V6a3 3 0 0 1 6 0v2"/><path d="M5 8h14l-1.3 11.2a2 2 0 0 1-2 1.8H8.3a2 2 0 0 1-2-1.8L5 8Z"/>',
   transport:'<path d="M5 17h14"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M5 13l1.4-4.6A2 2 0 0 1 8.3 7h7.4a2 2 0 0 1 1.9 1.4L19 13H5Z"/>',
   home:'<path d="M4 11 12 4l8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9"/>',
@@ -616,7 +702,13 @@ const ICON_PATHS={
   bank:'<path d="M3 10 12 3.5 21 10"/><path d="M5 10v9M10 10v9M14 10v9M19 10v9"/><path d="M3 21h18"/>',
   wallet:'<path d="M20 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/><path d="M20 7V5.5A1.5 1.5 0 0 0 18.5 4H6"/><circle cx="17" cy="13.5" r="1.3" fill="currentColor" stroke="none"/>',
   bars:'<path d="M4 20V10M12 20V4M20 20v-7"/>',
-  plusCircle:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>'
+  plusCircle:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',
+  settings:'<circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.9 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.9-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.9-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.9 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9c0 .7.6 1.3 1.6 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>',
+  tasks:'<circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16 9.5"/>',
+  flame:'<path d="M12 3c.6 3.2 4.2 5 4.2 9.3a4.2 4.2 0 0 1-8.4 0c0-1.9.9-3 1.9-4 .4 1.3 1.1 1.8 1.7 1.9-.3-2.6-.6-5 .6-7.2Z"/>',
+  chevDown:'<path d="m6 9 6 6 6-6"/>',
+  chevUp:'<path d="m18 15-6-6-6 6"/>',
+  repeat:'<path d="m17 2 4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="m7 22-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/>'
 };
 function ico(name,size,color){
   size=size||18;
@@ -701,7 +793,7 @@ const CUR_SYM={KZT:'₸',RUB:'₽',USD:'$',EUR:'€'};
 
 // ── State ──
 let currency='KZT',currentType='expense',currentPeriod='week',historyPeriod='week',historyBank='',historySearch='',statsPeriod='month',statsCustomMonth=null;
-let historyCalMonth=new Date().toISOString().slice(0,7),historySelectedDay=null;
+let historyCalMonth=localDate().slice(0,7),historySelectedDay=null;
 let chartBar=null;
 let sphereTotalStr='0';
 let txCache=null,txDirty=true;
@@ -723,7 +815,7 @@ const firebaseConfig={
 
 // ── Firestore-backed storage (replaces IndexedDB; store names/keys mirror the old object stores) ──
 let fsDb=null,spaceRef=null;
-const STORE_KEY_FIELD={budgets:'key',settings:'key',learned:'keyword'};
+const STORE_KEY_FIELD={budgets:'key',settings:'key',learned:'keyword',habitChecks:'key',bodyWeights:'key'};
 function docId(s,d){return encodeURIComponent(String(d[STORE_KEY_FIELD[s]||'id']))}
 async function dbPut(s,d){await spaceRef.collection(s).doc(docId(s,d)).set(d)}
 async function dbDel(s,id){await spaceRef.collection(s).doc(encodeURIComponent(String(id))).delete()}
@@ -789,7 +881,7 @@ function downloadLegacyBackup(legacy){
   a.href=url;a.download=`finance-backup-before-sync-${today()}.json`;a.click();URL.revokeObjectURL(url);
 }
 async function uploadLegacyData(legacy){
-  for(const s of['transactions','goals','budgets','templates','settings','learned']){
+  for(const s of['transactions','goals','budgets','templates','settings','learned','tasks','taskLog','habits','habitChecks']){
     const items=legacy[s]||[];if(!items.length)continue;
     for(let i=0;i<items.length;i+=450){
       const batch=fsDb.batch();
@@ -859,9 +951,12 @@ async function joinExistingSpace(){
 }
 
 async function syncNow(){
-  dirtyTx();settingsCache=null;
+  dirtyTx();settingsCache=null;dirtyTasks();
   const active=document.querySelector('.nav-btn.active')?.dataset.view||'home';
-  if(active==='home')await refreshDashboard();
+  if(active==='quests')await refreshTasks();
+  else if(active==='status')await refreshStatus();
+  else if(active==='body')await refreshBody();
+  else if(active==='home')await refreshDashboard();
   else if(active==='history')await refreshHistory();
   else if(active==='stats')await refreshStats();
   else if(active==='plans')await refreshPlans();
@@ -878,9 +973,11 @@ function dirtyTx(){txDirty=true}
 // ── Utils ──
 const fmt=n=>Number(n).toLocaleString('ru-RU');
 const fmtCur=n=>fmt(n)+' '+CUR_SYM[currency];
-const today=()=>new Date().toISOString().slice(0,10);
+function localDate(d=new Date()){const z=d.getTimezoneOffset()*60000;return new Date(d-z).toISOString().slice(0,10)}
+function today(){return localDate()}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const getCat=id=>CAT_MAP.get(id)||{name:id,icon:'coin'};
+function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
 function dateRange(p){
   const now=new Date(),s=new Date();
@@ -888,13 +985,13 @@ function dateRange(p){
   else if(p==='month')return{start:today().slice(0,7)+'-01'};
   else if(p==='year')s.setFullYear(now.getFullYear()-1);
   else return{start:null};
-  return{start:s.toISOString().slice(0,10)};
+  return{start:localDate(s)};
 }
 function filterPeriod(txs,p){const{start}=dateRange(p);return start?txs.filter(t=>t.date>=start):txs}
 function formatDateShort(d){
   if(d===today())return'Сегодня';
   const y=new Date();y.setDate(y.getDate()-1);
-  if(d===y.toISOString().slice(0,10))return'Вчера';
+  if(d===localDate(y))return'Вчера';
   return new Date(d+'T00:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
 }
 
@@ -902,7 +999,7 @@ function formatDateShort(d){
 function toast(msg){
   clearTimeout(undoTimer);
   const el=document.getElementById('toast');
-  el.innerHTML=msg;el.classList.add('show');
+  el.innerHTML=escapeHtml(msg);el.classList.add('show');
   undoTimer=setTimeout(()=>el.classList.remove('show'),2500);
 }
 function toastUndo(msg,txId){
@@ -989,26 +1086,12 @@ async function learnCategory(keyword,catId){
 }
 
 // ── Navigation ──
-function switchView(name,btn){
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  document.getElementById('view-'+name).classList.add('active');
-  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-  if(btn)btn.classList.add('active');
-  else{const nb=document.querySelector(`.nav-btn[data-view="${name}"]`);if(nb)nb.classList.add('active')}
-  if(name==='home')refreshDashboard();
-  if(name==='history')refreshHistory();
-  if(name==='stats')refreshStats();
-  if(name==='plans')refreshPlans();
-  if(name==='add'){
-    document.getElementById('smart-input').value='';
-    document.getElementById('fallback-grid').classList.remove('show');
-    pendingInput=null;
-    renderTemplates();
-    document.getElementById('smart-input').focus();
-  }
-}
+// (switchView now lives in the Shell section)
 
-// ── Dashboard ──
+
+// ── Solutions to defer to Pro version ──
+// 1. Перенос финансовых экранов (Главная, История, Статистика, Планы, Выписка) во вкладку «Деньги» (технически сложно без риска поломки логики в текущей среде).
+// 2. Автоматическая растеризация иконок (требует отсутствующих в среде инструментов).
 async function refreshDashboard(){
   renderBankBalances();
   renderHomeBudgetRing();
@@ -1025,7 +1108,7 @@ async function refreshDashboard(){
     const c=getCat(t.category),cls=t.type==='expense'?'expense':'income',sign=t.type==='expense'?'-':'+';
     const col=catColor(t.category),ava=personBadge(t.description);
     const badge=ava?`<div class="recent-icon avatar" style="background:${ava.grad}">${ava.initial}</div>`:`<div class="recent-icon" style="background:${col}2e;color:${col};box-shadow:inset 0 1px 1px rgba(255,255,255,.08),0 0 12px ${col}40">${ico(c.icon,18)}</div>`;
-    return`<div class="recent-item">${badge}<div class="recent-info"><div class="recent-desc">${t.description||c.name}</div><div class="recent-cat">${c.name}</div></div><div><div class="recent-amount ${cls}">${sign}${fmtCur(t.amount)}</div><div class="recent-date">${formatDateShort(t.date)}</div></div></div>`;
+    return`<div class="recent-item">${badge}<div class="recent-info"><div class="recent-desc">${escapeHtml(t.description||c.name)}</div><div class="recent-cat">${escapeHtml(c.name)}</div></div><div><div class="recent-amount ${cls}">${sign}${fmtCur(t.amount)}</div><div class="recent-date">${formatDateShort(t.date)}</div></div></div>`;
   }).join('');
 }
 function setPeriod(p,btn){currentPeriod=p;btn.parentElement.querySelectorAll('.period-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');refreshDashboard()}
@@ -1050,7 +1133,7 @@ async function handleSmartInput(){
     document.getElementById('smart-input').value='';
     document.getElementById('fallback-grid').classList.remove('show');
     const c=getCat(catId);
-    toastUndo(`${icoInline(c.icon)}${c.name} &middot; ${parsed.desc} &middot; ${fmtCur(parsed.amount)}`,tx.id);
+    toastUndo(`${icoInline(c.icon)}${escapeHtml(c.name)} &middot; ${escapeHtml(parsed.desc)} &middot; ${fmtCur(parsed.amount)}`,tx.id);
     await checkBudget(tx);
   }else{
     pendingInput=parsed;
@@ -1061,14 +1144,14 @@ async function handleSmartInput(){
 async function showFallbackGrid(parsed){
   const fg=document.getElementById('fallback-grid');
   fg.classList.add('show');
-  document.getElementById('fallback-info').innerHTML=`${icoInline('search')}Не удалось определить категорию для &laquo;${parsed.desc}&raquo; (${fmtCur(parsed.amount)}). Выберите вручную:`;
+  document.getElementById('fallback-info').innerHTML=`${icoInline('search')}Не удалось определить категорию для &laquo;${escapeHtml(parsed.desc)}&raquo; (${fmtCur(parsed.amount)}). Выберите вручную:`;
   const grid=document.getElementById('cat-grid');
   const cats=CATS[currentType];
   let tiles=cats.map(c=>`<div class="cat-btn" onclick="selectFallbackCat('${c.id}',this)"><span class="icon-wrap">${ico(c.icon,22)}</span>${c.name}</div>`).join('');
   if(currentType==='expense'){
     const goals=await dbAll('goals');
     registerGoalCategories(goals);
-    tiles+=goals.map(g=>`<div class="cat-btn" onclick="selectFallbackCat('goal_${g.id}',this)"><span class="icon-wrap">${ico('goal',22)}</span>${g.name}</div>`).join('');
+    tiles+=goals.map(g=>`<div class="cat-btn" onclick="selectFallbackCat('goal_${g.id}',this)"><span class="icon-wrap">${ico('goal',22)}</span>${escapeHtml(g.name)}</div>`).join('');
   }
   grid.innerHTML=tiles;
 }
@@ -1089,7 +1172,7 @@ async function saveFallback(){
   document.getElementById('fallback-grid').classList.remove('show');
   selectedFallbackCat=null;pendingInput=null;
   const c=getCat(tx.category);
-  toastUndo(`${icoInline(c.icon)}${c.name} &middot; ${tx.description} &middot; ${fmtCur(tx.amount)}`,tx.id);
+  toastUndo(`${icoInline(c.icon)}${escapeHtml(c.name)} &middot; ${escapeHtml(tx.description)} &middot; ${fmtCur(tx.amount)}`,tx.id);
   await checkBudget(tx);
 }
 
@@ -1107,7 +1190,7 @@ async function renderTemplates(){
   document.getElementById('templates-wrap').style.display='block';
   list.innerHTML=tmpls.map(t=>{
     const c=getCat(t.category);
-    return`<div class="tmpl-chip" onclick="useTmpl('${t.id}')">${icoInline(c.icon,13)}${t.name} ${fmtCur(t.amount)}</div>`;
+    return`<div class="tmpl-chip" onclick="useTmpl('${t.id}')">${icoInline(c.icon,13)}${escapeHtml(t.name)} ${fmtCur(t.amount)}</div>`;
   }).join('')+`<div class="tmpl-chip tmpl-add" onclick="openTmplModal()">+ Добавить</div>`;
 }
 
@@ -1117,7 +1200,7 @@ async function useTmpl(id){
   currentType=t.type||'expense';setType(currentType);
   const tx=await saveTx(t.name,t.amount,t.category);
   const c=getCat(t.category);
-  toastUndo(`${icoInline(c.icon)}${t.name} &middot; ${fmtCur(t.amount)}`,tx.id);
+  toastUndo(`${icoInline(c.icon)}${escapeHtml(t.name)} &middot; ${fmtCur(t.amount)}`,tx.id);
   await checkBudget(tx);
 }
 
@@ -1176,7 +1259,7 @@ async function refreshHistory(){
       const c=getCat(t.category),cls=t.type==='expense'?'expense':'income',sign=t.type==='expense'?'-':'+';
       const col=catColor(t.category),ava=personBadge(t.description);
       const badge=ava?`<div class="recent-icon avatar" style="background:${ava.grad}">${ava.initial}</div>`:`<div class="recent-icon" style="background:${col}2e;color:${col};box-shadow:inset 0 1px 1px rgba(255,255,255,.08),0 0 12px ${col}40">${ico(c.icon,18)}</div>`;
-      html+=`<div class="recent-item">${badge}<div class="recent-info"><div class="recent-desc">${t.description||c.name}</div><div class="recent-cat">${c.name}</div></div><div class="recent-amount ${cls}">${sign}${fmtCur(t.amount)}</div><button class="del-btn" onclick="deleteTx('${t.id}')">${ico('close',16)}</button></div>`;
+      html+=`<div class="recent-item">${badge}<div class="recent-info"><div class="recent-desc">${escapeHtml(t.description||c.name)}</div><div class="recent-cat">${escapeHtml(c.name)}</div></div><div class="recent-amount ${cls}">${sign}${fmtCur(t.amount)}</div><button class="del-btn" onclick="deleteTx('${t.id}')">${ico('close',16)}</button></div>`;
     });
   }
   list.innerHTML=html;
@@ -1254,15 +1337,15 @@ async function refreshStats(){
   document.getElementById('sphere-total').textContent=sphereTotalStr;
   const byCat={};expenses.forEach(t=>{byCat[t.category]=(byCat[t.category]||0)+t.amount});
   const sorted=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
-  document.getElementById('stat-top').innerHTML=sorted.length?icoInline(getCat(sorted[0][0]).icon,16)+getCat(sorted[0][0]).name:'-';
+  document.getElementById('stat-top').innerHTML=sorted.length?icoInline(getCat(sorted[0][0]).icon,16)+escapeHtml(getCat(sorted[0][0]).name):'-';
   document.getElementById('sphere-legend').innerHTML=sorted.map(([cat,amt],i)=>{
     const c=getCat(cat),col=statsColor(i,sorted.length);
-    return`<div class="sphere-legend-item" data-name="${c.name}" data-amt="${fmtCur(amt)}" onmouseenter="sphereShow(this)" onmouseleave="sphereReset()" onclick="sphereToggle(this)"><span class="sphere-legend-dot" style="background:${col}"></span>${c.name}</div>`;
+    return`<div class="sphere-legend-item" data-name="${escapeHtml(c.name)}" data-amt="${fmtCur(amt)}" onmouseenter="sphereShow(this)" onmouseleave="sphereReset()" onclick="sphereToggle(this)"><span class="sphere-legend-dot" style="background:${col}"></span>${escapeHtml(c.name)}</div>`;
   }).join('');
   const bd=document.getElementById('cat-breakdown'),maxAmt=sorted.length?sorted[0][1]:1;
   bd.innerHTML=sorted.map(([cat,amt],i)=>{
     const c=getCat(cat),pct=totalExp?Math.round(amt/totalExp*100):0,col=statsColor(i,sorted.length),colBg=statsColor(i,sorted.length,.18);
-    return`<div class="cat-list-item"><span class="cat-list-icon" style="background:${colBg};color:${col}">${ico(c.icon,18)}</span><div class="cat-bar-wrap"><div style="font-size:13px;margin-bottom:4px">${c.name}</div><div class="cat-bar"><div class="cat-bar-fill" style="width:${amt/maxAmt*100}%;background:${col}"></div></div></div><div class="cat-amount">${fmtCur(amt)}</div><div class="cat-pct">${pct}%</div></div>`;
+    return`<div class="cat-list-item"><span class="cat-list-icon" style="background:${colBg};color:${col}">${ico(c.icon,18)}</span><div class="cat-bar-wrap"><div style="font-size:13px;margin-bottom:4px">${escapeHtml(c.name)}</div><div class="cat-bar"><div class="cat-bar-fill" style="width:${amt/maxAmt*100}%;background:${col}"></div></div></div><div class="cat-amount">${fmtCur(amt)}</div><div class="cat-pct">${pct}%</div></div>`;
   }).join('')||'<div class="empty-state">Нет данных</div>';
   const byBank={};expenses.forEach(t=>{const k=t.bank||null;if(k)byBank[k]=(byBank[k]||0)+t.amount});
   const bankSorted=Object.entries(byBank).sort((a,b)=>b[1]-a[1]);
@@ -1416,7 +1499,7 @@ async function refreshGoals(){
     const done=pct>=100;
     const dl=g.deadline?new Date(g.deadline+'T00:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}):'';
     const ring=planRing(pct,done?'#10b981':'#7c6cf5',done?ico('check',20):pct+'%','goal');
-    return`<div class="goal-card">${ring}<div class="goal-info"><div class="goal-name">${g.name}${done?`<span class="goal-badge">${ico('check',12)}Выполнено</span>`:''}</div>${dl?`<div class="goal-dates">${icoInline('calendar',13)}${dl}</div>`:''}<div class="goal-amounts"><span>${fmtCur(g.currentAmount)} / ${fmtCur(g.targetAmount)}</span></div><div class="goal-actions"><button class="goal-action-btn goal-add-btn" onclick="addToGoal('${g.id}')">${ico('plusCircle',15)}Пополнить</button><button class="goal-action-btn goal-del-btn" onclick="deleteGoal('${g.id}')">${ico('close',15)}Удалить</button></div></div></div>`;
+    return`<div class="goal-card">${ring}<div class="goal-info"><div class="goal-name">${escapeHtml(g.name)}${done?`<span class="goal-badge">${ico('check',12)}Выполнено</span>`:''}</div>${dl?`<div class="goal-dates">${icoInline('calendar',13)}${dl}</div>`:''}<div class="goal-amounts"><span>${fmtCur(g.currentAmount)} / ${fmtCur(g.targetAmount)}</span></div><div class="goal-actions"><button class="goal-action-btn goal-add-btn" onclick="addToGoal('${g.id}')">${ico('plusCircle',15)}Пополнить</button><button class="goal-action-btn goal-del-btn" onclick="deleteGoal('${g.id}')">${ico('close',15)}Удалить</button></div></div></div>`;
   }).join('');
 }
 async function saveGoal(){
@@ -1451,7 +1534,7 @@ function loadCsvStatement(file){
     const headers=lines[0].split(sep).map(h=>h.replace(/"/g,'').trim());
     stmtData=lines.slice(1).map(line=>{const vals=line.split(sep).map(v=>v.replace(/"/g,'').trim());const obj={};headers.forEach((h,i)=>obj[h]=vals[i]||'');return obj}).filter(r=>Object.values(r).some(v=>v));
     document.getElementById('stmt-mapping').hidden=false;
-    ['map-date','map-amount','map-desc'].forEach(id=>{document.getElementById(id).innerHTML=headers.map(h=>`<option value="${h}">${h}</option>`).join('')});
+    ['map-date','map-amount','map-desc'].forEach(id=>{document.getElementById(id).innerHTML=headers.map(h=>`<option value="${escapeHtml(h)}">${escapeHtml(h)}</option>`).join('')});
     const ag=headers.find(h=>/сумма|amount|sum/i.test(h)),dg=headers.find(h=>/дата|date/i.test(h)),desc=headers.find(h=>/описание|desc|назначение|detail/i.test(h));
     if(ag)document.getElementById('map-amount').value=ag;if(dg)document.getElementById('map-date').value=dg;if(desc)document.getElementById('map-desc').value=desc;
   };
@@ -1605,7 +1688,7 @@ function parseFreedomPdf(text){
 
 function missRow(idx,desc,amount,date,type){
   const isIncome=type==='income';
-  return`<div class="${isIncome?'miss-income':'miss'}"><input type="checkbox" id="stmt-chk-${idx}" checked><label for="stmt-chk-${idx}">${icoInline(isIncome?'plusCircle':'close',14)}${desc} &mdash; ${isIncome?'+':'-'}${fmtCur(amount)} <span style="font-size:11px;color:var(--text3)">${date}</span></label></div>`;
+  return`<div class="${isIncome?'miss-income':'miss'}"><input type="checkbox" id="stmt-chk-${idx}" checked><label for="stmt-chk-${idx}">${icoInline(isIncome?'plusCircle':'close',14)}${escapeHtml(desc)} &mdash; ${isIncome?'+':'-'}${fmtCur(amount)} <span style="font-size:11px;color:var(--text3)">${escapeHtml(date)}</span></label></div>`;
 }
 
 let stmtBank='',stmtMode='pdf',stmtMissed=[],stmtRawText='',detectedBalance=null,stmtFileHash=null;
@@ -1671,7 +1754,7 @@ async function showPdfResults(bank,parsed){
   stmtMissed=[];
   parsed.forEach(p=>{
     const k=p.type+'|'+p.date.slice(5)+'|'+Math.round(p.amount);
-    if(txIndex.has(k)&&txIndex.get(k)>0){matched++;txIndex.set(k,txIndex.get(k)-1);html+=`<div class="match">${icoInline('check',14)}${p.desc} &mdash; ${fmtCur(p.amount)}</div>`}
+    if(txIndex.has(k)&&txIndex.get(k)>0){matched++;txIndex.set(k,txIndex.get(k)-1);html+=`<div class="match">${icoInline('check',14)}${escapeHtml(p.desc)} &mdash; ${fmtCur(p.amount)}</div>`}
     else{const idx=stmtMissed.length;stmtMissed.push({desc:p.desc,amount:p.amount,date:p.date,type:p.type});html+=missRow(idx,p.desc,p.amount,p.date,p.type)}
   });
   const expenses=parsed.filter(p=>p.type==='expense'),incomes=parsed.filter(p=>p.type==='income');
@@ -1697,7 +1780,7 @@ async function analyzeStatement(){
     const type=rawAmt>0?'income':'expense';
     let dateKey='';const dm=date.match(/(\d{2})[.\-\/](\d{2})/);if(dm)dateKey=dm[2]+'-'+dm[1];
     const k=type+'|'+dateKey+'|'+Math.round(amt);
-    if(txIndex.has(k)&&txIndex.get(k)>0){matched++;txIndex.set(k,txIndex.get(k)-1);html+=`<div class="match">${icoInline('check',14)}${desc} &mdash; ${fmtCur(amt)}</div>`}
+    if(txIndex.has(k)&&txIndex.get(k)>0){matched++;txIndex.set(k,txIndex.get(k)-1);html+=`<div class="match">${icoInline('check',14)}${escapeHtml(desc)} &mdash; ${fmtCur(amt)}</div>`}
     else{
       let iso=today();const m=date.match(/(\d{4})[.\-\/](\d{2})[.\-\/](\d{2})/);
       if(m)iso=`${m[1]}-${m[2]}-${m[3]}`;else{const m2=date.match(/(\d{2})[.\-\/](\d{2})[.\-\/](\d{4})/);if(m2)iso=`${m2[3]}-${m2[2]}-${m2[1]}`}
@@ -1805,8 +1888,8 @@ async function saveBankBalances(){
 function setCurrency(c){currency=c;saveSetting('currency',c);refreshDashboard()}
 
 async function exportData(){
-  const[txs,goals,budgets,templates]=await Promise.all([dbAll('transactions'),dbAll('goals'),dbAll('budgets'),dbAll('templates')]);
-  const data=JSON.stringify({transactions:txs,goals,budgets,templates,currency,exportDate:new Date().toISOString()},null,2);
+  const[txs,goals,budgets,templates,settings,learned,tasks,taskLog,habits,habitChecks]=await Promise.all(['transactions','goals','budgets','templates','settings','learned','tasks','taskLog','habits','habitChecks'].map(dbAll));
+  const data=JSON.stringify({transactions:txs,goals,budgets,templates,settings,learned,tasks,taskLog,habits,habitChecks,currency,exportDate:new Date().toISOString()},null,2);
   const blob=new Blob([data],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download=`finance-${today()}.json`;a.click();URL.revokeObjectURL(url);toast('Экспорт завершён');
 }
@@ -1817,7 +1900,7 @@ async function importData(e){
     const data=JSON.parse(await file.text());
     await uploadLegacyData(data);
     if(data.currency){currency=data.currency;document.getElementById('currency-sel').value=currency;saveSetting('currency',currency)}
-    dirtyTx();toast(`Импортировано: ${(data.transactions||[]).length} операций`);refreshDashboard();
+    dirtyTx();dirtyTasks();toast(`Импортировано: ${(data.transactions||[]).length} операций`);refreshDashboard();
   }catch{toast('Ошибка формата файла')}
   e.target.value='';
 }
@@ -1826,24 +1909,398 @@ async function clearAll(){
   if(!confirm('Удалить ВСЕ данные? Это необратимо!'))return;
   if(!confirm('Точно уверены?'))return;
   try{
-    await Promise.all([dbClear('transactions'),dbClear('goals'),dbClear('budgets'),dbClear('templates'),dbClear('learned'),dbClear('settings'),dbClear('importedStatements')]);
-    dirtyTx();learnedMap={};settingsCache=null;currency='KZT';
+    await Promise.all([dbClear('transactions'),dbClear('goals'),dbClear('budgets'),dbClear('templates'),dbClear('learned'),dbClear('settings'),dbClear('importedStatements'),dbClear('tasks'),dbClear('taskLog'),dbClear('habits'),dbClear('habitChecks')]);
+    dirtyTx();dirtyTasks();learnedMap={};settingsCache=null;currency='KZT';
     toast('Все данные удалены');refreshDashboard();
   }catch(err){
     toast('Не всё удалилось, попробуйте ещё раз: '+err.message);
   }
 }
 
+// ── Tasks & habits: data and logic ──
+const LISTS=[{id:'inbox',name:'Входящие'},{id:'dfir',name:'DFIR'},{id:'money',name:'Деньги'},{id:'gym',name:'Зал'},{id:'home',name:'Быт'}];
+const listName=id=>(LISTS.find(l=>l.id===id)||LISTS[0]).name;
+let tasksCache=null,tasksDirty=true,habitsCache=null,habitsDirty=true,checksCache=null,checksDirty=true,logCache=null,logDirty=true;
+function dirtyTasks(){tasksDirty=habitsDirty=checksDirty=logDirty=true}
+async function getTasks(){if(!tasksDirty&&tasksCache)return tasksCache;tasksCache=await dbAll('tasks');tasksDirty=false;return tasksCache}
+async function getHabits(){if(!habitsDirty&&habitsCache)return habitsCache;habitsCache=await dbAll('habits');habitsDirty=false;return habitsCache}
+async function getChecks(){if(!checksDirty&&checksCache)return checksCache;checksCache=await dbAll('habitChecks');checksDirty=false;return checksCache}
+async function getTaskLog(){if(!logDirty&&logCache)return logCache;logCache=await dbAll('taskLog');logDirty=false;return logCache}
+function cachePut(arr,item,field='id'){const i=arr.findIndex(x=>x[field]===item[field]);if(i>=0)arr[i]=item;else arr.push(item)}
+
+// Local-date arithmetic on 'YYYY-MM-DD' strings (never toISOString — see localDate)
+const pad2=n=>String(n).padStart(2,'0');
+function parseLocalDate(s){const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)}
+function addDays(s,n){const d=parseLocalDate(s);d.setDate(d.getDate()+n);return localDate(d)}
+function isoWeekday(s){const w=parseLocalDate(s).getDay();return w===0?7:w}
+
+// First date strictly after `after` that matches the repeat rule
+function nextOccurrence(rep,after){
+  if(!rep)return null;
+  if(rep.type==='daily')return addDays(after,1);
+  if(rep.type==='weekly'){
+    const days=rep.days&&rep.days.length?rep.days:[isoWeekday(after)];
+    for(let i=1;i<=7;i++){const c=addDays(after,i);if(days.includes(isoWeekday(c)))return c}
+    return null;
+  }
+  if(rep.type==='monthly'||rep.type==='monthly_last'){
+    let y=+after.slice(0,4),m=+after.slice(5,7);
+    for(let i=0;i<24;i++){
+      const dim=new Date(y,m,0).getDate();
+      const day=rep.type==='monthly_last'?dim:Math.min(Math.max(rep.day||1,1),dim);
+      const c=`${y}-${pad2(m)}-${pad2(day)}`;
+      if(c>after)return c;
+      if(++m>12){m=1;y++}
+    }
+  }
+  return null;
+}
+// Completed early → shifts from its own date; overdue → shifts from today
+function nextDue(task){const t=today();return nextOccurrence(task.repeat,task.due&&task.due>t?task.due:t)}
+
+const taskUndo={};
+async function completeTask(id){
+  await Promise.all([getTasks(),getTaskLog()]);
+  const t=tasksCache.find(x=>x.id===id);if(!t)return;
+  const log={id:uid(),taskId:t.id,title:t.title,list:t.list,date:today(),at:Date.now()};
+  const nd=t.repeat?nextDue(t):null;
+  const upd={...t};
+  if(nd)upd.due=nd;else{upd.done=true;upd.doneAt=Date.now()}
+  taskUndo[log.id]={taskId:t.id,prev:{due:t.due,done:t.done,doneAt:t.doneAt}};
+  cachePut(tasksCache,upd);cachePut(logCache,log);renderTasks();
+  try{
+    const b=fsDb.batch();
+    b.set(spaceRef.collection('taskLog').doc(docId('taskLog',log)),log);
+    b.set(spaceRef.collection('tasks').doc(docId('tasks',upd)),upd);
+    await b.commit();
+  }catch(err){
+    toast('Не удалось сохранить: '+err.message);dirtyTasks();refreshTasks();return;
+  }
+  toastUndoTask(`${icoInline('tasks')}${escapeHtml(t.title)}${nd?' &rarr; '+escapeHtml(formatTaskDate(nd)):''}`,log.id);
+}
+function toastUndoTask(msg,logId){
+  clearTimeout(undoTimer);
+  const el=document.getElementById('toast');
+  el.innerHTML=`${msg} <button class="toast-undo" onclick="undoTask('${logId}')">Отменить</button>`;
+  el.classList.add('show');
+  undoTimer=setTimeout(()=>el.classList.remove('show'),3500);
+}
+async function undoTask(logId){
+  const rec=taskUndo[logId];if(!rec)return;delete taskUndo[logId];
+  await Promise.all([getTasks(),getTaskLog()]);
+  const t=tasksCache.find(x=>x.id===rec.taskId);if(!t)return;
+  const restored={...t,...rec.prev};
+  cachePut(tasksCache,restored);logCache=logCache.filter(l=>l.id!==logId);renderTasks();
+  try{
+    const b=fsDb.batch();
+    b.delete(spaceRef.collection('taskLog').doc(encodeURIComponent(String(logId))));
+    b.set(spaceRef.collection('tasks').doc(docId('tasks',restored)),restored);
+    await b.commit();
+  }catch(err){
+    toast('Не удалось отменить: '+err.message);dirtyTasks();refreshTasks();return;
+  }
+  document.getElementById('toast').classList.remove('show');
+  toast('Отменено');
+}
+
+// Habits: one deterministic doc per habit/day, so a double tap is harmless
+function habitStreak(hid,checks){
+  const set=new Set(checks.filter(c=>c.habitId===hid).map(c=>c.date));
+  let d=today();if(!set.has(d))d=addDays(d,-1);
+  let n=0;while(set.has(d)){n++;d=addDays(d,-1)}
+  return n;
+}
+async function toggleHabit(hid){
+  await getChecks();
+  const date=today(),key=`${hid}_${date}`;
+  const i=checksCache.findIndex(c=>c.key===key);
+  try{
+    if(i>=0){checksCache.splice(i,1);renderTasks();await dbDel('habitChecks',key)}
+    else{const c={key,habitId:hid,date};checksCache.push(c);renderTasks();await dbPut('habitChecks',c)}
+  }catch(err){toast('Не удалось сохранить: '+err.message);dirtyTasks();refreshTasks()}
+}
+async function addHabit(){
+  const name=(prompt('Название привычки')||'').trim();if(!name)return;
+  const habits=await getHabits();
+  const h={id:uid(),name,order:Math.max(0,...habits.map(x=>x.order||0))+1,archived:false,createdAt:Date.now()};
+  cachePut(habitsCache,h);renderTasks();
+  try{await dbPut('habits',h)}catch(err){toast('Не удалось сохранить: '+err.message);dirtyTasks();refreshTasks()}
+}
+async function archiveHabit(id){
+  await getHabits();
+  const h=habitsCache.find(x=>x.id===id);if(!h)return;
+  if(!confirm(`Архивировать привычку «${h.name}»?`))return;
+  const upd={...h,archived:true};
+  cachePut(habitsCache,upd);renderTasks();
+  try{await dbPut('habits',upd)}catch(err){toast('Не удалось сохранить: '+err.message);dirtyTasks();refreshTasks()}
+}
+function formatTaskDate(s){
+  const t=today();
+  if(s===t)return'Сегодня';
+  if(s===addDays(t,1))return'Завтра';
+  return parseLocalDate(s).toLocaleDateString('ru-RU',{weekday:'short',day:'numeric',month:'short'}).replace(/\./g,'');
+}
+// ── Tasks screen ──
+let editingTaskId=null,tasksLaterOpen=false,habitsEditing=false;
+async function refreshTasks(){
+  await Promise.all([getTasks(),getHabits(),getChecks(),getTaskLog()]);
+  renderTasks();
+}
+function cmpTasks(a,b){
+  return (a.due||'').localeCompare(b.due||'')||(a.time||'99:99').localeCompare(b.time||'99:99')||((a.createdAt||0)-(b.createdAt||0));
+}
+// Occurrences (incl. future repeats) of open tasks in [from, from+days]
+function upcomingEvents(tasks,from,days){
+  const end=addDays(from,days),out=[];
+  tasks.forEach(t=>{
+    if(t.done)return;
+    const push=d=>out.push({date:d,time:t.time||'',title:t.title,list:t.list,repeat:!!t.repeat});
+    if(!t.repeat){if(t.due&&t.due>=from&&t.due<=end)push(t.due);return}
+    let cur=t.due&&t.due>from?t.due:from;
+    if(t.due&&t.due>=from&&t.due<=end)push(t.due);
+    for(let i=0;i<60;i++){cur=nextOccurrence(t.repeat,cur);if(!cur||cur>end)break;push(cur)}
+  });
+  return out.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'99:99').localeCompare(b.time||'99:99')||a.title.localeCompare(b.title));
+}
+function taskRowHtml(t,showDate){
+  const late=showDate&&t.due&&t.due<today();
+  const meta=[
+    showDate&&t.due?`<span class="${late?'late':''}">${escapeHtml(formatTaskDate(t.due))}</span>`:'',
+    t.time?`<span>${escapeHtml(t.time)}</span>`:'',
+    t.repeat?ico('repeat',13):'',
+    `<span class="task-badge">${escapeHtml(listName(t.list))}</span>`
+  ].join('');
+  const row=`<div class="task-row" data-id="${escapeHtml(t.id)}" onclick="editTask(this.dataset.id)"><button class="task-check" aria-label="Выполнить" data-id="${escapeHtml(t.id)}" onclick="event.stopPropagation();completeTask(this.dataset.id)"></button><div class="task-main"><div class="task-title">${escapeHtml(t.title)}</div><div class="task-meta">${meta}</div></div></div>`;
+  return `<div class="task-item">${row}${editingTaskId===t.id?taskEditHtml(t):''}</div>`;
+}
+function taskEditHtml(t){
+  const r=t.repeat,kind=r?r.type:'none';
+  const wd=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map((n,i)=>`<label><input type="checkbox" class="te-wd" value="${i+1}"${r&&r.type==='weekly'&&(r.days||[]).includes(i+1)?' checked':''}>${n}</label>`).join('');
+  const opt=(v,l)=>`<option value="${v}"${kind===v?' selected':''}>${l}</option>`;
+  return `<div class="task-edit">
+    <input type="text" class="settings-input" id="te-title" value="${escapeHtml(t.title)}" placeholder="Название">
+    <div class="task-edit-row">
+      <select class="currency-select" id="te-list">${LISTS.map(l=>`<option value="${l.id}"${t.list===l.id?' selected':''}>${l.name}</option>`).join('')}</select>
+      <input type="date" class="settings-input" id="te-due" value="${escapeHtml(t.due||'')}">
+      <input type="time" class="settings-input" id="te-time" value="${escapeHtml(t.time||'')}">
+    </div>
+    <select class="currency-select" id="te-repeat" onchange="taskRepeatChanged()">${opt('none','Не повторять')}${opt('daily','Каждый день')}${opt('weekly','По дням недели')}${opt('monthly','Число месяца')}${opt('monthly_last','Последний день месяца')}</select>
+    <div class="te-weekdays" id="te-weekdays"${kind==='weekly'?'':' hidden'}>${wd}</div>
+    <input type="number" class="settings-input" id="te-monthday" min="1" max="31" placeholder="Число месяца (1–31)" value="${r&&r.type==='monthly'?escapeHtml(r.day):''}"${kind==='monthly'?'':' hidden'}>
+    <div class="task-edit-actions">
+      <button class="goal-action-btn goal-add-btn" data-id="${escapeHtml(t.id)}" onclick="saveTaskEdit(this.dataset.id)">${ico('check',15)}Сохранить</button>
+      <button class="goal-action-btn task-cancel-btn" onclick="editTask(null)">Отмена</button>
+      <button class="goal-action-btn goal-del-btn" data-id="${escapeHtml(t.id)}" onclick="deleteTask(this.dataset.id)">${ico('close',15)}Удалить</button>
+    </div>
+  </div>`;
+}
+function renderTasks(){
+  const tasks=tasksCache||[],habits=habitsCache||[],checks=checksCache||[],log=logCache||[];
+  const t0=today(),t1=addDays(t0,1);
+  // header
+  document.getElementById('tasks-title').textContent='Сегодня, '+parseLocalDate(t0).toLocaleDateString('ru-RU',{day:'numeric',month:'short'}).replace('.','');
+  const month=t0.slice(0,7);
+  document.getElementById('tasks-done-month').textContent='Сделано за месяц: '+log.filter(l=>(l.date||'').startsWith(month)).length;
+  // upcoming
+  const ev=upcomingEvents(tasks,t0,7).slice(0,3);
+  document.getElementById('tasks-upcoming').innerHTML=ev.length?ev.map(e=>`<div class="upc-row"><div class="upc-when">${escapeHtml(formatTaskDate(e.date))}${e.time?' · '+escapeHtml(e.time):''}</div><div class="upc-title">${escapeHtml(e.title)}${e.repeat?ico('repeat',12):''}</div></div>`).join(''):'<div class="empty-state" style="padding:12px 0">Ближайших событий нет</div>';
+  // habits
+  const hs=habits.filter(h=>!h.archived).sort((a,b)=>(a.order||0)-(b.order||0));
+  document.getElementById('habits-edit-btn').textContent=habitsEditing?'Готово':'Настроить';
+  let hh=hs.map(h=>{
+    if(habitsEditing)return `<div class="habit-row" style="cursor:default"><div class="habit-name">${escapeHtml(h.name)}</div><button class="del-btn" data-id="${escapeHtml(h.id)}" onclick="archiveHabit(this.dataset.id)" aria-label="Архивировать">${ico('close',16)}</button></div>`;
+    const done=checks.some(c=>c.key===`${h.id}_${t0}`),n=habitStreak(h.id,checks);
+    return `<div class="habit-row" data-id="${escapeHtml(h.id)}" onclick="toggleHabit(this.dataset.id)"><div class="habit-check${done?' done':''}">${done?ico('check',14):''}</div><div class="habit-name">${escapeHtml(h.name)}</div><div class="habit-streak${n?' on':''}">${ico('flame',16)}${n}</div></div>`;
+  }).join('');
+  if(habitsEditing)hh+=`<button class="settings-btn" style="margin-top:10px" onclick="addHabit()">+ Добавить привычку</button>`;
+  else if(!hs.length)hh='<div class="empty-state" style="padding:12px 0">Нет привычек — нажмите «Настроить»</div>';
+  document.getElementById('habits-list').innerHTML=hh;
+  // task list
+  const open=tasks.filter(t=>!t.done).sort(cmpTasks);
+  const sec=(title,items,cls,showDate)=>items.length?`<div class="task-section-title ${cls||''}">${title}</div>${items.map(t=>taskRowHtml(t,showDate)).join('')}`:'';
+  const later=open.filter(t=>t.due&&t.due>t1);
+  let html=sec('Просрочено',open.filter(t=>t.due&&t.due<t0),'overdue',true)
+    +sec('Сегодня',open.filter(t=>t.due===t0))
+    +sec('Завтра',open.filter(t=>t.due===t1));
+  if(later.length)html+=`<div class="task-section-title fold" onclick="toggleTasksLater()"><span>Позже (${later.length})</span>${ico(tasksLaterOpen?'chevUp':'chevDown',16)}</div>`+(tasksLaterOpen?later.map(t=>taskRowHtml(t,true)).join(''):'');
+  const nodate=open.filter(t=>!t.due);
+  if(nodate.length){
+    html+='<div class="task-section-title">Без даты</div>';
+    LISTS.forEach(l=>{const items=nodate.filter(t=>(LISTS.some(x=>x.id===t.list)?t.list:'inbox')===l.id);if(items.length)html+=`<div class="task-sublist">${l.name}</div>`+items.map(t=>taskRowHtml(t,false)).join('')});
+  }
+  document.getElementById('tasks-list').innerHTML=html||'<div class="empty-state"><span class="icon-wrap">'+ico('tasks',40)+'</span>Задач нет</div>';
+}
+function toggleTasksLater(){tasksLaterOpen=!tasksLaterOpen;renderTasks()}
+function toggleHabitsEdit(){habitsEditing=!habitsEditing;renderTasks()}
+function editTask(id){editingTaskId=editingTaskId===id?null:id;renderTasks()}
+function taskRepeatChanged(){
+  const k=document.getElementById('te-repeat').value;
+  document.getElementById('te-weekdays').hidden=k!=='weekly';
+  document.getElementById('te-monthday').hidden=k!=='monthly';
+}
+async function saveTaskEdit(id){
+  await getTasks();
+  const t=tasksCache.find(x=>x.id===id);if(!t)return;
+  const title=document.getElementById('te-title').value.trim();
+  if(!title)return toast('Введите название');
+  const kind=document.getElementById('te-repeat').value;
+  let repeat=null;
+  if(kind==='daily')repeat={type:'daily'};
+  else if(kind==='weekly'){
+    const days=[...document.querySelectorAll('.te-wd:checked')].map(x=>+x.value);
+    if(!days.length)return toast('Выберите дни недели');
+    repeat={type:'weekly',days};
+  }else if(kind==='monthly'){
+    const day=parseInt(document.getElementById('te-monthday').value,10);
+    if(!(day>=1&&day<=31))return toast('Укажите число месяца (1–31)');
+    repeat={type:'monthly',day};
+  }else if(kind==='monthly_last')repeat={type:'monthly_last'};
+  let due=document.getElementById('te-due').value;
+  if(repeat&&!due)due=nextOccurrence(repeat,addDays(today(),-1));
+  const upd={...t,title,list:document.getElementById('te-list').value,due,time:document.getElementById('te-time').value,repeat};
+  editingTaskId=null;cachePut(tasksCache,upd);renderTasks();
+  try{await dbPut('tasks',upd)}catch(err){toast('Не удалось сохранить: '+err.message);dirtyTasks();refreshTasks()}
+}
+async function deleteTask(id){
+  if(!confirm('Удалить задачу?'))return;
+  await getTasks();
+  tasksCache=tasksCache.filter(x=>x.id!==id);editingTaskId=null;renderTasks();
+  try{await dbDel('tasks',id)}catch(err){toast('Не удалось удалить: '+err.message);dirtyTasks();refreshTasks()}
+}
+
+// Quick input, parsed from the end: [#list] [date] [HH:MM] in any order after the title
+const QUICK_LISTS={dfir:'dfir','деньги':'money',money:'money','зал':'gym',gym:'gym','быт':'home',home:'home','входящие':'inbox',inbox:'inbox'};
+const QUICK_WEEKDAYS={'пн':1,'вт':2,'ср':3,'чт':4,'пт':5,'сб':6,'вс':7};
+function parseQuickDate(w){
+  const t=today();
+  if(w==='сегодня')return t;
+  if(w==='завтра')return addDays(t,1);
+  if(QUICK_WEEKDAYS[w]){for(let i=1;i<=7;i++){const c=addDays(t,i);if(isoWeekday(c)===QUICK_WEEKDAYS[w])return c}}
+  const m=w.match(/^(\d{1,2})\.(\d{1,2})$/);
+  if(m){
+    const d=+m[1],mo=+m[2];
+    if(mo<1||mo>12||d<1)return null;
+    let y=+t.slice(0,4);
+    if(d>new Date(y,mo,0).getDate())return null;
+    let c=`${y}-${pad2(mo)}-${pad2(d)}`;
+    if(c<t){y++;if(d>new Date(y,mo,0).getDate())return null;c=`${y}-${pad2(mo)}-${pad2(d)}`}
+    return c;
+  }
+  return null;
+}
+function parseQuickTask(text){
+  const words=text.trim().split(/\s+/).filter(Boolean);
+  let list='inbox',due='',time='',gotList=false,gotDate=false,gotTime=false;
+  while(words.length>1){
+    const w=words[words.length-1],lw=w.toLowerCase();
+    let m,ok=false;
+    if(!gotTime&&(m=w.match(/^([01]?\d|2[0-3]):([0-5]\d)$/))){time=pad2(+m[1])+':'+m[2];gotTime=ok=true}
+    else if(!gotList&&lw[0]==='#'&&QUICK_LISTS[lw.slice(1)]){list=QUICK_LISTS[lw.slice(1)];gotList=ok=true}
+    else if(!gotDate){const d=parseQuickDate(lw);if(d){due=d;gotDate=ok=true}}
+    if(!ok)break;
+    words.pop();
+  }
+  return{title:words.join(' ').trim(),list,due,time};
+}
+async function addQuickTask(){
+  const input=document.getElementById('task-quick');
+  const p=parseQuickTask(input.value);
+  if(!p.title)return toast('Введите название задачи');
+  await getTasks();
+  const t={id:uid(),title:p.title,list:p.list,due:p.due,time:p.time,repeat:null,done:false,doneAt:null,createdAt:Date.now(),source:'app'};
+  cachePut(tasksCache,t);input.value='';renderTasks();
+  toast(`Добавлено: ${t.title}${t.due?' · '+formatTaskDate(t.due):''}${t.time?' '+t.time:''}`);
+  try{await dbPut('tasks',t)}catch(err){toast('Не удалось сохранить: '+err.message);dirtyTasks();refreshTasks()}
+}
+
+// ── Shell: navigation, money sub-tabs, quest tabs ──
+const MONEY_VIEWS=['home','history','stats','plans','debts','alloc','statement'];
+const MONEY_LABELS={home:'Главная',history:'История',stats:'Статистика',plans:'Планы',debts:'Рассрочки',alloc:'Распределение',statement:'Выписка'};
+function navKeyOf(n){return MONEY_VIEWS.includes(n)?'money':n==='settings'?'status':n==='add'?'quests':n}
+const reducedMotion=()=>window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+function fxViewTransition(fn){
+  if(document.startViewTransition&&!reducedMotion()){try{document.startViewTransition(fn);return}catch(e){}}
+  fn();
+}
+function moveLamp(){
+  const nav=document.getElementById('bottom-nav'),btn=nav&&nav.querySelector('.nav-btn.active');
+  if(!btn||nav.hidden)return;
+  nav.style.setProperty('--lx',(btn.offsetLeft+btn.offsetWidth/2-28)+'px');
+}
+window.addEventListener('resize',moveLamp);
+let lastMoney='home';
+function switchView(name,btn){
+  if(name==='money')name=lastMoney;
+  if(!document.getElementById('view-'+name))return;
+  if(MONEY_VIEWS.includes(name))lastMoney=name;
+  fxViewTransition(()=>{
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-'+name).classList.add('active');
+    const key=navKeyOf(name);
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===key));
+    moveLamp();updateMoneyTabs(name);window.scrollTo(0,0);
+    const h1=document.querySelector('#view-'+name+' .header h1');if(h1&&window.fxScramble)fxScramble(h1);
+    if(name==='add'){
+      document.getElementById('smart-input').value='';
+      document.getElementById('fallback-grid').classList.remove('show');
+      pendingInput=null;renderTemplates();
+    }
+  });
+  if(name==='status')refreshStatus();
+  if(name==='quests')refreshTasks();
+  if(name==='body')refreshBody();
+  if(name==='home')refreshDashboard();
+  if(name==='history')refreshHistory();
+  if(name==='stats')refreshStats();
+  if(name==='plans')refreshPlans();
+  if(name==='debts'&&window.refreshDebts)refreshDebts();
+  if(name==='alloc'&&window.refreshAlloc)refreshAlloc();
+}
+function buildMoneyTabs(){
+  MONEY_VIEWS.forEach(v=>{
+    const el=document.querySelector('#view-'+v+' .container');
+    if(!el||el.querySelector('.money-tabs'))return;
+    const bar=document.createElement('div');bar.className='money-tabs';
+    bar.innerHTML=MONEY_VIEWS.filter(x=>document.getElementById('view-'+x)).map(x=>'<button class="money-tab" data-m="'+x+'" onclick="switchView(this.dataset.m)">'+MONEY_LABELS[x]+'</button>').join('');
+    el.prepend(bar);
+  });
+}
+function updateMoneyTabs(name){document.querySelectorAll('.money-tab').forEach(b=>b.classList.toggle('active',b.dataset.m===name))}
+let questTab='today';
+function setQuestTab(t){
+  questTab=t;
+  ['today','season','week'].forEach(x=>{const el=document.getElementById('q-'+x);if(el)el.hidden=x!==t});
+  document.querySelectorAll('.q-tab').forEach(b=>b.classList.toggle('active',b.dataset.q===t));
+  moveQInd();
+  if(t==='season')renderSeason();
+  if(t==='week')renderWeek();
+}
+function moveQInd(){
+  const b=document.querySelector('.q-tab.active'),ind=document.getElementById('q-ind');
+  if(!b||!ind)return;
+  ind.style.transform='translateX('+b.offsetLeft+'px) scaleX('+(b.offsetWidth/100)+')';
+}
+function renderSeason(){}
+function renderWeek(){}
+async function refreshStatus(){renderStatus()}
+function renderStatus(){
+  document.getElementById('status-root').innerHTML='<div class="header"><h1>Система</h1><button class="header-btn" data-v="settings" onclick="switchView(this.dataset.v)" aria-label="Настройки">'+ico('settings',20)+'</button></div>';
+}
+async function refreshBody(){
+  document.getElementById('body-root').innerHTML='<div class="header"><h1>Тело</h1></div><div class="empty-state">Тренировки появятся здесь</div>';
+}
+function openCmd(){switchView('add')}
+
 // ── Init ──
 async function startApp(){
   document.getElementById('view-setup').classList.remove('active');
-  document.getElementById('view-home').classList.add('active');
+  document.getElementById('view-status').classList.add('active');
   document.getElementById('bottom-nav').hidden=false;
   const cur=await getSetting('currency');if(cur){currency=cur;document.getElementById('currency-sel').value=currency}
   const learned=await dbAll('learned');learned.forEach(l=>{learnedMap[l.keyword]=l.category});
   registerGoalCategories(await dbAll('goals'));
   document.getElementById('smart-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();handleSmartInput()}});
-  refreshDashboard();
+  buildMoneyTabs();switchView('status');moveLamp();
   if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 async function init(){
