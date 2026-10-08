@@ -1731,7 +1731,35 @@ function parseHalykPdf(text){
 }
 
 function parseFreedomPdf(text){
-  return parseFortePdf(text);
+  // Freedom export: "DD.MM.YYYY  -1,450.00 ₸  KZT  Операция  Детали", where the details may wrap onto the next lines
+  // and a whole page ends with footer lines. Pending ("Сумма в обработке") rows and USD rows are not imported.
+  const results=[];
+  const lines=text.split('\n').map(l=>l.trim()).filter(l=>l);
+  const rowRe=/^(\d{2})\.(\d{2})\.(\d{4})\s+([+\-]?[\d,]+\.\d{2})\s*[₸$]\s+([A-Z]{3})\b\s*(.*)$/;
+  const noiseRe=/^(Подлинность справки|просканировав|https?:\/\/|Дата\s+Сумма|По курсу|Сумма в обработке\.|Выписка|за период|АО\s|БИК|www\.|Управляющий|Краткое содержание|Номер|Валюта|Остаток)/i;
+  let cur=null;
+  const flush=()=>{
+    if(!cur)return;const r=cur;cur=null;
+    if(r.cur!=='KZT')return;
+    let body=r.parts.join(' ').replace(/(\S)-\s+(?=[A-ZА-Я])/g,'$1-').replace(/\s+/g,' ').trim();
+    if(/^Сумма в обработке/i.test(body))return;
+    if(/Перевод валюты|Между своими|своих счет|собственных/i.test(body))return;
+    const om=body.match(/^(Покупка|Перевод|Пополнение|Платеж|Снятие|Погашение|Овердрафт)(?=\s|$)\s*(.*)$/i);
+    const op=om?om[1]:'',detail=(om?om[2]:body).replace(/Комиссия:[^.]*\.?/i,'').replace(/\s*\.\s*Безвозмездный перевод/i,'').replace(/Безвозмездный перевод/i,'').replace(/\s+\./g,'.').replace(/[\s.]+$/,'').trim();
+    let desc=detail||op||'Операция Freedom';
+    if(desc.length>70)desc=desc.slice(0,69).trim()+'…';
+    const amount=Math.abs(parseFloat(r.amt.replace(/,/g,'')));
+    if(!amount)return;
+    results.push({date:`${r.y}-${r.m}-${r.d}`,amount,desc,type:r.amt.startsWith('-')?'expense':'income',op});
+  };
+  for(const line of lines){
+    const m=line.match(rowRe);
+    if(m){flush();cur={d:m[1],m:m[2],y:m[3],amt:m[4],cur:m[5],parts:m[6]?[m[6]]:[]};continue}
+    if(noiseRe.test(line)){flush();continue}
+    if(cur&&!cur.closed){cur.parts.push(line);if(/^Покупка\s/i.test(cur.parts.join(' '))&&/(^|\s)[A-Z]{2}$/.test(line))cur.closed=true}
+  }
+  flush();
+  return results;
 }
 
 function missRow(idx,desc,amount,date,type){
