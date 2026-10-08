@@ -485,6 +485,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       <option value="forte">Forte Bank</option>
       <option value="halyk">Halyk Bank</option>
       <option value="freedom">Freedom Bank</option>
+      <option value="cash">Наличные</option>
     </select>
     <button class="settings-btn" onclick="exportHistoryFiltered()">Экспорт</button>
   </div>
@@ -679,6 +680,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   </div>
   <div class="cmd-field" id="cmd-field"><input id="cmd-input" class="cmd-input" type="text" autocomplete="off" autocapitalize="off" placeholder="кофе 500" oninput="cmdUpdate()" onkeydown="cmdKey(event)" aria-label="Команда"></div>
   <div id="cmd-chips" class="cmd-chips"></div>
+  <div id="cmd-banks" class="cmd-banks" aria-label="Банк или карта"></div>
   <div id="cmd-cats" class="cat-grid" hidden></div>
   <div id="cmd-templates"></div>
   <div class="cmd-hint">кофе 500 · тренировка #зал вт 18:00 · + разобрал образ диска #dfir</div>
@@ -1196,8 +1198,18 @@ async function saveFallback(){
   await checkBudget(tx);
 }
 
-async function saveTx(desc,amount,catId){
-  const tx={id:uid(),type:currentType,amount,category:catId,description:desc,date:today(),createdAt:Date.now(),source:'manual'};
+let currentBank=(()=>{try{return localStorage.getItem('lastBank')||'kaspi'}catch(e){return 'kaspi'}})();
+function setCurrentBank(b){
+  currentBank=b;try{localStorage.setItem('lastBank',b)}catch(e){}
+  renderCmdBanks();
+  if(cmdState&&cmdState.kind==='tx')document.getElementById('cmd-chips').innerHTML=cmdChipHtml(cmdState);
+}
+function renderCmdBanks(){
+  const el=document.getElementById('cmd-banks');if(!el)return;
+  el.innerHTML=[...BANK_KEYS,'cash'].map(k=>'<button class="cmd-bank'+(k===currentBank?' on':'')+'" data-b="'+k+'" onclick="setCurrentBank(this.dataset.b)">'+escapeHtml(BANK_NAMES[k].replace(' Bank',''))+'</button>').join('');
+}
+async function saveTx(desc,amount,catId,bank){
+  const tx={id:uid(),type:currentType,amount,category:catId,description:desc,date:today(),createdAt:Date.now(),source:'manual',bank:bank||currentBank||'cash'};
   await dbPut('transactions',tx);dirtyTx();
   if(catId&&catId.startsWith('goal_'))await contributeToGoal(catId.slice(5),amount);
   return tx;
@@ -1280,7 +1292,7 @@ async function refreshHistory(){
       const c=getCat(t.category),cls=t.type==='expense'?'expense':'income',sign=t.type==='expense'?'-':'+';
       const col=catColor(t.category),ava=personBadge(t.description);
       const badge=ava?`<div class="recent-icon avatar" style="background:${ava.grad}">${ava.initial}</div>`:`<div class="recent-icon" style="background:${col}2e;color:${col};box-shadow:inset 0 1px 1px rgba(255,255,255,.08),0 0 12px ${col}40">${ico(c.icon,18)}</div>`;
-      html+=`<div class="recent-item">${badge}<div class="recent-info"><div class="recent-desc">${escapeHtml(t.description||c.name)}</div><div class="recent-cat">${escapeHtml(c.name)}</div></div><div class="recent-amount ${cls}">${sign}${fmtCur(t.amount)}</div><button class="del-btn" onclick="deleteTx('${t.id}')">${ico('close',16)}</button></div>`;
+      html+=`<div class="recent-item">${badge}<div class="recent-info"><div class="recent-desc">${escapeHtml(t.description||c.name)}</div><div class="recent-cat">${escapeHtml(c.name)}${t.bank?' · '+escapeHtml((BANK_NAMES[t.bank]||t.bank).replace(' Bank','')):''}</div></div><div class="recent-amount ${cls}">${sign}${fmtCur(t.amount)}</div><button class="del-btn" onclick="deleteTx('${t.id}')">${ico('close',16)}</button></div>`;
     });
   }
   list.innerHTML=html;
@@ -1636,7 +1648,7 @@ function detectBank(text){
   if(/форте банк|forte bank/i.test(text))return'forte';
   return null;
 }
-const BANK_NAMES={kaspi:'Kaspi Bank',forte:'Forte Bank',halyk:'Halyk Bank',freedom:'Freedom Bank'};
+const BANK_NAMES={kaspi:'Kaspi Bank',forte:'Forte Bank',halyk:'Halyk Bank',freedom:'Freedom Bank',cash:'Наличные'};
 
 function parseKaspiPdf(text){
   const results=[];
@@ -1813,7 +1825,7 @@ function renderBalanceBanner(bank,text){
 }
 async function applyDetectedBalance(){
   if(!detectedBalance)return;
-  await saveSetting('bal_'+detectedBalance.bank,detectedBalance.amount);
+  await setBankBalance(detectedBalance.bank,detectedBalance.amount);
   toast('Баланс обновлён');
   document.getElementById('stmt-balance-banner').hidden=true;
   detectedBalance=null;
@@ -1943,9 +1955,17 @@ async function saveSetting(key,value){
 // ── Bank balances ──
 const BANK_KEYS=['kaspi','freedom','halyk','forte'];
 const PERIOD_LABELS={week:'неделю',month:'месяц',year:'год'};
+// Balance of a bank = last saved snapshot (typed by hand or taken from a statement) + manual transactions
+// of that bank created after the snapshot. Statement imports are already inside the statement balance.
+async function bankBalance(k,txs){
+  const base=parseFloat(await getSetting('bal_'+k))||0,since=parseFloat(await getSetting('balAt_'+k))||0;
+  const d=txs.filter(t=>t.bank===k&&t.source!=='statement'&&(t.createdAt||0)>since).reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
+  return Math.round((base+d)*100)/100;
+}
+async function setBankBalance(k,v){await saveSetting('bal_'+k,v);await saveSetting('balAt_'+k,Date.now())}
 async function renderBankBalances(){
-  const vals={};let total=0,any=false;
-  for(const k of BANK_KEYS){const v=parseFloat(await getSetting('bal_'+k))||0;vals[k]=v;if(v)any=true;total+=v}
+  const vals={};let total=0,any=false;const allTx=await getTxs();
+  for(const k of BANK_KEYS){const v=await bankBalance(k,allTx);vals[k]=v;if(v)any=true;total+=v}
   document.getElementById('bank-balances-card').hidden=false;
   document.getElementById('bank-total').textContent=fmtCur(total);
   const activeBanks=BANK_KEYS.filter(k=>vals[k]);
@@ -1970,11 +1990,12 @@ async function renderBankBalances(){
 async function toggleBankEdit(){
   const form=document.getElementById('bank-edit-form');
   const show=form.hidden;
-  if(show)for(const k of BANK_KEYS)document.getElementById('bal-'+k).value=(await getSetting('bal_'+k))||'';
+  if(show){const allTx=await getTxs();for(const k of BANK_KEYS)document.getElementById('bal-'+k).value=(await bankBalance(k,allTx))||''}
   form.hidden=!show;
 }
 async function saveBankBalances(){
-  for(const k of BANK_KEYS)await saveSetting('bal_'+k,parseFloat(document.getElementById('bal-'+k).value)||0);
+  const allTx=await getTxs();
+  for(const k of BANK_KEYS){const v=parseFloat(document.getElementById('bal-'+k).value)||0;if(v!==await bankBalance(k,allTx))await setBankBalance(k,v)}
   document.getElementById('bank-edit-form').hidden=true;
   renderBankBalances();
   toast('Балансы сохранены');
@@ -2531,7 +2552,7 @@ function openCmd(){
   const L=document.getElementById('cmd-layer');L.hidden=false;
   const tw=document.getElementById('templates-wrap'),host=document.getElementById('cmd-templates');
   if(tw&&host&&tw.parentElement!==host)host.appendChild(tw);
-  renderTemplates();
+  renderTemplates();renderCmdBanks();
   const inp=document.getElementById('cmd-input');inp.value='';
   document.getElementById('cmd-chips').innerHTML='';document.getElementById('cmd-cats').hidden=true;cmdState=null;
   requestAnimationFrame(()=>{L.classList.add('show');inp.focus()});
@@ -2560,7 +2581,7 @@ function cmdChipHtml(st){
   if(st.kind==='journal')return `<span class="cmd-chip" id="cmd-chip"><b>Журнал</b>${st.sphere?' · '+escapeHtml(SPHERES[st.sphere]):''} · ${escapeHtml(st.text)}</span>`;
   if(st.kind==='task')return `<span class="cmd-chip" id="cmd-chip"><b>Задача</b> · ${escapeHtml(listName(st.list))}${st.due?' · '+escapeHtml(formatTaskDate(st.due)):''}${st.time?' · '+escapeHtml(st.time):''} · ${escapeHtml(st.title)}</span>`;
   const c=st.cat?getCat(st.cat).name:'выберите категорию';
-  return `<span class="cmd-chip" id="cmd-chip"><b>${st.type==='income'?'Доход':'Расход'}</b> · ${escapeHtml(c)} · ${fmtCur(st.amount)}${st.desc?' · '+escapeHtml(st.desc):''}</span>`;
+  return `<span class="cmd-chip" id="cmd-chip"><b>${st.type==='income'?'Доход':'Расход'}</b> · ${escapeHtml(c)} · ${fmtCur(st.amount)} · ${escapeHtml((BANK_NAMES[currentBank]||'').replace(' Bank',''))}${st.desc?' · '+escapeHtml(st.desc):''}</span>`;
 }
 async function cmdUpdate(){
   const seq=++cmdSeq,st=await cmdParse(document.getElementById('cmd-input').value);
@@ -2674,7 +2695,8 @@ taskCompleteHooks.push(async(t,log)=>{
   if(!d||d.closed)return null;
   const pay=Math.min(d.monthly,d.remaining),prev={...d};
   currentType='expense';
-  const tx=await saveTx('Рассрочка: '+d.name,pay,'debts');
+  const dbank=({kaspi:'kaspi',halyk:'halyk',forte:'forte',freedom:'freedom'})[String(d.bank||'').toLowerCase()]||currentBank;
+  const tx=await saveTx('Рассрочка: '+d.name,pay,'debts',dbank);
   const upd={...d,remaining:d.remaining-pay};
   const closing=upd.remaining<=0;
   if(closing){upd.remaining=0;upd.closed=true}

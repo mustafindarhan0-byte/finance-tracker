@@ -362,3 +362,8 @@ body.fx-paused *,body.fx-paused::after{animation-play-state:paused!important}
 .plan-ring-inner.done{color:var(--money)!important}
 .hero-fig{transition:opacity 1s var(--ease-out,ease),filter 1s var(--ease-out,ease)}
 .hero-intro .hero-fig{opacity:0;filter:blur(14px)}
+
+/* банк/карта в [+] */
+.cmd-banks{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.cmd-bank{background:var(--ink-2);border:1px solid var(--line-2);color:var(--fog);padding:9px 14px;border-radius:999px;font:500 13px var(--font-text);cursor:pointer;min-height:40px}
+.cmd-bank.on{background:var(--bone);color:#000;border-color:var(--bone)}
