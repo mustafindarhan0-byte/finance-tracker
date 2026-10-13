@@ -3139,7 +3139,7 @@ async function startApp(){
   document.getElementById('smart-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();handleSmartInput()}});
   buildMoneyTabs();moveLamp();
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view==='status'));
-  try{await Promise.all([boot,load]);await refreshStatus()}
+  try{await Promise.all([boot,load]);try{await runCooling()}catch(e){console.warn('cooling',e)}await refreshStatus()}
   finally{moveLamp();playStatusIntro()}
   if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
