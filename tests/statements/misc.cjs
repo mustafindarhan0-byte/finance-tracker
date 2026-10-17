@@ -18,7 +18,7 @@ for(const[b,t,e]of bal){const v=F.extractStatementBalance(b,t);if(v!==e)console.
 // CSV helpers
 const amt=[['-1 500,00',-1500],['1 500,00-',-1500],['(1 500,00)',-1500],['−1 500',-1500],['1.500',1500],['1,500',1500],['1,50',1.5],['1.500,50',1500.5],['1,500.50',1500.5],['KZT -2 000',-2000],['-2 000 ₸',-2000]];
 for(const[s,e]of amt){const v=F.parseStmtAmount(s);if(v!==e)console.log('AMT',JSON.stringify(s),'->',v,'expected',e)}
-const dt=[['05.10.2026','2026-10-05'],['5.10.2026','2026-10-05'],['05.10.26','2026-10-05'],['2026-10-05 14:22','2026-10-05'],['10/05/2026','2026-10-05 (if US) or 2026-05-10'],['45935','2025-10-05 (Excel serial)'],['05.10.2026 23:59','2026-10-05']];
+const dt=[['05.10.2026','2026-10-05'],['5.10.2026','2026-10-05'],['05.10.26','2026-10-05'],['2026-10-05 14:22','2026-10-05'],['10/05/2026','2026-05-10'],['45935','2025-10-05'],['05.10.2026 23:59','2026-10-05']];
 for(const[s,e]of dt){const v=F.parseStmtDate(s);if(v.iso!==e)console.log('DATE',JSON.stringify(s),'->',JSON.stringify(v),'expected',e)}
 // matching
 const txs=[{type:'expense',date:'2026-10-05',amount:1500,bank:'kaspi'},{type:'expense',date:'2026-10-04',amount:2000,bank:'freedom'},{type:'expense',date:'2026-10-05',amount:900},{type:'expense',date:'2025-10-05',amount:700,bank:'freedom'}];
