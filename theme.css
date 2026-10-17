@@ -239,6 +239,14 @@ body.fx-paused *,body.fx-paused::after{animation-play-state:paused!important}
 .body-plans{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
 .spark{width:100%;height:90px;margin:10px 0 4px;display:block}
 .wk-hero{margin-bottom:12px}
+.wo-hint{transition:color var(--t-fast)}
+.wo-hint.warn{color:var(--bone)}
+.wo-sum,.wo-stale{margin-bottom:12px}
+.wo-sum-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:8px 0 10px}
+.wo-sum-num{font-size:26px;color:var(--bone);overflow-wrap:anywhere}
+.wo-sum-lbl{color:var(--fog);font-size:12px;margin-top:6px}
+.wo-sum-ok{margin-top:10px}
+.wo-stale-cap{color:var(--fog);font-size:14px;margin-bottom:12px}
 
 /* ── D1: Статус ── */
 .outline{color:transparent;-webkit-text-stroke:1.5px var(--bone)}
