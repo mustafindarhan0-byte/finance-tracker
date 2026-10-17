@@ -605,14 +605,37 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       </select>
     </div>
     <div class="settings-item">
-      <div><div class="settings-label">Экспорт данных</div><div class="settings-desc">JSON-файл со всеми данными</div></div>
-      <button class="settings-btn" onclick="exportData()">Экспорт</button>
+      <div><div class="settings-label">Сделать копию</div><div class="settings-desc" id="backup-ext-desc">JSON-файл со всеми данными</div></div>
+      <button class="settings-btn" onclick="exportData()">Копия</button>
+    </div>
+    <div id="backup-share-row" hidden><div class="settings-item">
+      <div><div class="settings-label">Копия готова</div><div class="settings-desc">Сохранить в Файлы</div></div>
+      <button class="settings-btn" onclick="sharePendingFile()">Сохранить</button>
+    </div></div>
+    <div class="settings-item">
+      <div><div class="settings-label">Таблица для Excel</div><div class="settings-desc">Операции, CSV</div></div>
+      <button class="settings-btn" onclick="exportCsv()">CSV</button>
     </div>
     <div class="settings-item">
-      <div><div class="settings-label">Импорт данных</div></div>
+      <div><div class="settings-label">Импорт (объединить)</div><div class="settings-desc">Добавить записи из файла, ничего не удаляя</div></div>
       <button class="settings-btn" onclick="document.getElementById('import-file').click()">Импорт</button>
       <input type="file" id="import-file" accept=".json" hidden onchange="importData(event)">
     </div>
+    <div class="settings-item">
+      <div><div class="settings-label">Восстановить из файла</div><div class="settings-desc">Заменить данные копией, сначала пробный прогон</div></div>
+      <button class="settings-btn" onclick="document.getElementById('restore-file').click()">Выбрать</button>
+      <input type="file" id="restore-file" accept=".json,application/json" hidden onchange="restoreFromFile(event)">
+    </div>
+    <div class="settings-item">
+      <div><div class="settings-label">Снимки в облаке</div><div class="settings-desc" id="backup-snap-desc">Раз в 7 дней, хранятся 8</div></div>
+      <div style="display:flex;gap:6px"><button class="settings-btn" onclick="manualSnapshot()">Сделать снимок</button><button class="settings-btn" onclick="showSnapshots()">Список</button></div>
+    </div>
+    <div id="backup-list" hidden></div>
+    <div id="restore-resume" hidden><div class="settings-item">
+      <div><div class="settings-label">Восстановление не завершено</div><div class="settings-desc" id="restore-resume-desc"></div></div>
+      <button class="settings-btn" onclick="resumeRestore()">Продолжить</button>
+    </div></div>
+    <div id="restore-panel" hidden></div>
     <div class="settings-item">
       <div><div class="settings-label">Выписка из банка</div><div class="settings-desc">CSV — найти пропущенные расходы</div></div>
       <button class="settings-btn" onclick="switchView('statement')">Загрузить</button>
@@ -2513,23 +2536,423 @@ async function saveBankBalances(){
 
 function setCurrency(c){currency=c;saveSetting('currency',c);refreshDashboard()}
 
-async function exportData(){
-  const data=Object.fromEntries(await Promise.all(ALL_STORES.map(async s=>[s,await dbAll(s)])));
-  if(data.settings)data.settings=data.settings.filter(x=>x.key!=='geminiKey');
-  const json=JSON.stringify({...data,currency,exportDate:new Date().toISOString()},null,2);
-  const blob=new Blob([json],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
-  a.href=url;a.download=`finance-${today()}.json`;a.click();URL.revokeObjectURL(url);toast('Экспорт завершён');
+// ── Backups: snapshots in Firestore (F3.4), external copy + CSV (F3.5), restore «заменить» (F3.6) ──
+// backup:pure-begin
+const BACKUP_STORES=[...ALL_STORES,'importedStatements'];
+const BACKUP_KEEP=8,BACKUP_EVERY_DAYS=7,BACKUP_PART_MAX=900*1024,RESTORE_BATCH=400,SPARK_WRITES_DAY=20000;
+// importedStatements are keyed by the document id (statement hash); a copy carries it as `id`
+function backupKeyField(s){return s==='importedStatements'?'id':(STORE_KEY_FIELD[s]||'id')}
+// Firestore Timestamps (updatedAt, …) → millis, so a copy is plain JSON
+function plainValue(v){
+  if(v&&typeof v==='object'){
+    if(typeof v.toMillis==='function')return v.toMillis();
+    if(Array.isArray(v))return v.map(plainValue);
+    const o={};for(const k of Object.keys(v))o[k]=plainValue(v[k]);return o;
+  }
+  return v;
+}
+// raw {collection:[docs]} → backed-up data: known collections only (never `members`), no geminiKey, no tombstones
+function cleanBackupData(raw){
+  const out={};
+  for(const s of BACKUP_STORES){
+    if(!raw||!Array.isArray(raw[s]))continue;
+    let arr=raw[s].filter(d=>d&&typeof d==='object'&&!Array.isArray(d)&&!d.deleted).map(plainValue);
+    if(s==='settings')arr=arr.filter(x=>x.key!=='geminiKey');
+    out[s]=arr;
+  }
+  return out;
+}
+function backupCounts(data){return Object.fromEntries(Object.keys(data).map(s=>[s,data[s].length]))}
+async function buildBackupV2(data,exportedAt){
+  return{format:'sistema-backup',version:2,exportedAt:exportedAt||new Date().toISOString(),counts:backupCounts(data),data,sha256:await sha256Hex(JSON.stringify(data))};
+}
+// JSON v2 (checked by sha256) or the old v1 export {transactions:[…], …, currency, exportDate}
+async function parseBackup(obj){
+  if(!obj||typeof obj!=='object'||Array.isArray(obj))return{error:'Это не резервная копия'};
+  let data,version;
+  if(obj.format==='sistema-backup'){
+    if(obj.version!==2||!obj.data||typeof obj.data!=='object')return{error:'Неизвестная версия копии: '+obj.version};
+    if(obj.sha256!==await sha256Hex(JSON.stringify(obj.data)))return{error:'Файл повреждён: контрольная сумма не совпала'};
+    data=obj.data;version=2;
+  }else{
+    if(!ALL_STORES.some(s=>Array.isArray(obj[s])))return{error:'В файле нет ни одной коллекции'};
+    data=obj;version=1;
+  }
+  const clean=cleanBackupData(data);
+  return{version,data:clean,missing:BACKUP_STORES.filter(s=>!clean[s]),exportedAt:String(obj.exportedAt||obj.exportDate||'')};
+}
+// canonical JSON (sorted keys, updatedAt ignored) — "changed" means the content differs
+function stableStr(v){
+  if(Array.isArray(v))return '['+v.map(stableStr).join(',')+']';
+  if(v&&typeof v==='object')return '{'+Object.keys(v).filter(k=>k!=='updatedAt'&&v[k]!==undefined).sort().map(k=>JSON.stringify(k)+':'+stableStr(v[k])).join(',')+'}';
+  return v===undefined?'null':JSON.stringify(v);
+}
+// Dry run of «заменить»: per collection what is added / changed / deleted, plus the list of writes.
+// Only collections present in the copy are touched (an old v1 file without tasks leaves tasks alone).
+// Unchanged documents are not rewritten (Spark: 20k writes a day).
+function diffBackup(current,incoming){
+  const per={},ops=[];
+  for(const s of BACKUP_STORES){
+    if(!Array.isArray(incoming[s]))continue;
+    const f=backupKeyField(s),keep=x=>!(s==='settings'&&x.key==='geminiKey');
+    const cur=new Map((current[s]||[]).filter(x=>x&&x[f]!=null&&x[f]!==''&&keep(x)).map(x=>[String(x[f]),x]));
+    const seen=new Set(),c={add:0,change:0,del:0,same:0,bad:0};
+    for(const d of incoming[s]){
+      if(!d||d[f]==null||d[f]===''||!keep(d)){c.bad++;continue}
+      const id=String(d[f]);
+      if(seen.has(id)){c.bad++;continue}
+      seen.add(id);
+      const old=cur.get(id);
+      if(!old){c.add++;ops.push({s,kind:'set',id,doc:d})}
+      else if(stableStr(old)!==stableStr(d)){c.change++;ops.push({s,kind:'set',id,doc:d})}
+      else c.same++;
+    }
+    for(const id of cur.keys())if(!seen.has(id)){c.del++;ops.push({s,kind:'del',id})}
+    per[s]=c;
+  }
+  return{per,ops};
+}
+function chunkList(arr,n){const out=[];for(let i=0;i<arr.length;i+=n)out.push(arr.slice(i,i+n));return out}
+function bytesToB64(u8){let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s)}
+function b64ToBytes(b64){const s=atob(b64),u8=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u8[i]=s.charCodeAt(i);return u8}
+async function pipeBytes(u8,ts){return new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(ts)).arrayBuffer())}
+// gzip where the browser has CompressionStream (iOS 16.4+), plain base64 otherwise — `enc` says which
+async function encodeSnapshot(str){
+  const u8=new TextEncoder().encode(str);
+  if(typeof CompressionStream!=='function')return{enc:'none',b64:bytesToB64(u8)};
+  return{enc:'gzip',b64:bytesToB64(await pipeBytes(u8,new CompressionStream('gzip')))};
+}
+async function decodeSnapshot(b64,enc){
+  const u8=b64ToBytes(b64);
+  return new TextDecoder().decode(enc==='none'?u8:await pipeBytes(u8,new DecompressionStream('gzip')));
+}
+function splitB64(b64,max=BACKUP_PART_MAX){const out=[];for(let i=0;i<b64.length;i+=max)out.push(b64.slice(i,i+max));return out.length?out:['']}
+function dayRu(s){return /^\d{4}-\d{2}-\d{2}$/.test(s||'')?s.split('-').reverse().join('.'):String(s||'')}
+function dayDiff(a,b){const n=s=>{const[y,m,d]=s.split('-').map(Number);return Date.UTC(y,m-1,d)/864e5};return Math.round(n(b)-n(a))}
+function ruDays(n){const a=Math.abs(n)%100,b=a%10;return n+' '+(a>10&&a<20?'дней':b===1?'день':b>=2&&b<=4?'дня':'дней')}
+function reminderFor(last,now){
+  if(!last)return 'Внешней копии ещё не было';
+  const n=dayDiff(last,now);return n>BACKUP_EVERY_DAYS?`Копия была ${ruDays(n)} назад`:'';
+}
+function snapshotDue(last,now){return !last||dayDiff(last,now)>=BACKUP_EVERY_DAYS}
+// Excel (ru): «;», UTF-8 BOM, CRLF, decimal comma; text Excel would run as a formula gets a leading '
+function csvCell(v,isAmount){
+  let s=v==null?'':String(v);
+  if(isAmount)s=s.replace('.',',');
+  else if(/^[=+\-@\t\r]/.test(s))s="'"+s;
+  return /[;"\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+}
+function buildTxCsv(txs,names={}){
+  const cat=names.cat||(x=>x),bank=names.bank||(x=>x);
+  const rows=[...txs].sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||(a.createdAt||0)-(b.createdAt||0)).map(t=>{
+    const amt=Math.round((Number(t.amount)||0)*100)/100*(t.type==='income'?1:-1)||0;
+    return[csvCell(dayRu(t.date)),csvCell(t.type==='income'?'Доход':'Расход'),csvCell(amt,true),csvCell(t.category?cat(t.category):''),csvCell(t.description),csvCell(t.bank?bank(t.bank):''),csvCell(t.source==='statement'?'выписка':'вручную')].join(';');
+  });
+  return '﻿'+[['Дата','Тип','Сумма','Категория','Описание','Банк','Источник'].join(';'),...rows].join('\r\n')+'\r\n';
+}
+// backup:pure-end
+
+const BACKUP_LABELS={transactions:'Операции',goals:'Цели',budgets:'Лимиты',templates:'Шаблоны',settings:'Настройки',learned:'Правила категорий',tasks:'Задачи',taskLog:'Выполнения задач',habits:'Привычки',habitChecks:'Отметки привычек',journal:'Журнал',debts:'Рассрочки',allocations:'Распределения',workoutPlans:'Планы тренировок',workouts:'Тренировки',bodyWeights:'Вес',xpLog:'XP',importedStatements:'Загруженные выписки'};
+function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+function backupReminderText(){return reminderFor(lsGet('lastExternalBackup'),today())}
+function backupsCol(){return spaceRef.collection('backups')}
+function snapKey(){return 'lastSnapshot:'+spaceRef.id}
+async function readImportedStatements(){
+  const snap=await spaceRef.collection('importedStatements').get();countRead('importedStatements',Math.max(1,snap.size));
+  return snap.docs.map(d=>({...d.data(),id:d.id}));
+}
+// everything that goes into a copy, from dbAll (offline cache + delta, so it is cheap)
+async function collectBackupData(){
+  const raw=Object.fromEntries(await Promise.all(ALL_STORES.map(async s=>[s,await dbAll(s)])));
+  raw.importedStatements=await readImportedStatements();
+  return cleanBackupData(raw);
 }
 
+// F3.4 — snapshot = backups/{date} {createdAt, v:2, enc, gz, counts}; > 900 KB → backups/{date}_p1.._pN + `parts`
+let snapshotBusy=false;
+async function createSnapshot(why){
+  const data=await collectBackupData();
+  if(why==='auto'&&!Object.values(data).some(a=>a.length))return null;
+  const v2=await buildBackupV2(data),json=JSON.stringify(v2),{enc,b64}=await encodeSnapshot(json);
+  const parts=b64.length>BACKUP_PART_MAX?splitB64(b64):[],date=today(),col=backupsCol();
+  let oldParts=0;
+  try{const prev=await col.doc(date).get();countRead('backups',1);oldParts=prev.exists?(+prev.get('parts')||0):0}catch(e){}
+  // parts first, manifest last: the write queue keeps the order, so a manifest never points at missing parts
+  parts.forEach((gz,i)=>trackWrite(col.doc(date+'_p'+(i+1)).set({v:2,of:date,part:i+1,gz})));
+  for(let i=parts.length+1;i<=oldParts;i++)col.doc(date+'_p'+i).delete().catch(()=>{});
+  trackWrite(col.doc(date).set({createdAt:serverTs(),at:Date.now(),v:2,enc,gz:parts.length?'':b64,parts:parts.length,counts:v2.counts,bytes:json.length,sha256:v2.sha256,why:why||'manual'}));
+  lsSet(snapKey(),date);
+  pruneSnapshots().catch(e=>console.warn('prune backups',e));
+  return{date,counts:v2.counts,bytes:b64.length};
+}
+// keep the newest BACKUP_KEEP; part docs have no createdAt, so they never show up in this query
+async function pruneSnapshots(){
+  const snap=await backupsCol().orderBy('createdAt','desc').get();countRead('backups',Math.max(1,snap.size));
+  snap.docs.slice(BACKUP_KEEP).forEach(d=>{
+    const n=+d.get('parts')||0;
+    d.ref.delete().catch(()=>{});
+    for(let i=1;i<=n;i++)backupsCol().doc(d.id+'_p'+i).delete().catch(()=>{});
+  });
+}
+async function loadSnapshot(date){
+  const col=backupsCol(),m=await col.doc(date).get();countRead('backups',1);
+  if(!m.exists)throw new Error('снимок не найден');
+  const n=+m.get('parts')||0;let b64=m.get('gz')||'';
+  if(n){
+    const ps=await Promise.all(Array.from({length:n},(_,i)=>col.doc(date+'_p'+(i+1)).get()));countRead('backups',n);
+    if(ps.some(p=>!p.exists))throw new Error('снимок неполный');
+    b64=ps.map(p=>p.get('gz')).join('');
+  }
+  return JSON.parse(await decodeSnapshot(b64,m.get('enc')));
+}
+// called once from startApp (not awaited): storage.persist, Settings refresh, the weekly snapshot
+async function maybeAutoBackup(){
+  try{
+    const v=document.getElementById('view-settings');
+    if(v&&window.MutationObserver)new MutationObserver(()=>{if(v.classList.contains('active'))renderBackupSettings()}).observe(v,{attributes:true,attributeFilter:['class']});
+    if(!lsGet('persistAsked')){lsSet('persistAsked','1');try{navigator.storage?.persist?.().catch(()=>{})}catch(e){}}
+    await new Promise(r=>setTimeout(r,4000)); // after the intro and the first reads
+    renderBackupSettings();
+    if(readRestoreJob()){toast('Восстановление не завершено: Настройки → «Продолжить»');return}
+    let last=lsGet(snapKey());
+    if(!last){
+      const q=await backupsCol().orderBy('createdAt','desc').limit(1).get();countRead('backups',1);
+      last=q.docs[0]?q.docs[0].id:null;if(last)lsSet(snapKey(),last);
+    }
+    if(snapshotDue(last,today())&&!snapshotBusy){
+      snapshotBusy=true;
+      try{if(await createSnapshot('auto'))renderBackupSettings()}finally{snapshotBusy=false}
+    }
+  }catch(e){console.warn('auto backup',e)}
+}
+async function manualSnapshot(){
+  if(snapshotBusy)return;snapshotBusy=true;
+  try{
+    const r=await createSnapshot('manual');
+    toast(`Снимок сохранён · ${Math.ceil(r.bytes/1024)} КБ`);renderBackupSettings();
+    if(!document.getElementById('backup-list').hidden)showSnapshots();
+  }catch(e){toast('Снимок не сделан: '+(e.code||e.message))}
+  finally{snapshotBusy=false}
+}
+function snapSummary(c){
+  c=c||{};const tot=Object.values(c).reduce((a,b)=>a+(+b||0),0);
+  return `операций ${+c.transactions||0} · задач ${+c.tasks||0} · всего ${tot}`;
+}
+async function showSnapshots(){
+  const el=document.getElementById('backup-list');
+  el.hidden=false;el.innerHTML='<div class="settings-desc" style="padding:8px 0">Загрузка…</div>';
+  try{
+    const snap=await backupsCol().orderBy('createdAt','desc').get();countRead('backups',Math.max(1,snap.size));
+    const docs=snap.docs.filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d.id));
+    el.innerHTML=docs.length?docs.map(d=>{
+      const why=d.get('why')==='restore'?' · перед восстановлением':'';
+      return `<div class="settings-item"><div><div class="settings-label">${escapeHtml(dayRu(d.id))}</div><div class="settings-desc">${escapeHtml(snapSummary(d.get('counts'))+why)}</div></div><button class="settings-btn" data-date="${escapeHtml(d.id)}" onclick="restoreFromSnapshot(this.dataset.date)">Восстановить</button></div>`;
+    }).join(''):'<div class="settings-desc" style="padding:8px 0">Снимков пока нет</div>';
+  }catch(e){el.innerHTML=`<div class="settings-desc" style="padding:8px 0">Не загрузилось: ${escapeHtml(e.code||e.message)}</div>`}
+}
+function renderBackupSettings(){
+  const ext=document.getElementById('backup-ext-desc');
+  if(ext){const r=backupReminderText(),last=lsGet('lastExternalBackup');ext.textContent=r||('JSON со всеми данными · последняя '+dayRu(last))}
+  const sd=document.getElementById('backup-snap-desc');
+  if(sd&&spaceRef){const last=lsGet(snapKey());sd.textContent='Раз в 7 дней, хранятся 8'+(last?' · последний '+dayRu(last):'')}
+  const rr=document.getElementById('restore-resume'),j=spaceRef?readRestoreJob():null;
+  if(rr){rr.hidden=!j;if(j)document.getElementById('restore-resume-desc').textContent=`${j.label}: записано ${j.queued||0} из ${j.total}`}
+}
+
+// F3.5 — external copy (JSON v2) and CSV for Excel
+function isAppleTouch(){return /iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)}
+let pendingShareFile=null;
+// iOS PWA: <a download> opens a dead-end preview, the share sheet has «Сохранить в Файлы»; Android/desktop: a download
+async function deliverFile(blob,name){
+  const file=new File([blob],name,{type:blob.type});
+  if(isAppleTouch()&&navigator.canShare?.({files:[file]})){
+    try{await navigator.share({files:[file],title:name});return true}
+    catch(e){
+      if(e&&e.name==='AbortError')return false;
+      // the tap that started it expired while the file was being built — one more tap shares it at once
+      if(e&&e.name==='NotAllowedError'){pendingShareFile=file;document.getElementById('backup-share-row').hidden=false;toast('Файл готов — нажмите «Сохранить»');return false}
+    }
+  }
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  return true;
+}
+async function sharePendingFile(){
+  const file=pendingShareFile;if(!file)return;
+  try{
+    await navigator.share({files:[file],title:file.name});
+    pendingShareFile=null;document.getElementById('backup-share-row').hidden=true;
+    if(file.name.endsWith('.json'))markExternalBackup();
+  }catch(e){if(!e||e.name!=='AbortError')toast('Не удалось: '+(e&&e.message))}
+}
+function markExternalBackup(){lsSet('lastExternalBackup',today());renderBackupSettings()}
+// «Сделать копию»: JSON v2 {format, version, exportedAt, counts, data, sha256}
+async function exportData(){
+  try{
+    const v2=await buildBackupV2(await collectBackupData());
+    const ok=await deliverFile(new Blob([JSON.stringify(v2)],{type:'application/json'}),`sistema-backup-${today()}.json`);
+    if(ok){markExternalBackup();toast('Копия готова')}
+  }catch(e){toast('Копия не сделана: '+(e.code||e.message))}
+}
+async function exportCsv(){
+  try{
+    const csv=buildTxCsv(await getTxs(),{cat:id=>(CAT_MAP.get(id)||{}).name||id,bank:k=>BANK_NAMES[k]||k});
+    if(await deliverFile(new Blob([csv],{type:'text/csv;charset=utf-8'}),`operations-${today()}.csv`))toast('Таблица готова');
+  }catch(e){toast('Не получилось: '+(e.code||e.message))}
+}
+// after any bulk change: caches, learned words, goal categories, currency
+async function reloadAfterBulkChange(){
+  dirtyTx();dirtyTasks();dirtyCols();settingsCache=null;
+  try{
+    const [learned,goals,cur]=await Promise.all([dbAll('learned'),dbAll('goals'),getSetting('currency')]);
+    learnedMap={};learned.forEach(l=>{learnedMap[l.keyword]=l.category});
+    registerGoalCategories(goals);
+    if(cur){currency=cur;const sel=document.getElementById('currency-sel');if(sel)sel.value=cur}
+  }catch(e){console.warn('reload after import',e)}
+}
+// «Импорт (объединить)»: adds/overwrites documents from the file, deletes nothing
 async function importData(e){
   const file=e.target.files[0];if(!file)return;
   try{
-    const data=JSON.parse(await file.text());
-    await uploadLegacyData(data);
-    if(data.currency){currency=data.currency;document.getElementById('currency-sel').value=currency;saveSetting('currency',currency)}
-    dirtyTx();dirtyTasks();toast(`Импортировано: ${(data.transactions||[]).length} операций`);refreshDashboard();
+    const obj=JSON.parse(await file.text()),parsed=await parseBackup(obj);
+    if(parsed.error){toast(parsed.error);return}
+    await uploadLegacyData(parsed.data);
+    await reloadAfterBulkChange();
+    if(parsed.version===1&&obj.currency){currency=obj.currency;document.getElementById('currency-sel').value=currency;saveSetting('currency',currency)}
+    toast(`Импортировано: ${(parsed.data.transactions||[]).length} операций`);refreshDashboard();
   }catch{toast('Ошибка формата файла')}
-  e.target.value='';
+  finally{e.target.value=''}
+}
+
+// F3.6 — restore «заменить»: dry run → snapshot → batches of ≤ 400 → resumable after a reload.
+// Resuming recomputes the diff against the current data, so whatever already reached the base is skipped.
+function readRestoreJob(){try{const j=JSON.parse(localStorage.getItem('restoreJob')||'null');return j&&spaceRef&&j.space===spaceRef.id?j:null}catch(e){return null}}
+function writeRestoreJob(j){lsSet('restoreJob',JSON.stringify(j))}
+function clearRestoreJob(){try{localStorage.removeItem('restoreJob')}catch(e){}restoreStash('del').catch(()=>{});renderBackupSettings()}
+// the copy being restored is kept in IndexedDB (too big for localStorage) until the job is done
+function restoreStash(op,val){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open('sistema-restore',1);
+    r.onupgradeneeded=()=>r.result.createObjectStore('kv');
+    r.onerror=()=>rej(r.error);
+    r.onsuccess=()=>{
+      const db=r.result,tx=db.transaction('kv',op==='get'?'readonly':'readwrite'),st=tx.objectStore('kv');
+      const q=op==='get'?st.get('src'):op==='put'?st.put(val,'src'):st.delete('src');
+      tx.oncomplete=()=>{db.close();res(q.result)};
+      tx.onerror=tx.onabort=()=>{db.close();rej(tx.error)};
+    };
+  });
+}
+let restorePlan=null,restoreBusy=false;
+function restorePanel(html){const el=document.getElementById('restore-panel');el.hidden=false;el.innerHTML=html;return el}
+function setRestoreProgress(t){const el=document.getElementById('restore-progress');if(el)el.textContent=t}
+async function restoreFromFile(e){
+  const file=e.target.files[0];e.target.value='';if(!file)return;
+  let parsed;
+  try{parsed=await parseBackup(JSON.parse(await file.text()))}catch(err){toast('Ошибка формата файла');return}
+  await startRestore(parsed,'файл '+file.name,false);
+}
+async function restoreFromSnapshot(date){
+  restorePanel('<div class="settings-desc" style="padding:8px 0">Загружаем снимок…</div>');
+  let parsed;
+  try{parsed=await parseBackup(await loadSnapshot(date))}
+  catch(e){restorePanel(`<div class="settings-desc" style="padding:8px 0">Снимок не прочитан: ${escapeHtml(e.code||e.message)}</div>`);return}
+  await startRestore(parsed,'снимок '+dayRu(date),false);
+}
+async function startRestore(parsed,label,resume){
+  if(parsed.error){toast(parsed.error);document.getElementById('restore-panel').hidden=true;return}
+  if(restoreBusy)return;
+  if(!resume&&readRestoreJob()){
+    if(!confirm('Есть незавершённое восстановление. Начать новое?'))return;
+    clearRestoreJob();
+  }
+  restorePanel('<div class="settings-desc" style="padding:8px 0">Сравниваем с текущими данными…</div>');
+  try{
+    const{per,ops}=diffBackup(await collectBackupData(),parsed.data);
+    restorePlan={parsed,label,ops,per,resume};
+    renderRestorePlan();
+  }catch(e){restorePanel(`<div class="settings-desc" style="padding:8px 0">Не удалось прочитать текущие данные: ${escapeHtml(e.code||e.message)}</div>`)}
+}
+function renderRestorePlan(){
+  const p=restorePlan,cell='text-align:right;font-variant-numeric:tabular-nums';
+  const rows=Object.entries(p.per).filter(([,c])=>c.add||c.change||c.del);
+  const same=Object.values(p.per).reduce((n,c)=>n+c.same,0),bad=Object.values(p.per).reduce((n,c)=>n+c.bad,0);
+  const missing=(p.parsed.missing||[]).map(s=>BACKUP_LABELS[s]||s);
+  const n=p.ops.length;
+  restorePanel(`<div style="padding:12px 0;border-bottom:1px solid var(--bg3)">
+    <div class="settings-label">${p.resume?'Продолжение: ':'Восстановление: '}${escapeHtml(p.label)}</div>
+    <div class="settings-desc">${p.parsed.exportedAt?'копия от '+escapeHtml(dayRu(p.parsed.exportedAt.slice(0,10)))+' · ':''}пробный прогон, ничего не изменено</div>
+    ${rows.length?`<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:4px 12px;font-size:13px;margin:10px 0">
+      <div class="settings-desc"></div><div class="settings-desc" style="${cell}">добавится</div><div class="settings-desc" style="${cell}">изменится</div><div class="settings-desc" style="${cell}">удалится</div>
+      ${rows.map(([s,c])=>`<div>${escapeHtml(BACKUP_LABELS[s]||s)}</div><div style="${cell}">${c.add}</div><div style="${cell}">${c.change}</div><div style="${cell}">${c.del}</div>`).join('')}
+    </div>`:'<div class="settings-desc" style="margin:10px 0">Данные уже совпадают с копией</div>'}
+    <div class="settings-desc">Без изменений: ${same}${bad?` · пропущено без ключа: ${bad}`:''}${missing.length?` · нет в копии, не трогаем: ${escapeHtml(missing.join(', '))}`:''}</div>
+    ${n?`<div class="settings-desc">Записей на сервер: ${n}${n>SPARK_WRITES_DAY?' — больше дневного лимита (20 000), остаток допишется на следующий день через «Продолжить»':''}${p.resume?'':' · перед заменой сохранится снимок текущих данных'}</div>`:''}
+    <div class="settings-desc" id="restore-progress" style="margin-top:6px"></div>
+    <div style="display:flex;gap:6px;margin-top:10px">
+      ${n?`<button class="settings-btn" style="background:var(--red-light);color:var(--red)" onclick="applyRestore()">${p.resume?'Продолжить':'Заменить'}</button>`:''}
+      <button class="settings-btn" onclick="cancelRestore()">${n?'Отмена':'Закрыть'}</button>
+    </div></div>`);
+  if(!n&&p.resume)clearRestoreJob();
+}
+function cancelRestore(){
+  if(restoreBusy)return;
+  if(restorePlan&&restorePlan.resume&&restorePlan.ops.length&&confirm('Отменить незавершённое восстановление? Уже записанное останется.'))clearRestoreJob();
+  restorePlan=null;document.getElementById('restore-panel').hidden=true;
+}
+function restoreOpToBatch(b,op){
+  const col=spaceRef.collection(op.s);
+  if(op.s==='importedStatements'){
+    // a tombstone would still "exist" for the duplicate-statement check — delete for real
+    if(op.kind==='del')b.delete(col.doc(op.id));
+    else{const{id,...rest}=op.doc;b.set(col.doc(id),stamped(rest))}
+  }else if(op.kind==='del')b.set(col.doc(encodeURIComponent(op.id)),tombstone(op.s,op.id));
+  else b.set(col.doc(docId(op.s,op.doc)),stamped(op.doc));
+}
+async function applyRestore(){
+  const p=restorePlan;if(!p||restoreBusy)return;
+  if(!p.resume&&!confirm(`Заменить данные: ${p.label}? Записей: ${p.ops.length}.`))return;
+  restoreBusy=true;
+  try{
+    if(!p.resume){
+      setRestoreProgress('Снимок текущих данных…');
+      await createSnapshot('restore'); // mandatory: a failure stops the restore
+      let stashed=true;
+      try{await restoreStash('put',p.parsed)}catch(e){stashed=false}
+      writeRestoreJob({space:spaceRef.id,label:p.label,total:p.ops.length,queued:0,startedAt:Date.now(),stashed});
+    }
+    const job=readRestoreJob()||{space:spaceRef.id,label:p.label,total:p.ops.length,queued:0};
+    const base=p.resume?(job.queued||0):0,sent=[];let done=0;
+    for(const part of chunkList(p.ops,RESTORE_BATCH)){
+      const b=fsDb.batch();
+      part.forEach(op=>restoreOpToBatch(b,op));
+      sent.push(trackWrite(b.commit())); // = commitBatch, keeping the promise to know when the server has it
+      done+=part.length;
+      writeRestoreJob({...job,queued:Math.min(job.total,base+done)});
+      setRestoreProgress(`Записано ${done} / ${p.ops.length}`);
+      await new Promise(r=>setTimeout(r,0));
+    }
+    await reloadAfterBulkChange();
+    refreshDashboard();
+    setRestoreProgress(`Записано ${done} / ${p.ops.length} · ждём сервер (можно закрыть — продолжится при следующем открытии)`);
+    const res=await Promise.allSettled(sent);
+    if(res.some(r=>r.status==='rejected')){
+      setRestoreProgress('Часть записей сервер не принял — позже нажмите «Продолжить»');
+      renderBackupSettings();
+    }else{
+      clearRestoreJob();restorePlan=null;
+      setRestoreProgress('Готово: данные заменены');toast('Данные восстановлены');
+    }
+  }catch(e){
+    setRestoreProgress('Остановлено: '+(e.code||e.message));toast('Восстановление остановлено: '+(e.code||e.message));
+  }finally{restoreBusy=false}
+}
+async function resumeRestore(){
+  const job=readRestoreJob();if(!job)return renderBackupSettings();
+  let src=null;try{src=await restoreStash('get')}catch(e){}
+  if(!src||!src.data){clearRestoreJob();toast('Копия для продолжения не сохранилась — начните восстановление заново');return}
+  await startRestore(src,job.label,true);
 }
 
 async function clearAll(){
@@ -3986,6 +4409,7 @@ async function startApp(){
   try{await Promise.all([boot,load]);await refreshStatus()}
   finally{moveLamp();playStatusIntro()}
   runCooling().then(refreshStatusIfVisible).catch(e=>console.warn('cooling',e));
+  maybeAutoBackup();
   console.info('Firestore reads this session:',readStats);
 }
 async function init(){
