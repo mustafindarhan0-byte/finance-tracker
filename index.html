@@ -635,6 +635,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div style="margin-bottom:8px"><label style="font-size:13px;color:var(--text2)">Дата</label><select class="currency-select" id="map-date" style="width:100%;margin-top:4px"></select></div>
     <div style="margin-bottom:8px"><label style="font-size:13px;color:var(--text2)">Сумма</label><select class="currency-select" id="map-amount" style="width:100%;margin-top:4px"></select></div>
     <div style="margin-bottom:8px"><label style="font-size:13px;color:var(--text2)">Описание</label><select class="currency-select" id="map-desc" style="width:100%;margin-top:4px"></select></div>
+    <div style="font-size:12px;color:var(--text3);margin:4px 0 8px">Если выписка с отдельными столбцами прихода и расхода — укажите их, тогда сумма и тип берутся из них, а не из знака.</div>
+    <div style="margin-bottom:8px"><label style="font-size:13px;color:var(--text2)">Приход (необязательно)</label><select class="currency-select" id="map-income" style="width:100%;margin-top:4px"></select></div>
+    <div style="margin-bottom:8px"><label style="font-size:13px;color:var(--text2)">Расход (необязательно)</label><select class="currency-select" id="map-expense" style="width:100%;margin-top:4px"></select></div>
+    <div style="margin-bottom:8px"><label style="font-size:13px;color:var(--text2)">Тип операции (необязательно)</label><select class="currency-select" id="map-type" style="width:100%;margin-top:4px"></select></div>
+    <div style="margin-bottom:8px"><label style="font-size:13px;color:var(--text2)">Банк</label><select class="currency-select" id="map-bank" style="width:100%;margin-top:4px"><option value="kaspi">Kaspi</option><option value="freedom">Freedom</option><option value="halyk">Halyk</option><option value="forte">Forte</option><option value="">Наличные / не указан</option></select></div>
     <button class="save-btn primary" onclick="analyzeStatement()">Анализировать</button>
   </div>
   <div class="card" id="stmt-results-card" hidden>
@@ -1593,21 +1598,28 @@ function loadStatement(e){
   if(file.name.toLowerCase().endsWith('.pdf'))loadPdfStatement(file);
   else loadCsvStatement(file);
 }
-function loadCsvStatement(file){
-  const reader=new FileReader();
-  reader.onload=async ev=>{
-    if(!(await confirmNotDuplicateStatement(ev.target.result)))return;
-    const lines=ev.target.result.split(/\r?\n/).filter(l=>l.trim());
-    if(lines.length<2)return toast('Файл пустой');
-    const sep=lines[0].includes(';')?';':',';
-    const headers=lines[0].split(sep).map(h=>h.replace(/"/g,'').trim());
-    stmtData=lines.slice(1).map(line=>{const vals=line.split(sep).map(v=>v.replace(/"/g,'').trim());const obj={};headers.forEach((h,i)=>obj[h]=vals[i]||'');return obj}).filter(r=>Object.values(r).some(v=>v));
+// CSV: bytes → text (UTF-8/UTF-16 BOM, windows-1251 fallback) → RFC 4180 rows → header row → manual column mapping.
+// stmtData rows are arrays of cells; the mapping selects hold column indices.
+async function loadCsvStatement(file){
+  try{
+    const text=decodeCsvBuffer(await file.arrayBuffer());
+    if(!(await confirmNotDuplicateStatement(text)))return;
+    const t=parseCsvTable(text);
+    if(!t.rows.length)return toast('Файл пустой');
+    stmtData=t.rows;stmtMissed=[];
+    const opts=Array.from({length:t.width},(_,i)=>`<option value="${i}">${escapeHtml(t.headers[i]||('Столбец '+(i+1)))}</option>`).join('');
+    const none='<option value="">— нет —</option>';
+    document.getElementById('map-date').innerHTML=opts;
+    ['map-amount','map-desc','map-income','map-expense','map-type'].forEach(id=>{document.getElementById(id).innerHTML=none+opts});
+    const g=guessCsvColumns(t.headers);
+    [['map-date','date'],['map-amount','amount'],['map-desc','desc'],['map-income','income'],['map-expense','expense'],['map-type','type']].forEach(([id,k])=>{
+      if(g[k]>=0)document.getElementById(id).value=String(g[k]);else if(k!=='date')document.getElementById(id).value='';
+    });
+    let b='';try{b=detectBank(text)||''}catch(e){}
+    document.getElementById('map-bank').value=['kaspi','freedom','halyk','forte'].includes(b)?b:'';
+    document.getElementById('stmt-results-card').hidden=true;
     document.getElementById('stmt-mapping').hidden=false;
-    ['map-date','map-amount','map-desc'].forEach(id=>{document.getElementById(id).innerHTML=headers.map(h=>`<option value="${escapeHtml(h)}">${escapeHtml(h)}</option>`).join('')});
-    const ag=headers.find(h=>/сумма|amount|sum/i.test(h)),dg=headers.find(h=>/дата|date/i.test(h)),desc=headers.find(h=>/описание|desc|назначение|detail/i.test(h));
-    if(ag)document.getElementById('map-amount').value=ag;if(dg)document.getElementById('map-date').value=dg;if(desc)document.getElementById('map-desc').value=desc;
-  };
-  reader.readAsText(file);
+  }catch(err){toast('Ошибка чтения CSV: '+err.message);console.error(err)}
 }
 
 async function loadPdfStatement(file){
@@ -1960,47 +1972,175 @@ async function showPdfResults(bank,parsed){
   document.getElementById('stmt-results').innerHTML=html||'<div class="empty-state">Все операции уже записаны!</div>';
 }
 
-// CSV helpers: decimal comma / thousands separators, and ISO or dd.mm[.yyyy] dates → match key "mm-dd"
+// CSV helpers (F1.8): pure functions, no DOM — tests/statements/csv.cjs extracts this block.
+// Amounts: "1 500,00-", "(1 500,00)", U+2212, currency symbols/codes, nbsp; one separator followed by exactly
+// 3 digits = thousands ("1.500"/"1,500"), "1,50" = 1.5, mixed "1.500,50"/"1,500.50". Unparsable → 0.
 function parseStmtAmount(s){
-  let v=String(s==null?'':s).replace(/[\s ]/g,'').replace(/[^\d.,\-+]/g,'');
-  const lc=v.lastIndexOf(','),ld=v.lastIndexOf('.');
-  if(lc>=0&&ld>=0)v=lc>ld?v.replace(/\./g,'').replace(',','.'):v.replace(/,/g,'');
-  else if(lc>=0)v=/,\d{1,2}$/.test(v)&&v.indexOf(',')===lc?v.replace(',','.'):v.replace(/,/g,'');
-  const n=parseFloat(v);return isFinite(n)?n:0;
+  let v=String(s==null?'':s).replace(/[\u2212\u2010-\u2014\uFE63\uFF0D]/g,'-').replace(/[\s\u00A0\u202F\u2009'’]/g,'').replace(/[^\d.,\-+()]/g,'');
+  if(!/\d/.test(v))return 0;
+  const neg=/^\(.*\)$/.test(v)||/^\+?-/.test(v)||/-\)?$/.test(v);
+  let n=v.replace(/[^\d.,]/g,'');
+  const lc=n.lastIndexOf(','),ld=n.lastIndexOf('.');
+  if(lc>=0&&ld>=0)n=lc>ld?n.replace(/\./g,'').replace(',','.'):n.replace(/,/g,'');
+  else if(lc>=0||ld>=0){
+    const parts=n.split(lc>=0?',':'.');
+    if(parts.length>2)n=parts.join('');
+    else if(parts[1].length===3&&parts[0]!==''&&!/^0+$/.test(parts[0]))n=parts.join('');
+    else n=parts[0]+'.'+parts[1];
+  }
+  const x=parseFloat(n);if(!isFinite(x))return 0;
+  return neg?-x:x;
 }
+function stmtValidYmd(y,m,d){return y>=1990&&y<=2100&&m>=1&&m<=12&&d>=1&&d<=new Date(Date.UTC(y,m,0)).getUTCDate()}
+// Dates → {iso:'yyyy-mm-dd'|null, key:'mm-dd'|''}. Day-first always (dd/mm/yyyy). Excel serials: days since 1899-12-30.
+// "dd.mm" without a year gives only the month-day key (usable for matching, never written as a date).
 function parseStmtDate(s){
-  s=String(s||'');let m=s.match(/(\d{4})[.\-\/](\d{2})[.\-\/](\d{2})/);
-  if(m)return{iso:m[1]+'-'+m[2]+'-'+m[3],key:m[2]+'-'+m[3]};
-  m=s.match(/(\d{2})[.\-\/](\d{2})[.\-\/](\d{4})/);
-  if(m)return{iso:m[3]+'-'+m[2]+'-'+m[1],key:m[2]+'-'+m[1]};
-  m=s.match(/(\d{2})[.\-\/](\d{2})/);
-  return m?{iso:null,key:m[2]+'-'+m[1]}:{iso:null,key:''};
+  s=String(s==null?'':s).trim();
+  const p2=n=>String(n).padStart(2,'0'),bad={iso:null,key:''};
+  const out=(y,m,d)=>stmtValidYmd(y,m,d)?{iso:y+'-'+p2(m)+'-'+p2(d),key:p2(m)+'-'+p2(d)}:bad;
+  let m=s.match(/^(\d{5})(?:[.,]\d+)?$/);
+  if(m){const n=+m[1];if(n<32874||n>73415)return bad;const d=new Date(Date.UTC(1899,11,30)+n*86400000);return out(d.getUTCFullYear(),d.getUTCMonth()+1,d.getUTCDate())}
+  m=s.match(/(?:^|\D)(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})(?!\d)/);
+  if(m)return out(+m[1],+m[2],+m[3]);
+  m=s.match(/(?:^|\D)(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4}|\d{2})(?!\d)/);
+  if(m)return out(m[3].length===2?2000+(+m[3]):+m[3],+m[2],+m[1]);
+  m=s.match(/^(\d{1,2})[.\/](\d{1,2})$/);
+  if(m&&+m[2]>=1&&+m[2]<=12&&+m[1]>=1&&+m[1]<=31)return{iso:null,key:p2(m[2])+'-'+p2(m[1])};
+  return bad;
+}
+// RFC 4180: quoted fields may contain the delimiter, line breaks and "" (escaped quote); CRLF/LF/CR row ends.
+function parseCsvRows(text,delim){
+  const rows=[],n=text.length;let row=[],f='',q=false,i=0;
+  while(i<n){
+    const c=text[i];
+    if(q){
+      if(c==='"'){if(text[i+1]==='"'){f+='"';i+=2;continue}q=false;i++;continue}
+      f+=c;i++;continue;
+    }
+    if(c==='"'&&!f.trim()){q=true;f='';i++;continue}
+    if(c===delim){row.push(f);f='';i++;continue}
+    if(c==='\r'||c==='\n'){row.push(f);rows.push(row);row=[];f='';i+=c==='\r'&&text[i+1]==='\n'?2:1;continue}
+    f+=c;i++;
+  }
+  if(f!==''||row.length){row.push(f);rows.push(row)}
+  return rows;
+}
+// Delimiter = the candidate giving the most rows with one consistent field count (more fields win).
+function detectCsvDelimiter(text){
+  const sample=String(text||'').slice(0,20000);let best=';',bestScore=0;
+  for(const d of[';','\t',',']){
+    const counts={};
+    parseCsvRows(sample,d).forEach(r=>{if(r.length>1&&r.some(c=>c.trim()))counts[r.length]=(counts[r.length]||0)+1});
+    let score=0;for(const k in counts)score=Math.max(score,counts[k]*(k-1));
+    if(score>bestScore){bestScore=score;best=d}
+  }
+  return best;
+}
+const CSV_HEAD_RE=/дата|date|сумм|amount|sum|описан|desc|назнач|детал|detail|приход|расход|дебет|кредит|debit|credit|операц|operation|валют|currency|тип|type|баланс|balance|остаток|комисс|получат|контрагент/i;
+function csvCellIsData(c){return parseStmtDate(c).iso!==null||/\d/.test(c)&&/^[\s\d.,\-+()\u2212₸$€]+$/.test(c)}
+// Header = first row (of the first 50) with ≥3 non-empty, non-numeric, non-date cells and ≥2 header-like words;
+// preamble lines are skipped. Fallbacks: first such row of text cells, then first row with ≥3 non-empty cells, then row 0.
+function findCsvHeaderRow(rows){
+  const lim=Math.min(rows.length,50);let textRow=-1,anyRow=-1;
+  for(let i=0;i<lim;i++){
+    const cells=rows[i].map(c=>String(c==null?'':c).trim()).filter(Boolean);
+    if(cells.length<3)continue;
+    if(anyRow<0)anyRow=i;
+    if(cells.some(csvCellIsData))continue;
+    if(cells.filter(c=>CSV_HEAD_RE.test(c)).length>=2)return i;
+    if(textRow<0&&cells.filter(c=>/\p{L}/u.test(c)).length>=cells.length-1)textRow=i;
+  }
+  return textRow>=0?textRow:anyRow>=0?anyRow:0;
+}
+function parseCsvTable(text){
+  text=String(text||'').replace(/^\uFEFF/,'');
+  const delim=detectCsvDelimiter(text);
+  const all=parseCsvRows(text,delim).map(r=>r.map(c=>c.trim()));
+  const h=findCsvHeaderRow(all),headers=all[h]||[];
+  const rows=all.slice(h+1).filter(r=>r.some(c=>c));
+  const width=rows.slice(0,200).reduce((w,r)=>Math.max(w,r.length),headers.length);
+  return{delim,headerRow:h,headers,rows,width};
+}
+function countFffd(t){return(String(t).match(/\uFFFD/g)||[]).length}
+function looksMisdecoded(t){const n=countFffd(t);return n>=3&&n/Math.max(t.length,1)>0.01}
+// File bytes → text: UTF-16 by BOM, else UTF-8; many U+FFFD → retry as windows-1251. BOM stripped.
+function decodeCsvBuffer(buf){
+  const b=new Uint8Array(buf);
+  if(b[0]===0xFF&&b[1]===0xFE)return new TextDecoder('utf-16le').decode(b).replace(/^\uFEFF/,'');
+  if(b[0]===0xFE&&b[1]===0xFF)return new TextDecoder('utf-16be').decode(b).replace(/^\uFEFF/,'');
+  let t=new TextDecoder('utf-8').decode(b);
+  if(looksMisdecoded(t)){try{const w=new TextDecoder('windows-1251').decode(b);if(countFffd(w)<countFffd(t))t=w}catch(e){}}
+  return t.replace(/^\uFEFF/,'');
+}
+// Column guesses by header text → indices (-1 = none). Separate debit/credit columns are guessed only
+// when both are present (or there is no amount column).
+function guessCsvColumns(headers){
+  const h=headers.map(x=>String(x==null?'':x).trim().toLowerCase());
+  const find=(re,not)=>h.findIndex(x=>x&&re.test(x)&&!(not&&not.test(x)));
+  const dc=/приход|расход|дебет|кредит|debit|credit|поступ|списан|зачисл/;
+  const g={date:find(/дата|date/),amount:find(/сумм|amount|sum/,dc),desc:find(/описан|desc|назнач|детал|detail|коммент/),
+    income:find(/приход|кредит|credit|поступ|зачисл/),expense:find(/расход|дебет|debit|списан/),type:find(/^(тип|type|вид)|^операция$/)};
+  if((g.income<0||g.expense<0||g.income===g.expense)&&g.amount>=0){g.income=-1;g.expense=-1}
+  return g;
+}
+// Value of a "Тип" cell → 'income' | 'expense' | '' (unknown → caller falls back to the amount's sign).
+function stmtTypeFromCell(s){
+  s=String(s==null?'':s).trim().toLowerCase();if(!s)return'';
+  if(/^[-\u2212]$|^(d|dr|db)$/.test(s))return'expense';
+  if(/^\+$|^(c|cr)$/.test(s))return'income';
+  if(/возврат|refund/.test(s))return'income';
+  if(/спис|расход|дебет|debit|withdraw|expense|покупк|оплат|снят|погаш|плат[её]ж|outgoing/.test(s))return'expense';
+  if(/приход|поступ|зачисл|пополн|кредит|credit|income|доход|deposit|incoming/.test(s))return'income';
+  return'';
+}
+// One CSV row → [{type,amount}] (amount > 0). map = column indices {amount,income,expense,type}, -1 = not set.
+// With "Приход"/"Расход" columns set, they alone give type and amount (a row with both yields two entries).
+function stmtRowEntries(row,map){
+  const has=i=>typeof i==='number'&&i>=0,cell=i=>has(i)&&row[i]!=null?String(row[i]):'';
+  if(has(map.income)||has(map.expense)){
+    const out=[],exp=Math.abs(parseStmtAmount(cell(map.expense))),inc=Math.abs(parseStmtAmount(cell(map.income)));
+    if(exp)out.push({type:'expense',amount:exp});
+    if(inc)out.push({type:'income',amount:inc});
+    return out;
+  }
+  const raw=parseStmtAmount(cell(map.amount));if(!raw)return[];
+  const t=has(map.type)?stmtTypeFromCell(cell(map.type)):'';
+  return[{type:t||(raw>0?'income':'expense'),amount:Math.abs(raw)}];
 }
 
 async function analyzeStatement(){
   stmtMode='csv';
-  const dateCol=document.getElementById('map-date').value,amtCol=document.getElementById('map-amount').value,descCol=document.getElementById('map-desc').value;
+  const col=id=>{const v=document.getElementById(id).value;return v===''?-1:+v};
+  const map={date:col('map-date'),amount:col('map-amount'),desc:col('map-desc'),income:col('map-income'),expense:col('map-expense'),type:col('map-type')};
+  if(map.date<0)return toast('Выберите столбец даты');
+  if(map.amount<0&&map.income<0&&map.expense<0)return toast('Выберите столбец суммы или «Приход»/«Расход»');
+  stmtBank=document.getElementById('map-bank').value;
   const txs=await getTxs();
   document.getElementById('stmt-results-card').hidden=false;
-  const txIndex=buildTxIndex(txs,''),txIndexShort=buildTxIndex(txs,'',true);
-  let matched=0,html='';
+  document.getElementById('stmt-balance-banner').hidden=true;detectedBalance=null;
+  const txIndex=buildTxIndex(txs,stmtBank),txIndexShort=buildTxIndex(txs,stmtBank,true);
+  let matched=0,bad=0,html='';
   stmtMissed=[];
   stmtData.forEach(row=>{
-    const rawAmt=parseStmtAmount(row[amtCol]),amt=Math.abs(rawAmt);
-    const desc=row[descCol]||'',date=row[dateCol]||'';if(amt===0)return;
-    const type=rawAmt>0?'income':'expense';
-    const pd=parseStmtDate(date),dateKey=pd.key;
-    // a year in the date → exact match; "dd.mm" without a year → month-day match (old behaviour)
-    const hit=pd.iso?takeMatch(txIndex,stmtKey(type,pd.iso,amt)):takeMatch(txIndexShort,type+'|'+dateKey+'|'+Math.round(amt*100));
-    if(hit){matched++;html+=`<div class="match">${icoInline('check',14)}${escapeHtml(desc)} &mdash; ${fmtCur(amt)}</div>`}
-    else{
-      const iso=pd.iso||today();
-      const idx=stmtMissed.length;stmtMissed.push({desc,amount:amt,date:iso,type});
-      html+=missRow(idx,desc,amt,date,type);
-    }
+    const dateRaw=String(row[map.date]==null?'':row[map.date]).trim();if(!dateRaw)return; // totals/balance lines
+    const desc=map.desc<0?'':String(row[map.desc]==null?'':row[map.desc]).trim();
+    const pd=parseStmtDate(dateRaw);
+    stmtRowEntries(row,map).forEach(({type,amount})=>{
+      // a full date → exact match; "dd.mm" without a year → month-day match
+      const hit=pd.iso?takeMatch(txIndex,stmtKey(type,pd.iso,amount)):pd.key?takeMatch(txIndexShort,type+'|'+pd.key+'|'+Math.round(amount*100)):false;
+      if(hit){matched++;html+=`<div class="match">${icoInline('check',14)}${escapeHtml(desc)} &mdash; ${fmtCur(amount)}</div>`}
+      else if(!pd.iso){
+        // no usable date: shown in red, unchecked and not addable (never written with today's date)
+        bad++;
+        html+=`<div class="${type==='income'?'miss-income':'miss'}" title="Дата не распознана"><input type="checkbox" disabled><label style="color:var(--red)">${icoInline('close',14)}${escapeHtml(desc)} &mdash; ${type==='income'?'+':'-'}${fmtCur(amount)} <span style="font-size:11px">${pd.key?'нет года':'дата?'} ${escapeHtml(dateRaw)}</span></label></div>`;
+      }else{
+        const idx=stmtMissed.length;stmtMissed.push({desc,amount,date:pd.iso,type});
+        html+=missRow(idx,desc,amount,dateRaw,type);
+      }
+    });
   });
   const missed=stmtMissed.length,totalMissed=stmtMissed.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0),totalMissedIncome=stmtMissed.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
-  document.getElementById('stmt-summary').innerHTML=`${icoInline('bars',15)}Совпадений: <b>${matched}</b>, пропущено расходов: <b style="color:var(--red)">${fmtCur(totalMissed)}</b>, доходов: <b style="color:var(--green)">${fmtCur(totalMissedIncome)}</b>`;
+  document.getElementById('stmt-summary').innerHTML=`${stmtBank?`${icoInline('bank',15)}<b>${escapeHtml(BANK_NAMES[stmtBank]||stmtBank)}</b><br>`:''}${icoInline('bars',15)}Совпадений: <b>${matched}</b>, пропущено расходов: <b style="color:var(--red)">${fmtCur(totalMissed)}</b>, доходов: <b style="color:var(--green)">${fmtCur(totalMissedIncome)}</b>${bad?`<br><span style="color:var(--red)">Дата не распознана: <b>${bad}</b> (такие строки не добавляются)</span>`:''}`;
   document.getElementById('stmt-batch-bar').hidden=!missed;
   document.getElementById('stmt-results').innerHTML=html||'<div class="empty-state">Нет данных</div>';
 }
