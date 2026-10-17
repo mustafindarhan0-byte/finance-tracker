@@ -74,8 +74,9 @@ body.fx-paused *,body.fx-paused::after{animation-play-state:paused!important}
 .balance-card::before{content:none}
 .balance-amount{background:none!important;-webkit-text-fill-color:currentColor;color:var(--bone)!important;filter:none!important;text-shadow:none!important;font-family:var(--font-display);letter-spacing:-.04em}
 .balance-box{border-color:var(--line);background:transparent}
-.balance-box.income .amount,.recent-amount.income{color:var(--bone)}
-.balance-box.expense .amount,.recent-amount.expense{color:var(--fog)}
+/* F6.4: расходы — основной светлый текст, доходы — сигнал «Денег»; ни то ни другое не бледнее подписей */
+.balance-box.income .amount,.recent-amount.income{color:var(--money)}
+.balance-box.expense .amount,.recent-amount.expense{color:var(--bone)}
 .stat-card .value{color:var(--bone);text-shadow:none;font-family:var(--font-display)}
 .period-tab,.sub-tab{background:var(--ink-2);color:var(--fog);border-radius:var(--radius-sm)}
 .period-tab.active,.sub-tab.active{background:var(--bone);color:#000;box-shadow:none}
@@ -98,7 +99,12 @@ body.fx-paused *,body.fx-paused::after{animation-play-state:paused!important}
 .budget-ring,.plan-ring{filter:none!important}
 .goal-badge{background:var(--ink-2);color:var(--bone)}
 .goal-add-btn{background:var(--ink-2);color:var(--bone)}
-.goal-del-btn{background:var(--red-light);color:var(--red)}
+.goal-del-btn{background:transparent;color:var(--fog);border:1px solid var(--line-2)}
+.goal-del-btn:hover{color:var(--bone);border-color:var(--bone)}
+/* плашка лимита бюджета: монохром, цвет только линией снизу */
+.warning-banner,.warning-banner.orange,.warning-banner.red{background:var(--ink-2);color:var(--bone);border-bottom:1px solid var(--line-2);font-weight:500}
+.warning-banner.orange{border-bottom-color:var(--money)}
+.warning-banner.red{border-bottom-color:var(--body)}
 .bank-card{background:var(--ink-1)!important;border:1px solid var(--line-2);box-shadow:none!important;color:var(--bone);border-radius:var(--radius)}
 .bank-card::after{content:none}
 .bank-card-badge{background:var(--ink-2)}
@@ -345,8 +351,26 @@ body.fx-paused *,body.fx-paused::after{animation-play-state:paused!important}
 .season-word{font-size:64px;right:0;top:0}
 
 /* ── D2: финансы ── */
-#dash-balance{font-size:60px;line-height:1;margin:6px 0 10px;font-weight:700}
-#bank-total{font-size:28px!important}
+/* F6.4: главное число «На счетах»; итог периода — вторичная строка. Размер ужимает fitText() (inline font-size) */
+#bank-total{font-size:60px;line-height:1;margin:6px 0 4px;font-weight:700;white-space:nowrap;overflow:hidden}
+.bank-total-hint{font-size:13px;color:var(--fog);margin-top:8px}
+.bank-total-hint[hidden],.header-btn[hidden]{display:none}
+.link-btn{background:none;border:none;padding:0 2px;color:var(--bone);font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer;min-height:32px}
+.period-net{display:flex;align-items:baseline;gap:12px}
+.period-net-label{flex:0 0 auto;font-size:13px;color:var(--fog)}
+.period-net-amount{flex:1;min-width:0;text-align:right;font-family:var(--font-display);font-size:28px;line-height:1.1;color:var(--bone);white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums}
+.period-card .balance-row{margin-top:12px}
+.balance-box{min-width:0}
+.balance-box .amount{white-space:nowrap;overflow:hidden}
+.stat-card{min-width:0}
+.stat-card .value{white-space:nowrap;overflow:hidden}
+.sphere-total{width:160px;max-width:100%;white-space:nowrap;overflow:hidden}
+.bank-card-balance{white-space:nowrap;overflow:hidden}
+/* шапка «Операций»: кнопка импорта выписки */
+.header-action{font-size:13px;padding:8px 12px;min-height:40px;white-space:nowrap}
+/* «Планы»: 4 сегмента в одну строку на 375 px */
+#view-plans .sub-tab{padding:10px 2px;font-size:13px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:44px}
+.period-tab{min-width:0;padding:8px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:40px}
 .ring-wrap{position:relative;width:230px;height:230px;margin:20px auto}
 .ring-wrap svg{width:100%;height:100%;transform:rotate(-90deg);overflow:visible}
 .ring-track{fill:none;stroke:var(--line);stroke-width:12}
