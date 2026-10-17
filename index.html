@@ -844,11 +844,78 @@ const EXTRA_STORES=['tasks','taskLog','habits','habitChecks','journal','debts','
 const ALL_STORES=['transactions','goals','budgets','templates','settings','learned',...EXTRA_STORES];
 const STORE_KEY_FIELD={budgets:'key',settings:'key',learned:'keyword',habitChecks:'key',bodyWeights:'key'};
 function docId(s,d){return encodeURIComponent(String(d[STORE_KEY_FIELD[s]||'id']))}
-async function dbPut(s,d){await spaceRef.collection(s).doc(docId(s,d)).set(d)}
-async function dbDel(s,id){await spaceRef.collection(s).doc(encodeURIComponent(String(id))).delete()}
-async function dbAll(s){const snap=await spaceRef.collection(s).get();return snap.docs.map(d=>d.data())}
+// Every write carries updatedAt (server time); a delete leaves a tombstone {key, deleted, updatedAt}.
+// Reads then ask the server only for documents changed since the last sync and take the rest from
+// Firestore's own offline cache (persistence). Writes never wait for the server: offline they queue.
+let persistOK=false,pendingWrites=0;
+const readStats={total:0};
+const serverTs=()=>firebase.firestore.FieldValue.serverTimestamp();
+function stamped(d){return{...d,updatedAt:serverTs()}}
+function tombstone(s,id){return{[STORE_KEY_FIELD[s]||'id']:String(id),deleted:true,updatedAt:serverTs()}}
+function trackWrite(p){
+  pendingWrites++;renderSyncState();
+  p.catch(err=>{console.warn('write failed',err);toast('Не сохранилось на сервере: '+(err.code||err.message))})
+   .finally(()=>{pendingWrites--;renderSyncState()});
+  return p;
+}
+function commitBatch(b){trackWrite(b.commit())}
+async function dbPut(s,d){trackWrite(spaceRef.collection(s).doc(docId(s,d)).set(stamped(d)))}
+async function dbDel(s,id){trackWrite(spaceRef.collection(s).doc(encodeURIComponent(String(id))).set(tombstone(s,id)))}
+function countRead(s,n){readStats[s]=(readStats[s]||0)+n;readStats.total+=n}
+function syncKey(s){return 'sync:'+spaceRef.id+':'+s}
+function readSyncMark(s){try{return JSON.parse(localStorage.getItem(syncKey(s))||'null')}catch(e){return null}}
+// mark = newest updatedAt seen, kept to the nanosecond: a batch shares one server timestamp, so the next
+// delta asks strictly "newer than" it and does not fetch that batch again
+function writeSyncMark(s,snap,prev,count){
+  let best=prev&&prev.s!=null?{s:prev.s,ns:prev.ns}:{s:-1,ns:0};
+  snap.docs.forEach(d=>{const u=d.get('updatedAt');if(u&&u.seconds!=null&&(u.seconds>best.s||(u.seconds===best.s&&u.nanoseconds>best.ns)))best={s:u.seconds,ns:u.nanoseconds}});
+  try{localStorage.setItem(syncKey(s),JSON.stringify({s:best.s,ns:best.ns,n:count}))}catch(e){}
+}
+const loadingAll={};
+function dbAll(s){
+  if(loadingAll[s])return loadingAll[s];
+  return loadingAll[s]=dbAllInner(s).finally(()=>{delete loadingAll[s]});
+}
+async function dbAllInner(s){
+  const col=spaceRef.collection(s),mark=persistOK?readSyncMark(s):null;
+  if(mark){
+    try{
+      const delta=mark.s>=0
+        ?await col.where('updatedAt','>',new firebase.firestore.Timestamp(mark.s,mark.ns)).get()
+        :await col.where('updatedAt','>=',new firebase.firestore.Timestamp(0,0)).get();
+      countRead(s,Math.max(1,delta.size));
+      const cached=await col.get({source:'cache'});
+      // the browser may have evicted the cache while localStorage survived — then read everything again
+      if(cached.size>=Math.floor((mark.n||0)*0.9)){
+        writeSyncMark(s,delta,mark,cached.size);
+        return cached.docs.map(d=>d.data()).filter(x=>!x.deleted);
+      }
+    }catch(e){console.warn('delta read',s,e)}
+  }
+  const snap=await col.get();
+  countRead(s,Math.max(1,snap.size));
+  if(persistOK)writeSyncMark(s,snap,null,snap.size);
+  return snap.docs.map(d=>d.data()).filter(x=>!x.deleted);
+}
+function clearSyncMarks(){try{Object.keys(localStorage).filter(k=>k.startsWith('sync:')).forEach(k=>localStorage.removeItem(k))}catch(e){}}
+// another device ran "clear all": hard deletes don't reach this cache, so resync everything
+async function checkRemoteReset(){
+  try{
+    const info=await spaceRef.collection('_meta').doc('info').get();countRead('_meta',1);
+    const r=info.exists&&info.get('resetAt');const ms=r&&r.toMillis?r.toMillis():0;
+    const key='reset:'+spaceRef.id,seen=+(localStorage.getItem(key)||0);
+    if(ms>seen){clearSyncMarks();localStorage.setItem(key,String(ms))}
+  }catch(e){}
+}
+function renderSyncState(){
+  const el=document.getElementById('st-sync');if(!el)return;
+  const off=navigator.onLine===false;
+  el.textContent=off?(pendingWrites?`офлайн · не отправлено: ${pendingWrites}`:'офлайн'):'';
+  el.classList.toggle('on',!!el.textContent);
+}
+window.addEventListener('online',renderSyncState);window.addEventListener('offline',renderSyncState);
 async function dbClear(s){
-  const snap=await spaceRef.collection(s).get();
+  const snap=await spaceRef.collection(s).get();countRead(s,Math.max(1,snap.size));
   for(let i=0;i<snap.docs.length;i+=450){
     const batch=fsDb.batch();
     snap.docs.slice(i,i+450).forEach(d=>batch.delete(d.ref));
@@ -874,7 +941,7 @@ async function connectSpace(spaceId){
     // that block the app from loading; offline cache is a nice-to-have, not a requirement.
     try{
       await Promise.race([
-        fsDb.enablePersistence({synchronizeTabs:true}),
+        fsDb.enablePersistence({synchronizeTabs:true}).then(()=>{persistOK=true}),
         new Promise(res=>setTimeout(res,3000))
       ]);
     }catch(e){}
@@ -912,8 +979,8 @@ async function uploadLegacyData(legacy){
     const items=legacy[s]||[];if(!items.length)continue;
     for(let i=0;i<items.length;i+=450){
       const batch=fsDb.batch();
-      items.slice(i,i+450).forEach(item=>batch.set(spaceRef.collection(s).doc(docId(s,item)),item));
-      await batch.commit();
+      items.slice(i,i+450).forEach(item=>batch.set(spaceRef.collection(s).doc(docId(s,item)),stamped(item)));
+      commitBatch(batch);
     }
   }
 }
@@ -997,6 +1064,7 @@ async function getTxs(){
   txCache=await dbAll('transactions');txDirty=false;return txCache;
 }
 function dirtyTx(){txDirty=true}
+function txCacheRemove(id){if(txCache)txCache=txCache.filter(t=>t.id!==id)}
 
 // ── Utils ──
 const fmt=n=>Number(n).toLocaleString('ru-RU');
@@ -1043,7 +1111,7 @@ async function undoTx(id){
   undoing.add(id);
   document.getElementById('toast').classList.remove('show');
   await goalRollback(id);
-  await dbDel('transactions',id);dirtyTx();
+  await dbDel('transactions',id);txCacheRemove(id);
   document.getElementById('toast').classList.remove('show');
   toast('Отменено');
   checkAchievements();
@@ -1221,7 +1289,7 @@ function renderCmdBanks(){
 }
 async function saveTx(desc,amount,catId,bank){
   const tx={id:uid(),type:currentType,amount,category:catId,description:desc,date:today(),createdAt:Date.now(),source:'manual',bank:bank||currentBank||'cash'};
-  await dbPut('transactions',tx);dirtyTx();
+  await dbPut('transactions',tx);if(txCache)txCache.push(tx);
   if(catId&&catId.startsWith('goal_'))await contributeToGoal(catId.slice(5),amount);
   return tx;
 }
@@ -1361,7 +1429,7 @@ async function exportHistoryFiltered(){
   a.href=url;a.download=`finance-${historyBank||'all'}-${today()}.json`;a.click();URL.revokeObjectURL(url);
   toast(`Экспортировано: ${txs.length}`);
 }
-async function deleteTx(id){if(!confirm('Удалить запись?'))return;await goalRollback(id);await dbDel('transactions',id);dirtyTx();refreshHistory();toast('Удалено')}
+async function deleteTx(id){if(!confirm('Удалить запись?'))return;await goalRollback(id);await dbDel('transactions',id);txCacheRemove(id);refreshHistory();toast('Удалено')}
 
 // ── Stats ──
 async function refreshStats(){
@@ -1555,8 +1623,7 @@ function registerGoalCategories(goals){
 }
 async function contributeToGoal(id,amount){
   // Atomic: concurrent devices / rapid repeats never lose an increment; negative amount = rollback
-  try{await spaceRef.collection('goals').doc(encodeURIComponent(String(id))).update({currentAmount:firebase.firestore.FieldValue.increment(amount)})}
-  catch(e){console.warn('contributeToGoal:',e.message)}
+  trackWrite(spaceRef.collection('goals').doc(encodeURIComponent(String(id))).update({currentAmount:firebase.firestore.FieldValue.increment(amount),updatedAt:serverTs()}));
 }
 async function goalRollback(txId){
   const t=(await getTxs()).find(x=>x.id===txId);
@@ -2281,7 +2348,8 @@ async function undoStmtImport(){
   if(!confirm(`Удалить ${li.ids.length} операций, добавленных из выписки?`))return;
   lastImport={ids:[],goals:{},hash:null};
   try{
-    for(let i=0;i<li.ids.length;i+=450){const b=fsDb.batch();li.ids.slice(i,i+450).forEach(id=>b.delete(spaceRef.collection('transactions').doc(encodeURIComponent(id))));await b.commit()}
+    for(let i=0;i<li.ids.length;i+=450){const b=fsDb.batch();li.ids.slice(i,i+450).forEach(id=>b.set(spaceRef.collection('transactions').doc(encodeURIComponent(id)),tombstone('transactions',id)));commitBatch(b)}
+    if(txCache)txCache=txCache.filter(t=>!li.ids.includes(t.id));
     for(const[g,amt]of Object.entries(li.goals))await contributeToGoal(g,-amt);
     if(li.hash)await spaceRef.collection('importedStatements').doc(li.hash).delete();
     dirtyTx();toast('Импорт отменён');
@@ -2309,9 +2377,10 @@ async function addSelectedStmt(){
         if(stmtBank)tx.bank=stmtBank;
         lastImport.ids.push(tx.id);
         if(catId.startsWith('goal_'))goalAdds[catId.slice(5)]=(goalAdds[catId.slice(5)]||0)+item.amount;
-        batch.set(spaceRef.collection('transactions').doc(docId('transactions',tx)),tx);
+        batch.set(spaceRef.collection('transactions').doc(docId('transactions',tx)),stamped(tx));
+        if(txCache)txCache.push(tx);
       }
-      await batch.commit();
+      commitBatch(batch);
     }
     for(const[g,amt]of Object.entries(goalAdds))await contributeToGoal(g,amt);
     lastImport.goals=goalAdds;
@@ -2428,6 +2497,8 @@ async function clearAll(){
   if(!confirm('Точно уверены?'))return;
   try{
     await Promise.all([dbClear('transactions'),dbClear('goals'),dbClear('budgets'),dbClear('templates'),dbClear('learned'),dbClear('settings'),dbClear('importedStatements'),...EXTRA_STORES.map(dbClear)]);
+    trackWrite(spaceRef.collection('_meta').doc('info').set({resetAt:serverTs()},{merge:true}));
+    clearSyncMarks();
     dirtyTx();dirtyTasks();learnedMap={};settingsCache=null;currency='KZT';
     toast('Все данные удалены');refreshDashboard();
   }catch(err){
@@ -2511,14 +2582,10 @@ async function completeTaskInner(id,opts){
   if(nd)upd.due=nd;else{upd.done=true;upd.doneAt=Date.now()}
   taskUndo[log.id]={taskId:t.id,prev:{due:t.due,done:t.done,doneAt:t.doneAt}};
   cachePut(tasksCache,upd);cachePut(logCache,log);renderTasks();
-  try{
-    const b=fsDb.batch();
-    b.set(spaceRef.collection('taskLog').doc(docId('taskLog',log)),log);
-    b.set(spaceRef.collection('tasks').doc(docId('tasks',upd)),upd);
-    await b.commit();
-  }catch(err){
-    toast('Не удалось сохранить: '+err.message);dirtyTasks();refreshTasks();return;
-  }
+  const b=fsDb.batch();
+  b.set(spaceRef.collection('taskLog').doc(docId('taskLog',log)),stamped(log));
+  b.set(spaceRef.collection('tasks').doc(docId('tasks',upd)),stamped(upd));
+  commitBatch(b);
   const rec=taskUndo[log.id];rec.undos=[];
   for(const hk of taskCompleteHooks){try{const u=await hk(t,log,opts);if(u)rec.undos.push(u)}catch(e){console.warn('task hook',e)}}
   checkAchievements();
@@ -2538,14 +2605,10 @@ async function undoTask(logId){
   const t=tasksCache.find(x=>x.id===rec.taskId);if(!t)return;
   const restored={...t,...rec.prev};
   cachePut(tasksCache,restored);logCache=logCache.filter(l=>l.id!==logId);renderTasks();
-  try{
-    const b=fsDb.batch();
-    b.delete(spaceRef.collection('taskLog').doc(encodeURIComponent(String(logId))));
-    b.set(spaceRef.collection('tasks').doc(docId('tasks',restored)),restored);
-    await b.commit();
-  }catch(err){
-    toast('Не удалось отменить: '+err.message);dirtyTasks();refreshTasks();return;
-  }
+  const b=fsDb.batch();
+  b.set(spaceRef.collection('taskLog').doc(encodeURIComponent(String(logId))),tombstone('taskLog',logId));
+  b.set(spaceRef.collection('tasks').doc(docId('tasks',restored)),stamped(restored));
+  commitBatch(b);
   document.getElementById('toast').classList.remove('show');
   toast('Отменено');
 }
@@ -3425,7 +3488,7 @@ function renderStatus(){
   const foot=risk.length?`серия «${escapeHtml(risk[0].name)}» (${habitStreak(risk[0].id,checks)}) оборвётся`:Object.keys(warn).length?`${SPHERES[Object.keys(warn)[0]]} остынет через ${warn[Object.keys(warn)[0]]} ${dayWord(warn[Object.keys(warn)[0]])}`:'штрафа нет';
   const ev=upcomingEvents(tasksCache||[],t0,7).slice(0,3);
   const prevXp=heroPrev?heroPrev.into:hero.into,prevPct=heroPrev?heroPrev.pct:hero.pct;
-  root.innerHTML=`<div class="st-head"><div class="st-title">▸ СИСТЕМА</div><div class="st-date">${dateStr}</div><button class="header-btn" data-v="settings" onclick="switchView(this.dataset.v)" aria-label="Настройки">${ico('settings',20)}</button></div>
+  root.innerHTML=`<div class="st-head"><div class="st-title">▸ СИСТЕМА</div><div class="st-date">${dateStr}<span class="st-sync" id="st-sync"></span></div><button class="header-btn" data-v="settings" onclick="switchView(this.dataset.v)" aria-label="Настройки">${ico('settings',20)}</button></div>
   <div class="marquee" id="st-marquee" aria-label="Сводка дня"></div>
   <div class="hero hud${introPending?' hero-intro':''}" id="hero">
     <div class="hero-plate">УРОВЕНЬ</div>
@@ -3438,6 +3501,7 @@ function renderStatus(){
   <div class="bento">${tile('money')}${tile('dfir')}${tile('body',true)}</div>
   <div class="card hud spot qw"><div class="qw-head"><span>Квест дня</span><span class="qw-count">${sm.done}/${sm.total}</span></div>${taskRows}${habRows}${(!taskRows&&!habRows)?'<div class="cmd-hint" style="padding:10px 0">На сегодня всё выполнено</div>':''}<div class="qw-foot">если не выполнить: ${foot}</div></div>
   <div class="card"><div class="card-title">Ближайшее</div>${ev.length?ev.map(e=>`<div class="upc-row"><div class="upc-when">${escapeHtml(formatTaskDate(e.date))}${e.time?' · '+escapeHtml(e.time):''}</div><div class="upc-title">${escapeHtml(e.title)}${e.repeat?ico('repeat',12):''}</div></div>`).join(''):'<div class="cmd-hint">Ближайших событий нет</div>'}</div>`;
+  renderSyncState();
   if(window.fxMarquee)fxMarquee(document.getElementById('st-marquee'),mq.map(escapeHtml).join(' &nbsp;•&nbsp; '));
   // тикеры: XP и полоса дотягиваются, уровень считается
   requestAnimationFrame(()=>{const f=document.getElementById('xp-fill');if(f)f.style.transform=`scaleX(${hero.pct.toFixed(3)})`});
@@ -3546,10 +3610,12 @@ async function startApp(){
   document.getElementById('view-status').classList.add('active');
   document.getElementById('bottom-nav').hidden=false;
   // the Status frame is drawn at once (empty data), so the screen is never a bare black grid while Firestore loads
+  if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
   introPending=!fxRM();
   renderStatus();
   const boot=window.fxBoot?fxBoot():Promise.resolve();
   const load=(async()=>{
+    await checkRemoteReset();
     const [cur,learned,goals]=await Promise.all([getSetting('currency'),dbAll('learned'),dbAll('goals')]);
     if(cur){currency=cur;document.getElementById('currency-sel').value=currency}
     learned.forEach(l=>{learnedMap[l.keyword]=l.category});
@@ -3558,9 +3624,10 @@ async function startApp(){
   document.getElementById('smart-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();handleSmartInput()}});
   buildMoneyTabs();moveLamp();
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view==='status'));
-  try{await Promise.all([boot,load]);try{await runCooling()}catch(e){console.warn('cooling',e)}await refreshStatus()}
+  try{await Promise.all([boot,load]);await refreshStatus()}
   finally{moveLamp();playStatusIntro()}
-  if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+  runCooling().then(refreshStatusIfVisible).catch(e=>console.warn('cooling',e));
+  console.info('Firestore reads this session:',readStats);
 }
 async function init(){
   const savedSpace=localStorage.getItem('syncSpace');
