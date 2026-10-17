@@ -3862,54 +3862,151 @@ async function allocConfirm(){
 }
 
 // ── Module 5: workouts and body weight ──
-let wk=null,wkCur=0;
+let wk=null,wkCur=0,wkSummary=null;
 const wcol=n=>(colCache[n]&&colCache[n].data)||[];
-function lastDoneEntry(exId){
-  const ws=wcol('workouts').filter(w=>w.done).sort((a,b)=>b.date.localeCompare(a.date)||(b.at||0)-(a.at||0));
-  for(const w of ws){const en=(w.entries||[]).find(e=>e.exId===exId&&(e.reps||[]).some(r=>r!=null));if(en)return en}
+const WK_MAX_KG=500,WK_MAX_REPS=100;
+const isKg=v=>typeof v==='number'&&isFinite(v)&&v>=0;
+const isRep=v=>typeof v==='number'&&Number.isInteger(v)&&v>=0;
+const fmtKg=v=>isKg(v)?fmtNum(v):'';
+const wkAllSets=e=>!!(e&&e.reps&&e.reps.length&&e.reps.every(isRep));
+const wkDate=s=>parseLocalDate(s).toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
+// Field text → {ok,val}: '' → null; garbage or out of range → ok:false (the caller keeps the previous value)
+function parseKg(v){
+  const s=String(v??'').replace(/\s+/g,'').replace(',','.');
+  if(s==='')return{ok:true,val:null};
+  if(!/^(\d+\.?\d*|\.\d+)$/.test(s))return{ok:false};
+  const n=Math.round(parseFloat(s)*100)/100;
+  return n<=WK_MAX_KG?{ok:true,val:n}:{ok:false};
+}
+function parseRepsVal(v){
+  const s=String(v??'').replace(/\s+/g,'');
+  if(s==='')return{ok:true,val:null};
+  if(!/^\d{1,3}$/.test(s))return{ok:false};
+  const n=parseInt(s,10);
+  return n<=WK_MAX_REPS?{ok:true,val:n}:{ok:false};
+}
+// Stored workouts may hold NaN from older versions — normalise in place
+function wkClean(w){
+  (w.entries||[]).forEach(e=>{if(!isKg(e.weight))e.weight=null;e.reps=(e.reps||[]).map(r=>isRep(r)?r:null)});
+  return w;
+}
+function wkFirstOpen(w){const i=(w.entries||[]).findIndex(e=>!wkAllSets(e));return i<0?0:i}
+// Most recent finished workout's entry for the exercise that passes `pred` (default: at least one set logged)
+function lastDoneEntry(exId,pred){
+  const p=pred||(e=>(e.reps||[]).some(isRep));
+  const ws=wcol('workouts').filter(w=>w.done).sort((a,b)=>String(b.date).localeCompare(String(a.date))||(b.at||0)-(a.at||0));
+  for(const w of ws){const en=(w.entries||[]).find(e=>e.exId===exId&&p(e));if(en)return en}
   return null;
 }
-// All sets at repsMax → weight + step; otherwise the same weight; no history → empty
+// Skips finished entries without a usable weight and looks further back
+const lastWeightedEntry=exId=>lastDoneEntry(exId,e=>isKg(e.weight)&&(e.reps||[]).some(isRep));
+// All sets at repsMax → weight + step; otherwise the same weight; no weighted history → empty
 function suggestWeight(ex){
-  const last=lastDoneEntry(ex.id);
-  if(!last||last.weight==null||last.weight==='')return null;
-  const ok=(last.reps||[]).length>=ex.sets&&last.reps.every(r=>r!=null&&r>=ex.repsMax);
+  const last=lastWeightedEntry(ex.id);
+  if(!last)return null;
+  const reps=last.reps||[];
+  const ok=reps.length>=ex.sets&&reps.every(r=>isRep(r)&&r>=ex.repsMax);
   return ok&&ex.step?+(last.weight+ex.step).toFixed(2):last.weight;
+}
+// Exercises with at least one set, sets/reps logged, volume = Σ weight × reps
+function workoutSummary(w){
+  let exercises=0,sets=0,reps=0,volume=0;
+  (w.entries||[]).forEach(e=>{
+    const rs=(e.reps||[]).filter(isRep);if(!rs.length)return;
+    const n=rs.reduce((a,b)=>a+b,0);
+    exercises++;sets+=rs.length;reps+=n;
+    if(isKg(e.weight))volume+=e.weight*n;
+  });
+  return{exercises,total:(w.entries||[]).length,sets,reps,volume:Math.round(volume*10)/10};
+}
+// Unfinished workout left from an earlier day (the newest one)
+function staleWorkout(){
+  const t0=today();
+  return wcol('workouts').filter(w=>!w.done&&w.date&&w.date<t0).sort((a,b)=>b.date.localeCompare(a.date)||(b.at||0)-(a.at||0))[0]||null;
 }
 async function refreshBody(){
   await Promise.all([getCol('workoutPlans'),getCol('workouts'),getCol('bodyWeights'),getTasks()]);
-  if(!wk){wk=wcol('workouts').find(w=>!w.done&&w.date===today())||null}
+  if(!wk){const w=wcol('workouts').find(w=>!w.done&&w.date===today());if(w){wk=wkClean(w);wkCur=wkFirstOpen(w)}}
   renderBody();
 }
 function planById(id){return wcol('workoutPlans').find(p=>p.id===id)}
+// Today's workout task first, then the oldest overdue one, then the nearest upcoming
 function pendingWorkoutTask(){
-  const ts=(tasksCache||[]).filter(t=>t.workoutPlan&&!t.done).sort((a,b)=>(a.due||'').localeCompare(b.due||''));
-  return ts.find(t=>t.due===today())||ts.find(t=>t.due>today())||null;
+  const t0=today(),ts=(tasksCache||[]).filter(t=>t.workoutPlan&&!t.done&&t.due).sort((a,b)=>a.due.localeCompare(b.due)||(a.time||'').localeCompare(b.time||''));
+  return ts.find(t=>t.due===t0)||ts.find(t=>t.due<t0)||ts.find(t=>t.due>t0)||null;
 }
 async function startWorkout(planId,taskId){
   const plan=planById(planId);if(!plan)return toast('План не найден');
   wk={id:uid(),planId,taskId:taskId||null,date:today(),at:Date.now(),done:false,
     entries:plan.exercises.map(ex=>({exId:ex.id,weight:suggestWeight(ex),reps:Array(ex.sets).fill(null)}))};
-  wkCur=0;await colPut('workouts',wk);renderBody();
+  wkCur=0;wkSummary=null;await colPut('workouts',wk);renderBody();
+}
+function resumeWorkout(id){
+  const w=wcol('workouts').find(x=>x.id===id&&!x.done);if(!w)return refreshBody();
+  wk=wkClean(w);wkCur=wkFirstOpen(w);wkSummary=null;renderBody();
+}
+async function dropWorkout(id){
+  const w=wcol('workouts').find(x=>x.id===id&&!x.done);if(!w)return renderBody();
+  if(!confirm('Отменить незавершённую тренировку от '+wkDate(w.date)+'?'))return;
+  await colDel('workouts',w.id);renderBody();
 }
 function wkSave(){return colPut('workouts',wk)}
-function setWeight(v){const e=wk.entries[wkCur];e.weight=v===''?null:parseFloat(String(v).replace(',','.'));wkSave();renderBody(true)}
-function setReps(i,v){
-  const e=wk.entries[wkCur],ex=planById(wk.planId).exercises[wkCur];
-  e.reps[+i]=v===''?null:parseInt(v,10);wkSave();
-  if(e.reps.length&&e.reps.every(r=>r!=null))fxFlash(document.getElementById('sets-wrap'));
-  renderBody(true);
+// Input handlers update the model and the small dependent parts only — the inputs themselves are never rebuilt here
+function wkInputIdx(el){return el&&el.dataset&&el.dataset.x!=null?+el.dataset.x:wkCur}
+function setWeight(v,el){
+  if(!wk)return;
+  const e=wk.entries[wkInputIdx(el)];if(!e)return;
+  const r=parseKg(v);
+  if(!r.ok){if(el)el.value=fmtKg(e.weight);return wkHint('Вес — число в кг, например 62,5')}
+  wkHint('');if(el)el.value=fmtKg(r.val);
+  if(e.weight===r.val)return;
+  e.weight=r.val;wkSave();wkPaint();
 }
-function pickExercise(i){wkCur=+i;renderBody()}
+function setReps(i,v,el){
+  if(!wk)return;
+  const x=wkInputIdx(el),e=wk.entries[x];i=+i;if(!e)return;
+  const r=parseRepsVal(v);
+  if(!r.ok){if(el)el.value=isRep(e.reps[i])?e.reps[i]:'';return wkHint('Повторы — целое число от 0 до '+WK_MAX_REPS)}
+  wkHint('');if(el)el.value=r.val==null?'':r.val;
+  if(e.reps[i]===r.val)return;
+  const was=wkAllSets(e);e.reps[i]=r.val;wkSave();
+  if(!was&&wkAllSets(e)&&x===wkCur)fxFlash(document.getElementById('sets-wrap'));
+  wkPaint();
+}
+function wkHint(msg){
+  const h=document.getElementById('wo-hint');if(!h)return;
+  h.textContent=msg||h.dataset.base||'';h.classList.toggle('warn',!!msg);
+}
+function wkCaption(ex,en){
+  const last=lastWeightedEntry(ex.id),d=(isKg(en.weight)&&last)?+(en.weight-last.weight).toFixed(2):null;
+  const cap=ex.step===0?'своим весом':d==null?(last?'в прошлый раз '+fmtNum(last.weight)+' кг':'первая запись — введите вес'):(d>0?`сегодня +${fmtNum(d)} кг`:d<0?`сегодня ${fmtNum(d)} кг`:'как в прошлый раз');
+  return String(ex.name).toLowerCase()+', '+cap;
+}
+function wkListHtml(plan){
+  return plan.exercises.map((e,i)=>{const en=wk.entries[i]||{reps:[]},done=wkAllSets(en);return `<div class="habit-row ex-row${i===wkCur?' cur':''}" onclick="pickExercise(${i})"><div class="habit-check${done?' done':''}">${done?ico('check',14):''}</div><div class="habit-name">${escapeHtml(e.name)}</div><div class="cmd-hint">${isKg(en.weight)?fmtNum(en.weight)+' кг':''}</div></div>`}).join('');
+}
+// Repaint what depends on the current exercise's values: caption and the exercise list
+function wkPaint(){
+  const plan=wk&&planById(wk.planId);if(!plan)return;
+  const cap=document.getElementById('wo-cap'),ex=plan.exercises[wkCur],en=wk.entries[wkCur];
+  if(cap&&ex&&en)cap.textContent=wkCaption(ex,en);
+  const list=document.getElementById('wo-list');if(list)list.innerHTML=wkListHtml(plan);
+}
+function pickExercise(i){wkCur=Math.max(0,+i||0);renderBody()}
 async function finishWorkout(){
   if(!wk)return;
+  const s=workoutSummary(wk);
+  if(!s.sets&&!confirm('Ни один подход не заполнен. Всё равно завершить тренировку?'))return;
   const w=wk;wk=null;
   w.done=true;w.at=Date.now();await colPut('workouts',w);
   if(w.taskId){await getTasks();if(tasksCache.some(t=>t.id===w.taskId&&!t.done))await completeTask(w.taskId,{noXp:true})}
-  await awardXp('workout_'+w.id,'body',60,'workout');
+  const xe=await awardXp('workout_'+w.id,'body',60,'workout');
   checkAchievements();
-  toast('Тренировка завершена');renderBody();
+  const plan=planById(w.planId);
+  wkSummary={...s,plan:plan?plan.name:'',xp:xe&&typeof xe.amount==='number'?xe.amount:60};
+  renderBody();
 }
+function closeWorkoutSummary(){wkSummary=null;renderBody()}
 async function cancelWorkout(){
   if(!wk||!confirm('Отменить тренировку?'))return;
   await colDel('workouts',wk.id);wk=null;renderBody();
@@ -3927,6 +4024,20 @@ function sparkline(points,goal){
   const path=points.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(p.kg).toFixed(1)).join(' ');
   return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${goal?`<line x1="0" x2="${W}" y1="${y(goal)}" y2="${y(goal)}" stroke="var(--body)" stroke-width="1" stroke-dasharray="3 4" opacity=".8"/>`:''}<path id="spark-path" d="${path}" fill="none" stroke="var(--bone)" stroke-width="2" stroke-linejoin="round"/>${points.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p.kg)}" r="2.5" fill="var(--bone)"/>`).join('')}</svg>`;
 }
+function wkSummaryHtml(s){
+  const cell=(n,l)=>`<div><div class="wo-sum-num disp">${n}</div><div class="wo-sum-lbl">${l}</div></div>`;
+  return `<div class="card hud wo-sum"><div class="card-title">Тренировка завершена${s.plan?' · '+escapeHtml(s.plan):''}</div>
+    <div class="wo-sum-grid">${cell(s.exercises+'/'+s.total,'упражнений')}${cell(s.volume>0?escapeHtml(fmt(s.volume)):'—','объём, кг × повт.')}${cell('+'+s.xp,'XP · Тело')}</div>
+    <div class="cmd-hint">подходов: ${s.sets} · повторов: ${s.reps}</div>
+    <button class="settings-btn wo-sum-ok" onclick="closeWorkoutSummary()">Готово</button></div>`;
+}
+function wkStaleHtml(w){
+  const plan=planById(w.planId),d=escapeHtml(wkDate(w.date)),s=workoutSummary(w),id=escapeHtml(w.id);
+  return `<div class="card wo-stale"><div class="card-title">Незавершённая тренировка</div>
+    <div class="wo-stale-cap">${plan?escapeHtml(plan.name)+' · ':''}${d} · подходов: ${s.sets}</div>
+    <button class="save-btn primary" data-w="${id}" onclick="resumeWorkout(this.dataset.w)">Продолжить тренировку от ${d}</button>
+    <button class="save-btn neutral" data-w="${id}" onclick="dropWorkout(this.dataset.w)">Отменить её</button></div>`;
+}
 let bodyDrawn=false;
 function renderBody(keepFocus){
   const root=document.getElementById('body-root');if(!root)return;
@@ -3934,22 +4045,28 @@ function renderBody(keepFocus){
         selS=document.activeElement&&document.activeElement.selectionStart;
   const bw=wcol('bodyWeights').slice().sort((a,b)=>a.date.localeCompare(b.date)),lastBw=bw[bw.length-1];
   let html='<div class="header"><h1>Тело</h1></div>';
-  if(wk){
-    const plan=planById(wk.planId),ex=plan.exercises[wkCur],en=wk.entries[wkCur],last=lastDoneEntry(ex.id);
-    const delta=(en.weight!=null&&last&&last.weight!=null)?+(en.weight-last.weight).toFixed(2):null;
-    const cap=ex.step===0?'своим весом':(delta==null?'первая запись — введите вес':(delta>0?`сегодня +${fmtNum(delta)} кг`:delta<0?`сегодня ${fmtNum(delta)} кг`:'как в прошлый раз'));
-    html+=`<div class="card hud wk-hero"><div class="card-title">${escapeHtml(plan.name)} · ${wkCur+1}/${plan.exercises.length}</div>
-      ${ex.step===0?'<div class="kg-input kg-static disp">'+ex.repsMin+(ex.repsMax!==ex.repsMin?'–'+ex.repsMax:'')+'</div>':`<input class="kg-input disp" data-k="w" inputmode="decimal" value="${en.weight==null?'':fmtNum(en.weight)}" placeholder="—" onchange="setWeight(this.value)" aria-label="Рабочий вес, кг">`}
-      <div class="kg-cap">${escapeHtml(ex.name.toLowerCase())}, ${escapeHtml(cap)}</div>
-      <div class="sets" id="sets-wrap">${en.reps.map((r,i)=>`<input class="set-input disp" data-k="s${i}" inputmode="numeric" value="${r==null?'':r}" placeholder="${ex.repsMax}" onchange="setReps(${i},this.value)" aria-label="Подход ${i+1}">`).join('')}</div>
-      <div class="cmd-hint">${ex.sets}×${ex.repsMin}${ex.repsMax!==ex.repsMin?'–'+ex.repsMax:''}${ex.step?' · шаг '+fmtNum(ex.step)+' кг':''}</div></div>
-      <div class="card">${plan.exercises.map((e,i)=>{const done=wk.entries[i].reps.every(r=>r!=null);return `<div class="habit-row ex-row${i===wkCur?' cur':''}" onclick="pickExercise(${i})"><div class="habit-check${done?' done':''}">${done?ico('check',14):''}</div><div class="habit-name">${escapeHtml(e.name)}</div><div class="cmd-hint">${wk.entries[i].weight!=null?fmtNum(wk.entries[i].weight)+' кг':''}</div></div>`}).join('')}</div>
+  const plan=wk&&planById(wk.planId);
+  if(wk&&!(plan&&plan.exercises&&plan.exercises.length)){
+    html+=`<div class="card"><div class="card-title">Тренировка</div><div class="cmd-hint">План этой тренировки не найден</div></div>
+      <button class="save-btn neutral" onclick="cancelWorkout()">Отменить тренировку</button>`;
+  }else if(wk){
+    if(!(wkCur>=0&&wkCur<plan.exercises.length))wkCur=0;
+    const ex=plan.exercises[wkCur],en=wk.entries[wkCur]||(wk.entries[wkCur]={exId:ex.id,weight:null,reps:Array(ex.sets).fill(null)});
+    const base=`${ex.sets}×${ex.repsMin}${ex.repsMax!==ex.repsMin?'–'+ex.repsMax:''}${ex.step?' · шаг '+fmtNum(ex.step)+' кг':''}`;
+    html+=`<div class="card hud wk-hero"><div class="card-title">${escapeHtml(plan.name)} · ${wkCur+1}/${plan.exercises.length}${wk.date!==today()?' · от '+escapeHtml(wkDate(wk.date)):''}</div>
+      ${ex.step===0?'<div class="kg-input kg-static disp">'+ex.repsMin+(ex.repsMax!==ex.repsMin?'–'+ex.repsMax:'')+'</div>':`<input class="kg-input disp" data-k="w" data-x="${wkCur}" inputmode="decimal" autocomplete="off" value="${fmtKg(en.weight)}" placeholder="—" onchange="setWeight(this.value,this)" aria-label="Рабочий вес, кг">`}
+      <div class="kg-cap" id="wo-cap">${escapeHtml(wkCaption(ex,en))}</div>
+      <div class="sets" id="sets-wrap">${en.reps.map((r,i)=>`<input class="set-input disp" data-k="s${i}" data-x="${wkCur}" inputmode="numeric" autocomplete="off" value="${isRep(r)?r:''}" placeholder="${escapeHtml(ex.repsMax)}" onchange="setReps(${i},this.value,this)" aria-label="Подход ${i+1}">`).join('')}</div>
+      <div class="cmd-hint wo-hint" id="wo-hint" data-base="${escapeHtml(base)}" aria-live="polite">${escapeHtml(base)}</div></div>
+      <div class="card" id="wo-list">${wkListHtml(plan)}</div>
       <button class="save-btn primary" onclick="finishWorkout()">Завершить тренировку</button>
       <button class="save-btn neutral" onclick="cancelWorkout()">Отменить</button>`;
   }else{
-    const tk=pendingWorkoutTask(),plans=wcol('workoutPlans').sort((a,b)=>a.id.localeCompare(b.id));
+    if(wkSummary)html+=wkSummaryHtml(wkSummary);
+    const stale=staleWorkout();if(stale)html+=wkStaleHtml(stale);
+    const tk=pendingWorkoutTask(),plans=wcol('workoutPlans').sort((a,b)=>a.id.localeCompare(b.id)),t0=today();
     html+=`<div class="card hud"><div class="card-title">Тренировка дня</div>`
-      +(tk?`<div class="kg-input disp kg-static" style="font-size:64px">${escapeHtml(tk.workoutPlan)}</div><div class="kg-cap">${escapeHtml(tk.title)} · ${escapeHtml(formatTaskDate(tk.due))}${tk.time?' · '+escapeHtml(tk.time):''}</div><button class="save-btn primary" data-p="${escapeHtml(tk.workoutPlan)}" data-t="${escapeHtml(tk.id)}" onclick="startWorkout(this.dataset.p,this.dataset.t)">${tk.due===today()?'Начать':'Начать сейчас'}</button>`:'<div class="empty-state" style="padding:14px 0">Тренировок в плане нет</div>')
+      +(tk?`<div class="kg-input disp kg-static" style="font-size:64px">${escapeHtml(tk.workoutPlan)}</div><div class="kg-cap">${escapeHtml(tk.title)} · ${escapeHtml(formatTaskDate(tk.due))}${tk.due<t0?' · просрочено':''}${tk.time?' · '+escapeHtml(tk.time):''}</div><button class="save-btn primary" data-p="${escapeHtml(tk.workoutPlan)}" data-t="${escapeHtml(tk.id)}" onclick="startWorkout(this.dataset.p,this.dataset.t)">${tk.due===t0?'Начать':'Начать сейчас'}</button>`:'<div class="empty-state" style="padding:14px 0">Тренировок в плане нет</div>')
       +`<div class="body-plans">${plans.map(p=>`<button class="settings-btn" data-p="${escapeHtml(p.id)}" onclick="startWorkout(this.dataset.p,null)">${escapeHtml(p.name)}</button>`).join('')}</div></div>`;
   }
   const lastW=lastBw?lastBw.kg:null;
