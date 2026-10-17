@@ -14,7 +14,7 @@ const els={};
 const el=id=>els[id]||(els[id]={id,value:'',innerHTML:'',hidden:true});
 const ctx={console,TextDecoder,
   document:{getElementById:el},
-  toast:m=>{ctx.lastToast=m},icoInline:()=>'',fmtCur:n=>String(n),
+  toast:m=>{ctx.lastToast=m},icoInline:()=>'',fmtCur:n=>String(n),formatDateShort:d=>d,CATS:{expense:[{id:'other_exp',name:'Другое'}],income:[{id:'other_inc',name:'Другое'}]},CAT_MAP:new Map(),
   BANK_NAMES:{kaspi:'Kaspi Bank',forte:'Forte Bank',halyk:'Halyk Bank',freedom:'Freedom Bank'},
   detectBank:()=>null,confirmNotDuplicateStatement:async()=>true,
   getTxs:async()=>ctx.TXS||[],

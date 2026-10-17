@@ -1851,9 +1851,9 @@ function parseFreedomPdf(text){
 
 function missRow(idx,desc,amount,date,type,opt){
   opt=opt||{};
-  const isIncome=type==='income',cat=opt.cat||(isIncome?'other_inc':'other_exp');
+  const isIncome=type==='income',cat=opt.cat||'';
   const cats=CATS[isIncome?'income':'expense'].concat(isIncome?[]:[...CAT_MAP.values()].filter(c=>c.id.startsWith('goal_')));
-  const sel=`<select class="stmt-cat" data-i="${idx}" onchange="setStmtCat(this.dataset.i,this.value)" aria-label="Категория">${cats.map(c=>`<option value="${escapeHtml(c.id)}"${c.id===cat?' selected':''}>${escapeHtml(c.name)}</option>`).join('')}</select>`;
+  const sel=`<select class="stmt-cat" data-i="${idx}" onchange="setStmtCat(this.dataset.i,this.value)" aria-label="Категория">${cat?'':'<option value="" selected>Авто</option>'}${cats.map(c=>`<option value="${escapeHtml(c.id)}"${c.id===cat?' selected':''}>${escapeHtml(c.name)}</option>`).join('')}</select>`;
   const note=opt.maybe?`<div class="stmt-maybe">Похоже, уже записано: ${escapeHtml(opt.maybe)}</div>`:'';
   return`<div class="${isIncome?'miss-income':'miss'}${opt.maybe?' maybe':''}"><input type="checkbox" id="stmt-chk-${idx}"${opt.unchecked?'':' checked'}><label for="stmt-chk-${idx}">${icoInline(isIncome?'plusCircle':'card',14)}${escapeHtml(desc)} &mdash; ${isIncome?'+':'−'}${fmtCur(amount)} <span style="font-size:11px;color:var(--text3)">${escapeHtml(formatDateShort?formatDateShort(date):date)}</span>${note}</label>${sel}</div>`;
 }
@@ -2184,7 +2184,7 @@ async function addSelectedStmt(){
         const catId=item.cat||await classify(item.descFull||item.desc,type)||(type==='income'?'other_inc':'other_exp');
         if(item.catTouched)learnCategory(item.descFull||item.desc,catId);
         const tx={id:uid(),type,amount:item.amount,category:catId,description:item.desc,date:item.date,createdAt:Date.now(),source:'statement'};
-        if(stmtMode==='pdf'&&stmtBank)tx.bank=stmtBank;
+        if(stmtBank)tx.bank=stmtBank;
         lastImport.ids.push(tx.id);
         if(catId.startsWith('goal_'))goalAdds[catId.slice(5)]=(goalAdds[catId.slice(5)]||0)+item.amount;
         batch.set(spaceRef.collection('transactions').doc(docId('transactions',tx)),tx);
