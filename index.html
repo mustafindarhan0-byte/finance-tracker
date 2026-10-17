@@ -1717,58 +1717,88 @@ function parseFortePdf(text){
 }
 
 function parseHalykPdf(text){
+  // Row: "ДД.ММ.ГГГГ ДД.ММ.ГГГГ Описание  Сумма Валюта  Приход Расход Комиссия  №счета", where
+  // Сумма/Валюта are in the OPERATION currency and Приход/Расход/Комиссия in the ACCOUNT currency.
+  // Newer exports wrap one row: dates + description, more description, then the amounts line.
+  // pdf.js may also glue two rows onto one line, so every line is split at each date pair.
   const results=[];
-  const lines=text.split('\n');
   const HALYK_WORDS={'Операцияоплатыукоммерсанта':'Оплата','Операцияоплатыу':'Оплата','Поступлениеперевода':'Поступление','ПоступлениенасчетТОО':'Поступление от ТОО','Переводнадругуюкарту':'Перевод на карту','ПереводнакредитRS':'Перевод на кредит','Поступлениенасчет':'Поступление'};
+  const A='-?\\d{1,3}(?:\\s\\d{3})*,\\d{2}'; // strict: "APTEKA 36 -1 500,00" must not read as 36
+  const tailRe=new RegExp('(?:^|\\s)('+A+')\\s+([A-Z]{3})\\s+('+A+')\\s+('+A+')(?:\\s+('+A+'))?(?=\\s|$)(?:\\s+(KZ[0-9A-Z]{18}))?');
+  const pairRe=/(\d{2})\.(\d{2})\.(\d{4})\s+\d{2}\.\d{2}\.\d{4}/g;
+  // page footer/header and table header lines: skipped without dropping a half-read multi-line row
+  const noiseRe=new RegExp('^(Место печати|Выписка действительна|Выписка по счету|Дата(\\s|$)|проведения$|обработки$|операции$|Описание операции|Сумма(\\s+операции)?$|Валюта(\\s+операции)?$|Приход в|Расход в|валюте счета|Комиссия\\s+№|№ карточки|Всего:|Страница\\s+\\d|[A-Z]{3}(\\s+'+A+'){2,3}$|АО\\s+["«]?(Народный|Қазақстан)|Филиал:|Адрес:|Телефон:|для других городов|БИК:|Клиент$|ФИО:|ИИН:|Тип счета:|Номер\\s+(счета|карточки)|(Входящий|Исходящий)\\s*остаток|Доступн(ая сумма|ый кредитный)|на дату формирования|Установленный кредитный|Платеж по кредитному|Расшифровка заблокированных|По операциям\\s+-?\\d|По требованиям третьих)','i');
+  const feeRe=/Комисси|задолженност|P2P|Regular\s*Charge|Ежемесячн/i; // internal debt moves and bank fees (as before)
+  const ownRe=/между\s*своими|собственн/i;
+  const amtCurRe=new RegExp(A+'\\s*[A-Z]{3}\\b');
+  const num=s=>parseFloat(s.replace(/\s/g,'').replace(',','.'));
+  const eq=(a,b)=>Math.abs(Math.abs(a)-Math.abs(b))<0.005;
+  // "Номер счета USD: KZ..." in the header tells which account (by IBAN) holds which currency
+  const accCur={};
+  for(const m of text.matchAll(/Номер\s*счета\s*([A-Z]{3}):?\s*(KZ[0-9A-Z]{18})/g))accCur[m[2]]=m[1];
+  const clean=s=>{
+    let d=s.replace(/\([A-Z]{3}\)/g,' ').replace(/\s+/g,' ').trim();
+    for(const[k,v]of Object.entries(HALYK_WORDS))d=d.replace(k,v+' ');
+    return d.replace(/([а-яё])([A-Z])/g,'$1 $2').replace(/\s+/g,' ').trim();
+  };
+  const emit=(date,rawDesc,t)=>{
+    let sumS=t[1],desc=rawDesc;
+    const cur=t[2],inc=num(t[3]),exp=num(t[4]),com=t[5]?num(t[5]):0;
+    const fits=v=>(inc!==0&&eq(v,inc))||(exp!==0&&eq(v,exp));
+    // cross-check: in the account currency the operation sum equals Приход or |Расход|; a positive
+    // sum that doesn't may have swallowed trailing digits of the description ("ИП 124 500,00")
+    if(cur==='KZT'&&!fits(num(sumS))&&sumS[0]!=='-'){
+      const g=sumS.split(/\s/);
+      for(let k=1;k<g.length;k++){const c=g.slice(k).join(' ');if(fits(num(c))){desc+=' '+g.slice(0,k).join(' ');sumS=c;break}}
+    }
+    // account currency: by the row's IBAN when the header lists it; otherwise a non-KZT operation whose
+    // sum equals the account columns was not converted, i.e. it sits on that currency's own account
+    const ac=accCur[t[6]]||(cur!=='KZT'&&fits(num(sumS))?cur:'KZT');
+    if(ac!=='KZT')return null;
+    const d=clean(desc);
+    let type='expense',amount=0;
+    if(inc>0&&(exp===0||num(sumS)>0)){type='income';amount=inc}
+    else if(exp!==0)amount=Math.abs(exp);
+    let main=null;
+    if(amount>=0.005&&!feeRe.test(d)&&!ownRe.test(d)){main={date,amount,desc:d||'Операция Halyk',type,op:d};results.push(main)}
+    if(Math.abs(com)>=0.005&&!feeRe.test(d))results.push({date,amount:Math.abs(com),desc:'Комиссия: '+(d||'операция Halyk'),type:'expense',op:'Комиссия'});
+    return main;
+  };
   let last=null,pend=null;
-  const AMT=/^\s*(-?\d{1,3}(?:[\s ]\d{3})*,\d{2})\s+KZT\s+(-?\d{1,3}(?:[\s ]\d{3})*,\d{2})\s+(-?\d{1,3}(?:[\s ]\d{3})*,\d{2})/;
-  const num=s=>parseFloat(s.replace(/[\s ]/g,'').replace(',','.'));
-  for(const line of lines){
-    const m=line.match(/(\d{2}\.\d{2}\.\d{4})\s+\d{2}\.\d{2}\.\d{4}\s+(.+?)\s+([-\d\s]+,\d{2})\s+KZT\s+([-\d\s]+,\d{2})\s+([-\d\s]+,\d{2})/);
-    if(!m){
-      // newer exports break one operation over several lines: dates + description, more description, then the amounts
-      const two=line.match(/^\s*(\d{2}\.\d{2}\.\d{4})\s+\d{2}\.\d{2}\.\d{4}\s*(.*)$/);
-      if(two){pend={date:two[1],parts:[two[2]]};last=null;continue}
-      if(pend){
-        if(/Место печати|Выписка действительна|Всего:/.test(line)){pend=null;continue}
-        const am=line.match(AMT);
-        if(am){
-          const sum=num(am[1]),income=num(am[2]),expense=num(am[3]),p=pend;pend=null;
-          if(Math.abs(sum)<1)continue;
-          let d=p.parts.join(' ').replace(/\(KZT\)/g,'').replace(/\s+/g,' ').trim();
-          for(const[k,v]of Object.entries(HALYK_WORDS))d=d.replace(k,v+' ');
-          d=d.replace(/([а-яё])([A-Z])/g,'$1 $2').trim();
-          if(/Комисси|задолженност|P2P|RegularCharge|Ежемесячная/i.test(d))continue;
-          const dd=p.date.split('.');
-          results.push({date:dd[2]+'-'+dd[1]+'-'+dd[0],amount:Math.abs(sum),desc:d||'Операция Halyk',type:income>0?'income':'expense',op:d});
-          continue;
-        }
-        if(line.trim())pend.parts.push(line.trim());
+  for(const rawLine of text.split('\n')){
+    const line=rawLine.trim();
+    if(!line)continue;
+    const starts=[...line.matchAll(pairRe)].map(m=>m.index);
+    const segs=[];
+    if(!starts.length||starts[0]>0)segs.push(line.slice(0,starts.length?starts[0]:line.length));
+    starts.forEach((s,i)=>segs.push(line.slice(s,starts[i+1])));
+    for(const seg0 of segs){
+      const seg=seg0.trim();
+      if(!seg)continue;
+      if(noiseRe.test(seg)){last=null;continue}
+      const pm=seg.match(/^(\d{2})\.(\d{2})\.(\d{4})\s+\d{2}\.\d{2}\.\d{4}\s*(.*)$/);
+      if(pm){
+        const date=`${pm[3]}-${pm[2]}-${pm[1]}`,rest=pm[4];
+        pend=null;last=null;
+        const t=rest.match(tailRe);
+        if(t)last=emit(date,rest.slice(0,t.index),t);
+        else pend={date,parts:rest?[rest]:[]};
         continue;
       }
-    }
-    if(m){
-      const dd=m[1].split('.'),date=`${dd[2]}-${dd[1]}-${dd[0]}`;
-      const rawDesc=m[2].trim();
-      const amount=parseFloat(m[3].replace(/\s/g,'').replace(',','.'));
-      const income=parseFloat(m[4].replace(/\s/g,'').replace(',','.'));
-      if(Math.abs(amount)<1){last=null;continue}
-      const type=income>0?'income':'expense';
-      let desc=rawDesc;
-      for(const[k,v]of Object.entries(HALYK_WORDS))desc=desc.replace(k,v+' ');
-      desc=desc.replace(/([а-яё])([A-Z])/g,'$1 $2').trim();
-      if(/Погашени|Комисси|задолженност|P2P|RegularCharge|Ежемесячная/i.test(desc)){last=null;continue}
-      last={date,amount:Math.abs(amount),desc,type,op:desc};
-      results.push(last);
-    }else if(last&&line.trim()&&!/^\d{2}\.\d{2}\.\d{4}/.test(line)&&!/Выписка|Дата|Сумма|Валюта|операции|Всего/i.test(line)
-        &&!/[\d\s]+,\d{2}\s*KZT/i.test(line)&&!/KZ\d{6,}|\d{6}\*+\d{4}/.test(line)
-        &&!/Погашени|Комисси|задолженност|P2P|Regular\s*Charge|Ежемесячная|обслуживани|карт-счет|карт\s*счет|проведения|обработки|Приход в|Расход в|валюте счета|карточки\/счета|Место печати/i.test(line)){
-      // pdf.js can merge several table rows onto one "line" when Halyk's row spacing is tight,
-      // so a genuine continuation (a merchant name wrapping) is short and has no amount/account
-      // fragments in it — anything with those is another row's data leaking through, not ours.
-      const extra=line.trim().replace(/\(KZT\)/g,'').trim();
-      if(extra&&extra.length>1&&extra.length<40){
-        last.desc=(last.desc+' '+extra).replace(/коммерсанта\s*/gi,'').trim();
+      const t=seg.match(tailRe);
+      if(t){
+        // the amounts line closing a multi-line row; amounts with no open row are another row's leftovers
+        last=null;
+        if(pend){const p=pend;pend=null;const pre=seg.slice(0,t.index).trim();if(pre)p.parts.push(pre);last=emit(p.date,p.parts.join(' '),t)}
+        continue;
+      }
+      if(pend){pend.parts.push(seg);continue}
+      // a short wrapped merchant name after the amounts; anything with amounts/accounts/boilerplate
+      // is another row's data that pdf.js merged in, not ours
+      if(last&&!amtCurRe.test(seg)&&!/KZ\d{6,}|\d{6}\*+\d{4}/.test(seg)
+          &&!/Выписка|Дата|Сумма|Валюта|операции|Всего|Комисси|задолженност|P2P|Regular\s*Charge|Ежемесячная|обслуживани|карт-счет|карт\s*счет|проведения|обработки|Приход в|Расход в|валюте счета|карточки\/счета|Место печати/i.test(seg)){
+        const extra=seg.replace(/\([A-Z]{3}\)/g,'').trim();
+        if(extra.length>1&&extra.length<40)last.desc=(last.desc+' '+extra).replace(/коммерсанта\s*/gi,'').trim();
       }
     }
   }
@@ -1842,8 +1872,11 @@ function extractBalanceKaspiForte(text){
   return m?parseAmt(m[1]):null;
 }
 function extractBalanceHalyk(text){
-  const m=text.match(/Исходящий\s*остаток:\s*(-?[\d\s ]+,\d{2})\s*KZT/);
-  return m?parseAmt(m[1]):null;
+  // "Исходящий остаток: 9 459,22 KZT; 0,00 USD;" (pdf.js may glue "Исходящийостаток:"); the KZT figure
+  // may be negative and need not be listed first
+  const line=text.match(/Исходящий\s*остаток:([^\n]*)/i);
+  const m=line&&line[1].match(/(?:^|[\s;:])([-−]?\s?(?:\d{1,3}(?:\s\d{3})+|\d+),\d{2})\s*KZT/);
+  return m?parseAmt(m[1].replace('−','-')):null;
 }
 function extractBalanceFreedom(text){
   const matches=[...text.matchAll(/\bKZT\s+([\d,]+\.\d{2})\s*₸/g)];
