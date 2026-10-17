@@ -710,12 +710,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 <div id="cmd-layer" class="cmd-layer" hidden>
   <div class="cmd-top">
-    <div class="cmd-seg"><button id="cmd-exp" class="on" onclick="cmdSetType('expense')">Расход</button><button id="cmd-inc" onclick="cmdSetType('income')">Доход</button></div>
+    <div class="cmd-seg" id="cmd-seg"><button id="cmd-exp" class="on" onclick="cmdSetType('expense')">Расход</button><button id="cmd-inc" onclick="cmdSetType('income')">Доход</button></div>
     <button class="header-btn" onclick="closeCmd()" aria-label="Закрыть"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
   </div>
   <div class="cmd-field" id="cmd-field"><input id="cmd-input" class="cmd-input" type="text" autocomplete="off" autocapitalize="off" placeholder="кофе 500" oninput="cmdUpdate()" onkeydown="cmdKey(event)" aria-label="Команда"></div>
-  <div id="cmd-chips" class="cmd-chips"></div>
-  <div id="cmd-banks" class="cmd-banks" aria-label="Банк или карта"></div>
+  <div id="cmd-chips" class="cmd-chips" aria-live="polite"></div>
+  <div id="cmd-dates" class="cmd-dates" role="group" aria-label="Дата операции"><button class="cmd-date on" data-d="today" onclick="cmdSetDate(this.dataset.d)">Сегодня</button><button class="cmd-date" data-d="yesterday" onclick="cmdSetDate(this.dataset.d)">Вчера</button><label class="cmd-date cmd-date-pick" data-d="pick"><span id="cmd-date-pick-l">Дата…</span><input type="date" id="cmd-date-input" onclick="try{this.showPicker&amp;&amp;this.showPicker()}catch(e){}" onchange="cmdSetDate('pick',this.value)" aria-label="Выбрать дату операции"></label></div>
+  <div id="cmd-banks" class="cmd-banks" role="group" aria-label="Банк или карта"></div>
   <div id="cmd-cats" class="cat-grid" hidden></div>
   <div id="cmd-templates"></div>
   <div class="cmd-hint">кофе 500 · тренировка #зал вт 18:00 · + разобрал образ диска #dfir</div>
@@ -3601,9 +3602,22 @@ function taskRowHtml(t,showDate){
     t.repeat?ico('repeat',13):'',
     `<span class="task-badge">${escapeHtml(listName(t.list))}</span>`
   ].join('');
-  const row=`<div class="task-row" data-id="${escapeHtml(t.id)}" onclick="editTask(this.dataset.id)"><button class="task-check" aria-label="Выполнить" data-id="${escapeHtml(t.id)}" onclick="event.stopPropagation();completeTask(this.dataset.id,{el:this})"></button><div class="task-main"><div class="task-title">${escapeHtml(t.title)}</div><div class="task-meta">${meta}</div></div></div>`;
+  const id=escapeHtml(t.id),act=taskActionKind(t);
+  const go=act?`<span class="task-badge task-go">${act==='workout'?'тренировка →':'распределение →'}</span>`:'';
+  const row=`<div class="task-row" data-id="${id}" onclick="taskTap(this.dataset.id,'row')"><button class="task-check" aria-label="${act==='workout'?'Открыть тренировку':act==='salary'?'Открыть распределение зарплаты':'Выполнить'}" data-id="${id}" onclick="event.stopPropagation();taskTap(this.dataset.id,'check',this)"></button><div class="task-main"><div class="task-title">${escapeHtml(t.title)}</div><div class="task-meta">${go}${meta}</div></div>${act?`<button class="header-btn task-edit-btn" data-id="${id}" onclick="event.stopPropagation();editTask(this.dataset.id)" aria-label="Изменить задачу">${ico('settings',16)}</button>`:''}</div>`;
   return `<div class="task-item">${row}${editingTaskId===t.id?taskEditHtml(t):''}</div>`;
 }
+// F6.5: a workout task opens its workout, the salary task opens the allocation — for the row and the checkbox alike
+// (the workout closes the task itself on finish, the allocation on confirm; no XP shortcut)
+function taskTap(id,where,el){
+  const t=(tasksCache||[]).find(x=>x.id===id),a=taskTapAction(t,where);
+  if(a==='workout')return openWorkoutTask(id);
+  if(a==='salary')return openSalaryAllocation();
+  if(a==='complete')return completeTask(id,{el});
+  if(a==='edit')return editTask(id);
+}
+// The allocation screen; the integrator may repoint this when the allocation moves into Деньги → Планы
+function openSalaryAllocation(){switchView('alloc')}
 function taskEditHtml(t){
   const r=t.repeat,kind=r?r.type:'none';
   const wd=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map((n,i)=>`<label><input type="checkbox" class="te-wd" value="${i+1}"${r&&r.type==='weekly'&&(r.days||[]).includes(i+1)?' checked':''}>${n}</label>`).join('');
@@ -3932,7 +3946,107 @@ async function createTask(p){
   return t;
 }
 
+// ── F6 pure helpers: [+] dates and no-amount hint, task actions, status tiles, salary (tests/status_cmd.cjs) ──
+const MONTHS_SHORT=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+function isYmdValid(v){
+  const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v||''));if(!m)return false;
+  const d=new Date(+m[1],+m[2]-1,+m[3]);
+  return d.getFullYear()===+m[1]&&d.getMonth()===+m[2]-1&&d.getDate()===+m[3];
+}
+// Date chip → local YYYY-MM-DD for saveTx; a future or broken picked date falls back to today
+function cmdDateValue(choice,picked,t0){
+  if(choice==='yesterday')return addDays(t0,-1);
+  if(choice==='pick'&&isYmdValid(picked)&&picked<=t0)return picked;
+  return t0;
+}
+// Chip choice after a tap / date input; null = rejected (future or broken date). Today/yesterday picked by date light their own chip.
+function cmdDatePick(choice,val,t0){
+  if(choice==='yesterday')return{choice:'yesterday',picked:''};
+  if(choice!=='pick'||!val)return{choice:'today',picked:''};
+  if(cmdDateValue('pick',val,t0)!==val)return null;
+  return val===t0?{choice:'today',picked:''}:val===addDays(t0,-1)?{choice:'yesterday',picked:''}:{choice:'pick',picked:val};
+}
+function cmdDateLabel(d,t0){
+  if(d===t0)return'Сегодня';
+  if(d===addDays(t0,-1))return'Вчера';
+  if(!isYmdValid(d))return'Дата…';
+  return +d.slice(8,10)+' '+MONTHS_SHORT[+d.slice(5,7)-1]+(d.slice(0,4)!==t0.slice(0,4)?' '+d.slice(0,4):'');
+}
+// «5оо» → «500»: an amount typed with letters о/o instead of zeros (needs at least one digit)
+function cmdFixAmountToken(w){
+  w=String(w||'');
+  if(!/\d/.test(w)||!/[оОoO]/.test(w)||!/^[\dоОoO]+(?:[.,][\dоОoO]+)?$/.test(w))return null;
+  return w.replace(/[оОoO]/g,'0');
+}
+// A word of the line is a category keyword (whole word, or a ≥4-letter stem like «футболк»), or the line is a learned description
+function cmdHasKeyword(lower,keywords,learned){
+  if(learned&&Object.prototype.hasOwnProperty.call(learned,lower))return true;
+  const ws=lower.split(/[\s,.;:!?()«»"]+/).filter(Boolean),pad=' '+ws.join(' ')+' ';
+  for(const list of Object.values(keywords||{}))for(const k of list){
+    if(k.includes(' ')){if(pad.includes(' '+k+' '))return true;continue}
+    if(ws.some(w=>w===k||(k.length>=4&&w.startsWith(k))))return true;
+  }
+  return false;
+}
+// Lines that start like a to-do are tasks even when they mention a purchase word («купить молоко»)
+const CMD_TASK_VERB=/^(купи|позвон|сдела|напис|забра|оплат|заказ|отправ|провер|постав|прочит|посмотр|найти|найд|запис|подготов|сход|съезд|верну|убра|помы|почин|разобра|отвез|привез|встрет|обнов|узна|спрос|продл|начать|начни|законч|выучи|изучи|сдать|сдай|отмен|перенес|напомн)/i;
+// Rule (F6.3): a line WITHOUT an amount is «purchase-like» when it does not start with a task verb and
+//  (a) it has an amount typed with letters — «кофе 5оо», «5оо кофе»; or
+//  (b) it is a single word without digits — «кофе», «такси»; or
+//  (c) it has ≤ 3 words and one of them is a category keyword / the line is a learned description — «молоко хлеб».
+// Then [+] shows «Добавь сумму: кофе 500» instead of an inbox task. Returns {text, fill, fixed} or null.
+function cmdNoAmountHint(s,keywords,learned){
+  s=String(s||'').trim().replace(/\s+/g,' ');if(!s||s[0]==='+')return null;
+  const words=s.split(' ');
+  const last=cmdFixAmountToken(words[words.length-1]),first=words.length>1?cmdFixAmountToken(words[0]):null;
+  if(last||first){
+    const desc=(last?words.slice(0,-1):words.slice(1)).join(' '),text=desc?desc+' '+(last||first):(last||first);
+    if(!CMD_TASK_VERB.test(desc))return{text,fill:text,fixed:true};
+  }
+  if(/\d/.test(s)||CMD_TASK_VERB.test(s))return null;
+  const purchase=words.length===1||(words.length<=3&&cmdHasKeyword(s.toLowerCase(),keywords,learned));
+  return purchase?{text:s+' 500',fill:s+' ',fixed:false}:null;
+}
+// Enter in [+]: a hinted line needs a second Enter (or the «Это задача» button) to become a task
+function cmdEnterAction(st,armed){
+  if(!st)return'none';
+  if(st.kind==='task'&&st.hint&&!armed)return'arm';
+  if(st.kind==='tx'&&!st.cat)return'cats';
+  return'save';
+}
+const isSalaryTask=t=>!!t&&(t.kind==='salary'||t.title==='Распределить зарплату');
+// Tasks that are actions: a workout (workoutPlan) or the salary allocation
+function taskActionKind(t){if(!t)return null;if(t.workoutPlan)return'workout';if(isSalaryTask(t))return'salary';return null}
+// where: 'row' (tap on the task) | 'check' (its checkbox) → 'workout' | 'salary' | 'edit' | 'complete' | null
+function taskTapAction(t,where){
+  if(!t||t.done)return null;
+  const k=taskActionKind(t);if(k)return k;
+  return where==='check'?'complete':where==='row'?'edit':null;
+}
+// Which workout the body screen shows for a workout task: the one in progress, an open one of this task, or a new one
+function workoutOpenDecision(cur,workouts,taskId,t0){
+  if(cur)return cur.taskId===taskId?{act:'show'}:{act:'busy'};
+  const open=(workouts||[]).filter(w=>!w.done);
+  const mine=open.filter(w=>w.taskId===taskId).sort((a,b)=>String(b.date).localeCompare(String(a.date))||(b.at||0)-(a.at||0))[0];
+  if(mine)return{act:'resume',id:mine.id};
+  const todays=open.find(w=>w.date===t0);
+  return todays?{act:'busy',id:todays.id}:{act:'start'};
+}
+// Status sphere tiles → screens
+function statusTileTarget(s){return s==='money'?{view:'money'}:s==='dfir'?{view:'quests',tab:'today',list:'dfir'}:s==='body'?{view:'body'}:null}
+// Overwrite question for the general monthly budget (null = nothing to ask)
+function allocBudgetQuestion(oldLimit,newLimit,f){
+  if(!(oldLimit>0)||Math.round(oldLimit*100)===Math.round(newLimit*100))return null;
+  return `Общий бюджет месяца сейчас ${f(oldLimit)}. Заменить на ${f(newLimit)} (сумма «Жизнь»)?\n\nОтмена — оставить ${f(oldLimit)}, остальное распределится как обычно.`;
+}
+// The same salary already entered as income in the last 7 days (then «Записать доход» starts unticked)
+function findRecordedSalary(txs,S,t0){
+  const from=addDays(t0,-7);
+  return (txs||[]).filter(t=>t.type==='income'&&t.category==='salary'&&Math.abs((+t.amount||0)-S)<1&&t.date>=from&&t.date<=t0).sort((a,b)=>b.date.localeCompare(a.date))[0]||null;
+}
+
 let cmdType='expense',cmdSeq=0,cmdState=null;
+let cmdDate={choice:'today',picked:''},cmdCatOverride=null,cmdCatsMode='save',cmdHintArmed=false;
 function refreshActive(){
   const v=document.querySelector('.view.active');if(!v)return;
   const n=v.id.slice(5);
@@ -3945,6 +4059,9 @@ function openCmd(){
   renderTemplates();renderCmdBanks();
   const inp=document.getElementById('cmd-input');inp.value='';
   document.getElementById('cmd-chips').innerHTML='';document.getElementById('cmd-cats').hidden=true;cmdState=null;
+  cmdDate={choice:'today',picked:''};cmdCatOverride=null;cmdCatsMode='save';cmdHintArmed=false;
+  const di=document.getElementById('cmd-date-input');if(di){di.value='';di.max=today()}
+  renderCmdDates();cmdSyncRows(null);
   requestAnimationFrame(()=>{L.classList.add('show');inp.focus()});
 }
 function closeCmd(){const L=document.getElementById('cmd-layer');L.classList.remove('show');setTimeout(()=>{if(!L.classList.contains('show'))L.hidden=true},220)}
@@ -3952,7 +4069,28 @@ function cmdSetType(t){
   cmdType=t;
   document.getElementById('cmd-exp').classList.toggle('on',t==='expense');
   document.getElementById('cmd-inc').classList.toggle('on',t==='income');
-  cmdUpdate();
+  return cmdUpdate();
+}
+function cmdCurDate(){return cmdDateValue(cmdDate.choice,cmdDate.picked,today())}
+function renderCmdDates(){
+  const box=document.getElementById('cmd-dates');if(!box)return;
+  box.querySelectorAll('.cmd-date').forEach(b=>b.classList.toggle('on',b.dataset.d===cmdDate.choice));
+  const l=document.getElementById('cmd-date-pick-l');if(l)l.textContent=cmdDate.choice==='pick'?cmdDateLabel(cmdDate.picked,today()):'Дата…';
+}
+function cmdSetDate(choice,val){
+  const n=cmdDatePick(choice,val,today()),di=document.getElementById('cmd-date-input');
+  if(!n)toast('Дата операции — не позже сегодняшней');else cmdDate=n;
+  if(di)di.value=cmdDate.choice==='pick'?cmdDate.picked:'';
+  renderCmdDates();
+  if(cmdState&&cmdState.kind==='tx')document.getElementById('cmd-chips').innerHTML=cmdChipHtml(cmdState);
+}
+// Bank row, date chips and the Расход/Доход switch only make sense for a transaction (or an empty / hinted line)
+function cmdSyncRows(st){
+  const money=!st||st.kind==='tx'||!!st.hint;
+  document.getElementById('cmd-banks').hidden=!money;
+  const d=document.getElementById('cmd-dates');if(d)d.hidden=!money;
+  const seg=document.getElementById('cmd-seg');if(seg)seg.classList.toggle('off',!money);
+  if(!money)document.getElementById('cmd-cats').hidden=true;
 }
 async function cmdParse(s){
   s=(s||'').trim();if(!s)return null;
@@ -3965,23 +4103,31 @@ async function cmdParse(s){
   if(!forceIncome&&(q.tagged||q.due||q.time))return{kind:'task',title:q.title,list:q.list,due:q.due,time:q.time};
   const p=parseInput(s);
   if(p&&p.amount>0){
-    const type=forceIncome?'income':cmdType,cat=p.desc?await classify(p.desc,type):null;
+    const type=forceIncome?'income':cmdType;
+    const ov=cmdCatOverride&&cmdCatOverride.desc===p.desc&&cmdCatOverride.type===type?cmdCatOverride.cat:null;
+    const cat=ov||(p.desc?await classify(p.desc,type):null);
     return{kind:'tx',type,desc:p.desc,amount:p.amount,cat};
   }
-  return{kind:'task',title:s,list:'inbox',due:'',time:''};
+  const h=cmdNoAmountHint(s,KEYWORDS,learnedMap);
+  if(h&&forceIncome){h.text='+'+h.text;h.fill='+'+h.fill}
+  return h?{kind:'task',title:(forceIncome?'+':'')+s,list:'inbox',due:'',time:'',hint:h}:{kind:'task',title:s,list:'inbox',due:'',time:''};
 }
 function cmdChipHtml(st){
   if(st.kind==='journal')return `<span class="cmd-chip" id="cmd-chip"><b>Журнал</b>${st.sphere?' · '+escapeHtml(SPHERES[st.sphere]):''} · ${escapeHtml(st.text)}</span>`;
+  if(st.kind==='task'&&st.hint)return `<div class="cmd-chip-row"><span class="cmd-chip cmd-chip-hint" id="cmd-chip">${st.hint.fixed?'Исправь сумму:':'Добавь сумму:'} <button class="cmd-part" data-s="${escapeHtml(st.hint.fill)}" onclick="cmdApplyHint(this.dataset.s)">${escapeHtml(st.hint.text)}</button></span><button class="cmd-flip" onclick="cmdSaveHintAsTask()">Это задача</button></div>`
+    +(cmdHintArmed?`<div class="cmd-hint cmd-armed">Ещё раз Enter — сохранить «${escapeHtml(st.title)}» задачей во «Входящие»</div>`:'');
   if(st.kind==='task')return `<span class="cmd-chip" id="cmd-chip"><b>Задача</b> · ${escapeHtml(listName(st.list))}${st.due?' · '+escapeHtml(formatTaskDate(st.due)):''}${st.time?' · '+escapeHtml(st.time):''} · ${escapeHtml(st.title)}</span>`;
-  const c=st.cat?getCat(st.cat).name:'выберите категорию';
-  return `<span class="cmd-chip" id="cmd-chip"><b>${st.type==='income'?'Доход':'Расход'}</b> · ${escapeHtml(c)} · ${fmtCur(st.amount)} · ${escapeHtml((BANK_NAMES[currentBank]||'').replace(' Bank',''))}${st.desc?' · '+escapeHtml(st.desc):''}</span>`;
+  const c=st.cat?getCat(st.cat).name:'выбери категорию',bank=(BANK_NAMES[currentBank]||'').replace(' Bank','');
+  const part=(p,label,aria)=>`<button class="cmd-part" data-p="${p}" onclick="cmdEditPart(this.dataset.p)" aria-label="${aria}: ${escapeHtml(label)}">${escapeHtml(label)}</button>`;
+  return `<span class="cmd-chip" id="cmd-chip"><b>${st.type==='income'?'Доход':'Расход'}</b> · ${part('cat',c,'Категория')} · ${fmtCur(st.amount)} · ${part('bank',bank,'Банк')} · ${part('date',cmdDateLabel(cmdCurDate(),today()),'Дата')}${st.desc?' · '+escapeHtml(st.desc):''}</span>`;
 }
 async function cmdUpdate(){
   const seq=++cmdSeq,st=await cmdParse(document.getElementById('cmd-input').value);
   if(seq!==cmdSeq)return;
-  cmdState=st;
+  cmdState=st;cmdHintArmed=false;
   document.getElementById('cmd-chips').innerHTML=st?cmdChipHtml(st):'';
-  document.getElementById('cmd-cats').hidden=true;
+  document.getElementById('cmd-cats').hidden=true;cmdCatsMode='save';
+  cmdSyncRows(st);
 }
 function cmdKey(e){
   if(e.key==='Enter'){e.preventDefault();cmdSubmit()}
@@ -3991,15 +4137,38 @@ let cmdBusy=false;
 async function cmdSubmit(){
   if(cmdBusy)return;
   const st=cmdState||await cmdParse(document.getElementById('cmd-input').value);
-  if(!st)return;
-  if(st.kind==='tx'&&!st.cat){cmdShowCats(st);return}
+  const a=cmdEnterAction(st,cmdHintArmed);
+  if(a==='none')return;
+  if(a==='arm'){cmdState=st;cmdHintArmed=true;document.getElementById('cmd-chips').innerHTML=cmdChipHtml(st);if(window.fxFlash)fxFlash(document.getElementById('cmd-chip'));return}
+  if(a==='cats'){cmdState=st;cmdShowCats(st,'save');return}
   await cmdSave(st);
 }
-async function cmdShowCats(st){
+// Tap on the hint: put the suggested line into the field («кофе » — type the amount; «кофе 500» — fixed letters)
+function cmdApplyHint(v){
+  const inp=document.getElementById('cmd-input');inp.value=v;inp.focus();
+  try{inp.setSelectionRange(v.length,v.length)}catch(e){}
+  cmdUpdate();
+}
+function cmdSaveHintAsTask(){
+  const st=cmdState;if(!st||st.kind!=='task'||cmdBusy)return;
+  cmdSave({kind:'task',title:st.title,list:st.list,due:st.due,time:st.time});
+}
+// Tap on a part of the preview chip: category → grid, bank → bank row, date → date chips
+function cmdEditPart(p){
+  const st=cmdState;if(!st||st.kind!=='tx')return;
+  if(p==='cat'){const box=document.getElementById('cmd-cats');if(!box.hidden&&cmdCatsMode==='edit'){box.hidden=true;cmdCatsMode='save';return}cmdShowCats(st,'edit');return}
+  const row=document.getElementById(p==='bank'?'cmd-banks':'cmd-dates');if(!row)return;
+  row.hidden=false;if(window.fxFlash)fxFlash(row);
+  const on=row.querySelector('.on');
+  if(on&&on.tagName==='BUTTON')on.focus();
+  if(row.scrollIntoView)row.scrollIntoView({block:'nearest'});
+}
+async function cmdShowCats(st,mode){
+  cmdCatsMode=mode==='edit'?'edit':'save';
   const box=document.getElementById('cmd-cats');
-  const tile=(id,ic,name)=>'<div class="cat-btn" data-c="'+id+'" onclick="cmdPickCat(this.dataset.c)"><span class="icon-wrap">'+ico(ic,22)+'</span>'+escapeHtml(name)+'</div>';
+  const tile=(id,ic,name)=>'<div class="cat-btn'+(id===st.cat?' selected':'')+'" data-c="'+escapeHtml(id)+'" onclick="cmdPickCat(this.dataset.c)"><span class="icon-wrap">'+ico(ic,22)+'</span>'+escapeHtml(name)+'</div>';
   const other=st.type==='expense'?'income':'expense';
-  const head='<div class="cmd-hint cmd-cats-head" style="grid-column:1/-1">Не удалось определить категорию — выберите:<button class="cmd-flip" data-t="'+other+'" onclick="cmdFlipType(this.dataset.t)">Это '+(other==='income'?'доход':'расход')+'</button></div>';
+  const head='<div class="cmd-hint cmd-cats-head" style="grid-column:1/-1">'+(cmdCatsMode==='edit'?'Выбери категорию:':'Не удалось определить категорию — выбери:')+'<button class="cmd-flip" data-t="'+other+'" onclick="cmdFlipType(this.dataset.t)">Это '+(other==='income'?'доход':'расход')+'</button></div>';
   const base=CATS[st.type].map(c=>tile(c.id,c.icon,c.name)).join('');
   box.innerHTML=head+base;box.hidden=false;
   if(st.type==='expense'){
@@ -4007,17 +4176,21 @@ async function cmdShowCats(st){
     if(!box.hidden&&goals.length)box.innerHTML=head+base+goals.map(g=>tile('goal_'+g.id,'goal',g.name)).join('');
   }
 }
+// «Это доход / расход»: switch the type for real (so the next keystroke keeps it), re-classify, keep the grid if still needed
 async function cmdFlipType(t){
   if(!cmdState||cmdState.kind!=='tx')return;
-  cmdState.type=t;cmdState.cat=cmdState.desc?await classify(cmdState.desc,t):null;
-  document.getElementById('cmd-chips').innerHTML=cmdChipHtml(cmdState);
-  if(cmdState.cat){document.getElementById('cmd-cats').hidden=true}else cmdShowCats(cmdState);
+  const mode=cmdCatsMode;
+  await cmdSetType(t);
+  if(cmdState&&cmdState.kind==='tx'&&(!cmdState.cat||mode==='edit'))cmdShowCats(cmdState,mode);
 }
 async function cmdPickCat(id){
   if(!cmdState||cmdBusy)return;
   const st=cmdState;st.cat=id;
+  cmdCatOverride={desc:st.desc,type:st.type,cat:id};
   document.getElementById('cmd-chips').innerHTML=cmdChipHtml(st);
   if(st.desc)learnCategory(st.desc,id);
+  // edit mode: correct the category only, saving waits for Enter
+  if(cmdCatsMode==='edit'){document.getElementById('cmd-cats').hidden=true;cmdCatsMode='save';return}
   await cmdSave(st);
 }
 async function cmdSave(st){
@@ -4033,8 +4206,10 @@ async function cmdSaveInner(st){
     else if(st.kind==='task'){const t=await createTask(st);toast('Задача: '+t.title+(t.due?' · '+formatTaskDate(t.due):''))}
     else{
       currentType=st.type;
-      const tx=await saveTx(st.desc,st.amount,st.cat),c=getCat(st.cat);
-      toastUndo(`${icoInline(c.icon)}${escapeHtml(c.name)} &middot; ${escapeHtml(st.desc)} &middot; ${fmtCur(st.amount)}`,tx.id);
+      // date chip: only the operation date moves; createdAt stays «now», so bank snapshots (time mode) count it as before
+      const t0=today(),d=cmdCurDate(),back=d!==t0;
+      const tx=await saveTx(st.desc,st.amount,st.cat,null,back?{date:d}:null),c=getCat(st.cat);
+      toastUndo(`${icoInline(c.icon)}${escapeHtml(c.name)} &middot; ${escapeHtml(st.desc)} &middot; ${fmtCur(st.amount)}${back?' &middot; '+escapeHtml(cmdDateLabel(d,t0).toLowerCase()):''}`,tx.id);
       await checkBudget(tx);
     }
   }catch(err){toast('Не удалось сохранить: '+err.message);return}
@@ -4179,32 +4354,50 @@ function allocPlan(S,scheme,goals,debts){
   }
   return{parts,rest:left};
 }
+let allocIncome={on:true,bank:null};
 async function allocPreview(){
   const S=parseFloat(document.getElementById('al-salary').value);
-  if(!(S>0))return toast('Введите сумму зарплаты');
-  const goals=await dbAll('goals'),debts=await getCol('debts');
+  if(!(S>0))return toast('Введи сумму зарплаты');
+  const goals=await dbAll('goals'),debts=await getCol('debts'),txs=await getTxs();
   allocPlanState={S,...allocPlan(S,allocScheme,goals,debts)};
-  const p=allocPlanState;
+  const p=allocPlanState,dup=findRecordedSalary(txs,S,today()),bn=k=>(BANK_NAMES[k]||k||'').replace(' Bank','');
+  allocIncome={on:!dup,bank:allocIncome.bank||currentBank||'kaspi'};
+  const banks=[...BANK_KEYS,'cash'].map(k=>`<option value="${k}"${k===allocIncome.bank?' selected':''}>${escapeHtml(bn(k))}</option>`).join('');
   document.getElementById('al-preview').innerHTML=p.parts.map(x=>`<div class="recent-item"><div class="recent-info"><div class="recent-desc">${escapeHtml(x.label)}</div></div><div class="recent-amount">${fmtCur(x.amount)}</div></div>`).join('')
     +`<div class="recent-item"><div class="recent-info"><div class="recent-desc">Остаток (не распределён)</div></div><div class="recent-amount">${fmtCur(p.rest)}</div></div>`
+    +`<label class="al-income"><input type="checkbox" id="al-income"${allocIncome.on?' checked':''} onchange="allocIncome.on=this.checked"><span>Записать доход «Зарплата» ${fmtCur(S)}</span></label>`
+    +(dup?`<div class="cmd-hint al-dup">Похоже, этот доход уже записан: ${escapeHtml(dup.date.slice(8,10)+'.'+dup.date.slice(5,7))}${dup.bank?' · '+escapeHtml(bn(dup.bank)):''} — галочка снята</div>`:'')
+    +`<label class="al-label" for="al-bank">Куда пришла зарплата</label><select class="currency-select al-bank" id="al-bank" onchange="allocIncome.bank=this.value">${banks}</select>`
     +`<button class="save-btn primary" onclick="allocConfirm()">Подтвердить</button>`;
 }
 async function allocConfirm(){
   const p=allocPlanState;if(!p)return;allocPlanState=null;
+  const inc=document.getElementById('al-income'),bs=document.getElementById('al-bank');
+  const recordIncome=inc?!!inc.checked:allocIncome.on,bank=(bs&&bs.value)||allocIncome.bank||currentBank||'cash';
   const a={id:uid(),date:today(),salary:p.S,parts:p.parts.map(x=>({label:x.label,amount:x.amount,kind:x.kind||null,goalId:x.goalId||null}))};
+  const life=p.parts.find(x=>x.kind==='life');
+  // the general monthly budget is replaced only after a yes (old/new values in the question)
+  let setBudget=!!(life&&life.amount>0);
+  if(setBudget){
+    const old=(await dbAll('budgets')).find(x=>x.key==='general');
+    const q=allocBudgetQuestion(old?+old.limit:0,life.amount,fmtCur);
+    if(q&&!confirm(q))setBudget=false;
+  }
   const b=fsDb.batch();
   for(const x of p.parts)if(x.kind==='goal'&&x.amount>0)batchGoalInc(b,x.goalId,x.amount);
-  const life=p.parts.find(x=>x.kind==='life');
-  if(life&&life.amount>0)batchPut(b,'budgets',{key:'general',limit:life.amount});
+  if(setBudget)batchPut(b,'budgets',{key:'general',limit:life.amount});
+  // the salary itself as income (type comes through extra, so the global Расход/Доход is untouched)
+  let tx=null;
+  if(recordIncome){tx=await saveTx('Зарплата',p.S,'salary',bank,{type:'income',allocId:a.id},b);a.txId=tx.id;a.bank=bank}
   batchPut(b,'allocations',a);
   await batchXp(b,'alloc_'+a.id,'money',30,'allocation');
   commitBatch(b);
   const al=await getCol('allocations');al.push(a);
   await getTasks();
-  const st=tasksCache.find(t=>!t.done&&t.title==='Распределить зарплату');
+  const st=tasksCache.find(t=>!t.done&&isSalaryTask(t));
   if(st)await completeTask(st.id,{noXp:true});
   checkAchievements();
-  toast('Зарплата распределена');
+  toast('Зарплата распределена'+(tx?' · доход записан ('+(BANK_NAMES[bank]||bank).replace(' Bank','')+')':''));
   refreshAlloc();
 }
 
@@ -4296,6 +4489,18 @@ async function dropWorkout(id){
   const w=wcol('workouts').find(x=>x.id===id&&!x.done);if(!w)return renderBody();
   if(!await sheetConfirm({title:'Отменить тренировку?',text:'Незавершённая тренировка от '+wkDate(w.date)+' будет удалена.',ok:'Отменить её',cancel:'Оставить',danger:true}))return;
   await colDel('workouts',w.id);renderBody();
+}
+// F6.5: a workout task opens the body screen with its workout — resumed if open, started otherwise
+async function openWorkoutTask(taskId){
+  await Promise.all([getTasks(),getCol('workoutPlans'),getCol('workouts')]);
+  const t=(tasksCache||[]).find(x=>x.id===taskId);if(!t||t.done||!t.workoutPlan)return;
+  switchView('body');
+  if(!planById(t.workoutPlan))return toast('План тренировки «'+t.workoutPlan+'» не найден — измени задачу');
+  const d=workoutOpenDecision(wk,wcol('workouts'),taskId,today());
+  if(d.act==='start')return startWorkout(t.workoutPlan,taskId);
+  if(d.id){const w=wcol('workouts').find(x=>x.id===d.id);if(w){wk=wkClean(w);wkCur=wkFirstOpen(w);wkSummary=null}}
+  if(d.act==='busy')toast('Сначала заверши начатую тренировку');
+  renderBody();
 }
 function wkSave(){return colPut('workouts',wk)}
 // Input handlers update the model and the small dependent parts only — the inputs themselves are never rebuilt here
@@ -4540,14 +4745,21 @@ function renderStatus(){
   const mq=[`${sm.done}/${sm.total} квестов`,`серия ${bestStreak}`];
   if(dfirWeek)mq.push((dfirWeek.title.match(/^DFIR неделя \d+/)||['DFIR'])[0]);
   if(sal){const n=daysBetween(t0,sal.due);mq.push(n<0?'зарплата не распределена':n===0?'сегодня распределить зарплату':`до зарплаты ${n} ${dayWord(n)}`)}
-  Object.keys(warn).forEach(s=>mq.push(warn[s].cooled?`${SPHERES[s]}: остывание — первое действие откроет ×1,5 на 7 дней`:`${SPHERES[s]} остынет через ${warn[s].left} ${dayWord(warn[s].left)}`));
-  const backupNote=typeof backupReminderText==='function'?backupReminderText():'';if(backupNote)mq.push(backupNote);
+  // F6.2: cooling and reminders are static plaques under the tiles, not marquee items
+  const coolTxt=Object.keys(warn).map(s=>warn[s].cooled?`${SPHERES[s]}: остывание — первое действие откроет ×1,5 на 7 дней`:`${SPHERES[s]} остынет через ${warn[s].left} ${dayWord(warn[s].left)}`);
+  const noteTxt=Object.keys(SPHERES).filter(s=>!warn[s]&&returnBonusActive(xpLogSync(),s,t0)).map(s=>`${SPHERES[s]}: возвращение — XP ×1,5`);
+  const backupNote=typeof backupReminderText==='function'?backupReminderText():'';if(backupNote)noteTxt.push(backupNote);
+  const plaques=(coolTxt.length?`<div class="st-plaque">${coolTxt.map(escapeHtml).join(' · ')}</div>`:'')+(noteTxt.length?`<div class="st-plaque info">${noteTxt.map(escapeHtml).join(' · ')}</div>`:'');
   const src=statusAvatar||'figure.jpg';
-  const tile=(s,wide)=>{
+  // F6.2: compact sphere tiles in one row, each a button to its screen
+  const tile=s=>{
     const info=levelInfo(tot[s]),w=warn[s];
-    return `<div class="tile spot tilt${wide?' wide':''}${w&&w.cooled?' cooling':''}" style="--c:var(--${s})"><div class="t-name">${SPHERES[s]}</div><div class="t-lvl disp">${info.level}</div><div class="bar"><i style="transform:scaleX(${info.pct.toFixed(3)})"></i></div><div class="t-sub">${w&&w.cooled?`<span class="t-warn">остывание · XP заморожен</span>`:w?`<span class="t-warn">остынет через ${w.left} ${dayWord(w.left)}</span>`:returnBonusActive(xpLogSync(),s,today())?`<span class="t-bonus">возвращение · XP ×1,5</span>`:`${fmt(Math.round(info.into))} / ${fmt(info.need)} XP`}</div></div>`;
+    const aria=`${SPHERES[s]}: уровень ${info.level}, ${fmt(Math.round(info.into))} из ${fmt(info.need)} XP${w?(w.cooled?', остывание':', остынет через '+w.left+' '+dayWord(w.left)):''}`;
+    return `<button class="tile spot tilt${w&&w.cooled?' cooling':w?' warn':''}" style="--c:var(--${s})" data-s="${s}" onclick="openSphere(this.dataset.s)" aria-label="${escapeHtml(aria)}"><span class="t-name">${SPHERES[s]}</span><span class="t-lvl disp">${info.level}</span><span class="bar"><i style="transform:scaleX(${info.pct.toFixed(3)})"></i></span></button>`;
   };
-  const taskRows=sm.openT.slice(0,5).map(t=>`<div class="qrow"><button class="task-check" aria-label="Выполнить" data-id="${escapeHtml(t.id)}" onclick="completeTask(this.dataset.id,{el:this})"></button><span class="qt">${escapeHtml(t.title)}</span><span class="qxp">+${t.source==='debt'?30:(t.xp!=null?t.xp:20)}</span></div>`).join('');
+  // action tasks (workout / salary) open their screen; XP shown is what the action really gives
+  const xpOf=t=>{const k=taskActionKind(t);return k==='workout'?60:k==='salary'?30:t.source==='debt'?30:(t.xp!=null?t.xp:20)};
+  const taskRows=sm.openT.slice(0,5).map(t=>{const k=taskActionKind(t),id=escapeHtml(t.id);return `<div class="qrow${k?' act':''}" data-id="${id}"${k?` onclick="taskTap(this.dataset.id,'row')"`:''}><button class="task-check" aria-label="${k==='workout'?'Открыть тренировку':k==='salary'?'Открыть распределение зарплаты':'Выполнить'}" data-id="${id}" onclick="event.stopPropagation();taskTap(this.dataset.id,'check',this)"></button><span class="qt">${escapeHtml(t.title)}</span>${k?`<span class="qgo">${k==='workout'?'тренировка':'распределить'} →</span>`:''}<span class="qxp">+${xpOf(t)}</span></div>`}).join('');
   const habRows=sm.openH.map(h=>`<div class="qrow" data-id="${escapeHtml(h.id)}" onclick="toggleHabit(this.dataset.id,this.querySelector('.habit-check'))"><div class="habit-check"></div><span class="qt">${escapeHtml(h.name)}</span><span class="qxp">+20</span></div>`).join('');
   const risk=habits.filter(h=>habitStreak(h.id,checks)>0&&!checks.some(c=>c.key===`${h.id}_${t0}`));
   const foot=risk.length?`серия «${escapeHtml(risk[0].name)}» (${habitStreak(risk[0].id,checks)}) оборвётся`:Object.keys(warn).length?(warn[Object.keys(warn)[0]].cooled?`${SPHERES[Object.keys(warn)[0]]} остаётся в остывании`:`${SPHERES[Object.keys(warn)[0]]} остынет через ${warn[Object.keys(warn)[0]].left} ${dayWord(warn[Object.keys(warn)[0]].left)}`):'ничего не потеряется';
@@ -4557,13 +4769,14 @@ function renderStatus(){
   <div class="marquee" id="st-marquee" aria-label="Сводка дня"></div>
   <div class="hero hud${introPending?' hero-intro':''}" id="hero">
     <div class="hero-plate">УРОВЕНЬ</div>
-    <div class="hero-num disp outline" id="hero-level" style="font-size:${L>=100?130:200}px">${introPending?'00':String(L).padStart(2,'0')}</div>
+    <div class="hero-num disp outline" id="hero-level" style="font-size:${L>=100?92:140}px">${introPending?'00':String(L).padStart(2,'0')}</div>
     <div class="hero-rings" aria-hidden="true"><i></i><i></i><i></i></div>
     <div class="hero-fig" aria-hidden="true"><img class="hf-glow" src="${src}" alt=""><img class="hf-main" src="${src}" alt=""></div>
     <div class="hero-rank">${escapeHtml(rankOf(L))}</div>
   </div>
   <div class="xpbar"><span>XP</span><div class="bar"><i id="xp-fill" style="transform:scaleX(${prevPct.toFixed(3)})"></i></div><span id="hero-xp">${fmt(Math.round(prevXp))} / ${fmt(hero.need)}</span></div>
-  <div class="bento">${tile('money')}${tile('dfir')}${tile('body',true)}</div>
+  <div class="bento">${tile('money')}${tile('dfir')}${tile('body')}</div>
+  ${plaques?`<div class="st-plaques">${plaques}</div>`:''}
   <div class="card hud spot qw"><div class="qw-head"><span>Квест дня</span><span class="qw-count">${sm.done}/${sm.total}</span></div>${taskRows}${habRows}${(!taskRows&&!habRows)?'<div class="cmd-hint" style="padding:10px 0">На сегодня всё выполнено</div>':''}<div class="qw-foot">если не выполнить: ${foot}</div></div>
   <div class="card"><div class="card-title">Ближайшее</div>${ev.length?ev.map(e=>`<div class="upc-row"><div class="upc-when">${escapeHtml(formatTaskDate(e.date))}${e.time?' · '+escapeHtml(e.time):''}</div><div class="upc-title">${escapeHtml(e.title)}${e.repeat?ico('repeat',12):''}</div></div>`).join(''):'<div class="cmd-hint">Ближайших событий нет</div>'}</div>`;
   renderSyncState();
@@ -4573,6 +4786,16 @@ function renderStatus(){
   const xe=document.getElementById('hero-xp');
   if(xe&&heroPrev&&heroPrev.into!==hero.into){xe.dataset.v=heroPrev.into;fxTicker(xe,hero.into,n=>fmt(Math.round(n))+' / '+fmt(hero.need))}
   heroPrev={into:hero.into,pct:hero.pct,level:L};
+}
+function openSphere(s){
+  const g=statusTileTarget(s);if(!g)return;
+  if(g.view==='quests'){
+    questTab=g.tab;switchView('quests');
+    // Квесты have no list filter yet; when one appears (setQuestListFilter) DFIR opens filtered
+    if(g.list&&typeof setQuestListFilter==='function')setQuestListFilter(g.list);
+    return;
+  }
+  switchView(g.view);
 }
 function playStatusIntro(){
   introPending=false;
