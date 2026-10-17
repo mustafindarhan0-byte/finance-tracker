@@ -912,7 +912,8 @@ function batchSetting(b,key,value){
 // XP entry written inside a batch; local caches + level-up notice updated right away
 async function batchXp(b,id,sphere,amount,source){
   if(!amount)return null;
-  const before=await levelsNow(),e={id,date:today(),at:Date.now(),sphere:sphere||null,amount,source};
+  const before=await levelsNow(),bx=xpWithBonus(await getCol('xpLog'),sphere,amount,today());
+  const e={id,date:today(),at:Date.now(),sphere:sphere||null,amount:bx.amount,source,...(bx.bonus?{bonus:true}:{})};
   batchPut(b,'xpLog',e);
   const arr=await getCol('xpLog'),i=arr.findIndex(x=>x.id===id);if(i>=0)arr[i]=e;else arr.push(e);
   notifyLevelChange(before,await levelsNow());
@@ -3126,7 +3127,10 @@ async function completeTask(id,opts){
 async function completeTaskInner(id,opts){
   await Promise.all([getTasks(),getTaskLog()]);
   const t=tasksCache.find(x=>x.id===id);if(!t||t.done)return;
-  const log={id:uid(),taskId:t.id,title:t.title,list:t.list,date:today(),at:Date.now(),xp:opts&&opts.noXp?0:(t.xp!=null?t.xp:20),noXp:!!(opts&&opts.noXp)};
+  // installment payments get their XP (30) from the debt hook only
+  const noTaskXp=!!(opts&&opts.noXp)||t.source==='debt';
+  const log={id:uid(),taskId:t.id,title:t.title,list:t.list,date:today(),at:Date.now(),xp:noTaskXp?0:(t.xp!=null?t.xp:20),noXp:noTaskXp};
+  if(opts&&opts.el&&window.fxQuestDone)fxQuestDone(opts.el,log.xp||30);
   const nd=t.repeat?nextDue(t):null;
   const upd={...t};
   if(nd)upd.due=nd;else{upd.done=true;upd.doneAt=Date.now()}
@@ -3170,17 +3174,25 @@ function habitStreak(hid,checks){
   let n=0;while(set.has(d)){n++;d=addDays(d,-1)}
   return n;
 }
+const habitBusy=new Set();
 async function toggleHabit(hid,el){
+  if(habitBusy.has(hid))return;
+  habitBusy.add(hid);
+  try{await toggleHabitInner(hid,el)}finally{habitBusy.delete(hid)}
+}
+async function toggleHabitInner(hid,el){
   await Promise.all([getChecks(),getHabits()]);
   const date=today(),key=`${hid}_${date}`;
   const i=checksCache.findIndex(c=>c.key===key),hab=habitsCache.find(x=>x.id===hid);
   try{
-    if(i>=0){checksCache.splice(i,1);renderTasks();await dbDel('habitChecks',key);await revokeXp('habit_'+key)}
+    if(i>=0){checksCache.splice(i,1);renderTasks();await dbDel('habitChecks',key);await revokeXp('habit_'+key);checkAchievements()}
     else{
       const c={key,habitId:hid,date};checksCache.push(c);
       if(window.fxQuestDone&&el)fxQuestDone(el,20);
       renderTasks();await dbPut('habitChecks',c);
       await awardXp('habit_'+key,hab&&hab.sphere,20,'habit');
+      // unchecked again while the XP was being written → take the XP back
+      if(!checksCache.some(x=>x.key===key))await revokeXp('habit_'+key);
       checkAchievements();
     }
   }catch(err){toast('Не удалось сохранить: '+err.message);dirtyTasks();refreshTasks()}
@@ -3389,7 +3401,7 @@ async function addQuickTask(){
 // ── Game layer: XP, levels, ranks, cooling, seasons, achievements ──
 const SPHERES={money:'Деньги',dfir:'DFIR',body:'Тело'};
 const SPHERE_OF_LIST={dfir:'dfir',gym:'body',money:'money'};
-const xpToNext=L=>1000+150*L;
+const xpToNext=L=>600+100*L; // F5: Tier 2 (lvl 15) ≈ 19 000 XP — reachable within a season
 function cumXp(L){let s=0;for(let k=1;k<L;k++)s+=xpToNext(k);return s}
 function levelOf(xp){let L=1;while(xp>=cumXp(L+1))L++;return L}
 function levelInfo(xp){const L=levelOf(xp),a=cumXp(L),b=cumXp(L+1);return{level:L,into:Math.max(0,xp-a),need:b-a,pct:Math.max(0,Math.min(1,(xp-a)/(b-a)))}}
@@ -3418,7 +3430,8 @@ function notifyLevelChange(b,a){
 async function awardXp(id,sphere,amount,source){
   if(!amount)return null;
   const before=await levelsNow();
-  const e={id,date:today(),at:Date.now(),sphere:sphere||null,amount,source};
+  const bx=xpWithBonus(await getCol('xpLog'),sphere,amount,today());
+  const e={id,date:today(),at:Date.now(),sphere:sphere||null,amount:bx.amount,source,...(bx.bonus?{bonus:true}:{})};
   await colPut('xpLog',e);
   notifyLevelChange(before,await levelsNow());
   refreshStatusIfVisible();
@@ -3429,39 +3442,53 @@ async function revokeXp(id){await colDel('xpLog',id);refreshStatusIfVisible()}
 // Task completion hooks: fn(task,log,opts) → undo function | null
 const taskCompleteHooks=[];
 taskCompleteHooks.push(async(t,log,opts)=>{
-  if(opts&&opts.noXp)return null;
+  if(log.noXp)return null;
   await awardXp('task_'+log.id,SPHERE_OF_LIST[t.list]||null,t.xp!=null?t.xp:20,'task');
   return()=>revokeXp('task_'+log.id);
 });
 
-// Cooling: a sphere with no positive XP for 14 days drops to the start of its previous level (once per idle period)
-const COOL_DAYS=14,COOL_WARN_FROM=11;
+// Cooling without punishment (F5): after a quiet window the sphere is "cooled" — its XP is frozen, nothing is taken.
+// The first XP after the window opens a 7-day return window where that sphere's XP counts ×1.5.
+// «Деньги» earn XP mostly monthly, so their window is 35 days and any entered/imported transaction counts as activity.
+const COOL_DAYS=14,COOL_DAYS_MONEY=35,COOL_WARN_BEFORE=3,RETURN_DAYS=7,RETURN_MULT=1.5;
+const coolWindow=s=>s==='money'?COOL_DAYS_MONEY:COOL_DAYS;
+function sphereActivityDates(log,s){
+  const ds=new Set(log.filter(e=>e.sphere===s&&e.amount>0).map(e=>e.date));
+  if(s==='money'&&txCache)txCache.forEach(t=>{if(t.createdAt)ds.add(localDate(new Date(t.createdAt)))});
+  return [...ds].sort();
+}
 function sphereIdleDays(log,s){
-  const es=log.filter(e=>e.sphere===s);
-  if(!es.some(e=>e.amount>0))return null;
-  const last=es.reduce((m,e)=>((e.amount>0||String(e.id).startsWith('cool_'))&&e.date>m)?e.date:m,'');
-  return daysBetween(last,today());
+  const ds=sphereActivityDates(log,s);
+  return ds.length?daysBetween(ds[ds.length-1],today()):null;
 }
-async function runCooling(){
-  const log=await getCol('xpLog'),t=today();
+// {sphere:{cooled:true}} or {sphere:{left:N}} (N days before cooling)
+function coolingInfo(log){
+  const out={};
   for(const s of Object.keys(SPHERES)){
-    const idle=sphereIdleDays(log,s);
-    if(idle==null||idle<COOL_DAYS)continue;
-    const xp=log.filter(e=>e.sphere===s).reduce((a,e)=>a+e.amount,0),L=levelOf(xp);
-    if(L<=1)continue;
-    const amount=cumXp(L-1)-xp;
-    if(amount>=0)continue;
-    await colPut('xpLog',{id:`cool_${s}_${t}`,date:t,at:Date.now(),sphere:s,amount,source:'cooling'});
-  }
-}
-async function coolingWarnings(){
-  const log=await getCol('xpLog'),out={};
-  for(const s of Object.keys(SPHERES)){
-    const idle=sphereIdleDays(log,s);
-    if(idle!=null&&idle>=COOL_WARN_FROM&&idle<COOL_DAYS)out[s]=COOL_DAYS-idle;
+    const idle=sphereIdleDays(log,s),w=coolWindow(s);
+    if(idle==null)continue;
+    if(idle>=w)out[s]={cooled:true};else if(idle>=w-COOL_WARN_BEFORE)out[s]={left:w-idle};
   }
   return out;
 }
+// is an award on `date` inside a return window? (the award itself may be the return)
+function returnBonusActive(log,s,date){
+  if(!s)return false;
+  const ds=sphereActivityDates(log,s).filter(d=>d<date);
+  let ret=null;
+  for(let i=1;i<ds.length;i++)if(daysBetween(ds[i-1],ds[i])>=coolWindow(s))ret=ds[i];
+  if(ds.length&&daysBetween(ds[ds.length-1],date)>=coolWindow(s))ret=date;
+  return !!ret&&daysBetween(ret,date)<RETURN_DAYS;
+}
+function xpWithBonus(log,s,amount,date){
+  return amount>0&&returnBonusActive(log,s,date)?{amount:Math.round(amount*RETURN_MULT),bonus:true}:{amount,bonus:false};
+}
+// earlier versions wrote negative "cool_" entries; the penalty is gone, so those entries are removed once
+async function runCooling(){
+  const log=await getCol('xpLog');
+  for(const e of log.filter(x=>x.source==='cooling'||String(x.id).startsWith('cool_')))await colDel('xpLog',e.id);
+}
+async function coolingWarnings(){return coolingInfo(await getCol('xpLog'))}
 
 // Seasons
 const SEASONS=[{id:1,name:'Верблюд',start:'2026-10-01',end:'2026-12-29',phases:[
@@ -3489,8 +3516,9 @@ const ACHIEVEMENTS=[
 ];
 async function getAchievements(){return (await getSetting('achievements'))||{}}
 let achBusy=false;
+let achAgain=false;
 async function checkAchievements(){
-  if(achBusy)return;achBusy=true;
+  if(achBusy){achAgain=true;return}achBusy=true;achAgain=false;
   try{
     const [log,habits,checks,journal,workouts,debts,goals,lv,have]=await Promise.all([getTaskLog(),getHabits(),getChecks(),getCol('journal'),getCol('workouts'),getCol('debts'),dbAll('goals'),levelsNow(),getAchievements()]);
     const t=today(),done={};
@@ -3517,9 +3545,10 @@ async function checkAchievements(){
     if(!fresh.length&&!lost.length)return;
     const upd={...have};fresh.forEach(a=>upd[a.id]=t);lost.forEach(a=>delete upd[a.id]);
     await saveSetting('achievements',upd);
-    fresh.forEach(a=>{toast('Достижение: '+a.name);if(window.fxAchievement)fxAchievement(a)});
+    // a plaque, not a toast — the toast keeps its «Отменить» button
+    fresh.forEach(a=>{if(window.fxAchievement&&!fxRM())fxAchievement(a);else showAchievementPlaque(a)});
   }catch(e){console.warn('achievements',e)}
-  finally{achBusy=false}
+  finally{achBusy=false;if(achAgain){achAgain=false;setTimeout(checkAchievements,0)}}
 }
 
 // ── Journal & command line ([+]) ──
@@ -3540,7 +3569,7 @@ async function addJournal(text,sphere){
 }
 async function deleteJournal(id){
   await colDel('journal',id);await revokeXp('journal_'+id);
-  renderJournalToday();
+  renderJournalToday();checkAchievements();
 }
 function renderJournalToday(){
   const el=document.getElementById('journal-today');if(!el)return;
@@ -3966,7 +3995,7 @@ function switchView(name,btn){
     }
   });
   if(name==='status')refreshStatus();
-  if(name==='quests')refreshTasks();
+  if(name==='quests'){refreshTasks();requestAnimationFrame(()=>setQuestTab(questTab))}
   if(name==='body')refreshBody();
   if(name==='home')refreshDashboard();
   if(name==='history')refreshHistory();
@@ -3987,7 +4016,7 @@ function buildMoneyTabs(){
 function updateMoneyTabs(name){document.querySelectorAll('.money-tab').forEach(b=>b.classList.toggle('active',b.dataset.m===name))}
 let questTab='today';
 function setQuestTab(t){
-  questTab=t;
+  questTab=t||questTab||'today';t=questTab;
   ['today','season','week'].forEach(x=>{const el=document.getElementById('q-'+x);if(el)el.hidden=x!==t});
   document.querySelectorAll('.q-tab').forEach(b=>b.classList.toggle('active',b.dataset.q===t));
   moveQInd();
@@ -3999,14 +4028,15 @@ function moveQInd(){
   if(!b||!ind)return;
   ind.style.transform='translateX('+b.offsetLeft+'px) scaleX('+(b.offsetWidth/100)+')';
 }
+function showAchievementPlaque(a){
+  const el=document.createElement('div');el.className='ach-plaque';el.setAttribute('role','status');
+  el.innerHTML='<span>Достижение</span>'+escapeHtml(a.name);
+  document.body.appendChild(el);setTimeout(()=>el.remove(),3500);
+}
 // ── Status screen (hero, bento, daily quest) ──
 const xpLogSync=()=>(colCache.xpLog&&colCache.xpLog.data)||[];
 function xpTotalsSync(){const t={all:0,money:0,dfir:0,body:0};xpLogSync().forEach(e=>{t.all+=e.amount;if(e.sphere&&t[e.sphere]!=null)t[e.sphere]+=e.amount});return t}
-function coolingSync(){
-  const log=xpLogSync(),out={};
-  for(const s of Object.keys(SPHERES)){const idle=sphereIdleDays(log,s);if(idle!=null&&idle>=COOL_WARN_FROM&&idle<COOL_DAYS)out[s]=COOL_DAYS-idle}
-  return out;
-}
+function coolingSync(){return coolingInfo(xpLogSync())}
 const MONTHS_GEN=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 const WD_SHORT=['пн','вт','ср','чт','пт','сб','вс'];
 const dayWord=n=>{const a=n%10,b=n%100;return b>=11&&b<=14?'дней':a===1?'день':a>=2&&a<=4?'дня':'дней'};
@@ -4030,22 +4060,22 @@ function renderStatus(){
   const habits=(habitsCache||[]).filter(h=>!h.archived),checks=checksCache||[];
   const bestStreak=habits.reduce((m,h)=>Math.max(m,habitStreak(h.id,checks)),0);
   const dfirWeek=(tasksCache||[]).filter(t=>!t.done&&/^DFIR неделя \d+/.test(t.title)).sort((a,b)=>(a.due||'').localeCompare(b.due||''))[0];
-  const sal=(tasksCache||[]).filter(t=>t.title==='Распределить зарплату'&&t.due).sort((a,b)=>a.due.localeCompare(b.due))[0];
+  const sal=(tasksCache||[]).filter(t=>!t.done&&(t.kind==='salary'||t.title==='Распределить зарплату')&&t.due).sort((a,b)=>a.due.localeCompare(b.due))[0];
   const mq=[`${sm.done}/${sm.total} квестов`,`серия ${bestStreak}`];
   if(dfirWeek)mq.push((dfirWeek.title.match(/^DFIR неделя \d+/)||['DFIR'])[0]);
-  if(sal){const n=daysBetween(t0,sal.due);mq.push(`до зарплаты ${n} ${dayWord(n)}`)}
-  Object.keys(warn).forEach(s=>mq.push(`${SPHERES[s]} остынет через ${warn[s]} ${dayWord(warn[s])}`));
+  if(sal){const n=daysBetween(t0,sal.due);mq.push(n<0?'зарплата не распределена':n===0?'сегодня распределить зарплату':`до зарплаты ${n} ${dayWord(n)}`)}
+  Object.keys(warn).forEach(s=>mq.push(warn[s].cooled?`${SPHERES[s]}: остывание — первое действие откроет ×1,5 на 7 дней`:`${SPHERES[s]} остынет через ${warn[s].left} ${dayWord(warn[s].left)}`));
   const backupNote=typeof backupReminderText==='function'?backupReminderText():'';if(backupNote)mq.push(backupNote);
   const src=statusAvatar||'figure.jpg';
   const tile=(s,wide)=>{
     const info=levelInfo(tot[s]),w=warn[s];
-    return `<div class="tile spot tilt${wide?' wide':''}${w!=null?' cooling':''}" style="--c:var(--${s})"><div class="t-name">${SPHERES[s]}</div><div class="t-lvl disp">${info.level}</div><div class="bar"><i style="transform:scaleX(${info.pct.toFixed(3)})"></i></div><div class="t-sub">${w!=null?`<span class="t-warn">остынет через ${w} ${dayWord(w)}</span>`:`${fmt(Math.round(info.into))} / ${fmt(info.need)} XP`}</div></div>`;
+    return `<div class="tile spot tilt${wide?' wide':''}${w&&w.cooled?' cooling':''}" style="--c:var(--${s})"><div class="t-name">${SPHERES[s]}</div><div class="t-lvl disp">${info.level}</div><div class="bar"><i style="transform:scaleX(${info.pct.toFixed(3)})"></i></div><div class="t-sub">${w&&w.cooled?`<span class="t-warn">остывание · XP заморожен</span>`:w?`<span class="t-warn">остынет через ${w.left} ${dayWord(w.left)}</span>`:returnBonusActive(xpLogSync(),s,today())?`<span class="t-bonus">возвращение · XP ×1,5</span>`:`${fmt(Math.round(info.into))} / ${fmt(info.need)} XP`}</div></div>`;
   };
-  const taskRows=sm.openT.slice(0,5).map(t=>`<div class="qrow"><button class="task-check" aria-label="Выполнить" data-id="${escapeHtml(t.id)}" onclick="completeTask(this.dataset.id,{el:this})"></button><span class="qt">${escapeHtml(t.title)}</span><span class="qxp">+${t.xp!=null?t.xp:20}</span></div>`).join('');
+  const taskRows=sm.openT.slice(0,5).map(t=>`<div class="qrow"><button class="task-check" aria-label="Выполнить" data-id="${escapeHtml(t.id)}" onclick="completeTask(this.dataset.id,{el:this})"></button><span class="qt">${escapeHtml(t.title)}</span><span class="qxp">+${t.source==='debt'?30:(t.xp!=null?t.xp:20)}</span></div>`).join('');
   const habRows=sm.openH.map(h=>`<div class="qrow" data-id="${escapeHtml(h.id)}" onclick="toggleHabit(this.dataset.id,this.querySelector('.habit-check'))"><div class="habit-check"></div><span class="qt">${escapeHtml(h.name)}</span><span class="qxp">+20</span></div>`).join('');
   const risk=habits.filter(h=>habitStreak(h.id,checks)>0&&!checks.some(c=>c.key===`${h.id}_${t0}`));
-  const foot=risk.length?`серия «${escapeHtml(risk[0].name)}» (${habitStreak(risk[0].id,checks)}) оборвётся`:Object.keys(warn).length?`${SPHERES[Object.keys(warn)[0]]} остынет через ${warn[Object.keys(warn)[0]]} ${dayWord(warn[Object.keys(warn)[0]])}`:'штрафа нет';
-  const ev=upcomingEvents(tasksCache||[],t0,7).slice(0,3);
+  const foot=risk.length?`серия «${escapeHtml(risk[0].name)}» (${habitStreak(risk[0].id,checks)}) оборвётся`:Object.keys(warn).length?(warn[Object.keys(warn)[0]].cooled?`${SPHERES[Object.keys(warn)[0]]} остаётся в остывании`:`${SPHERES[Object.keys(warn)[0]]} остынет через ${warn[Object.keys(warn)[0]].left} ${dayWord(warn[Object.keys(warn)[0]].left)}`):'ничего не потеряется';
+  const seenEv=new Set(),ev=upcomingEvents(tasksCache||[],t0,6).filter(e=>{const k=e.title+'|'+e.list;if(seenEv.has(k))return false;seenEv.add(k);return true}).slice(0,3);
   const prevXp=heroPrev?heroPrev.into:hero.into,prevPct=heroPrev?heroPrev.pct:hero.pct;
   root.innerHTML=`<div class="st-head"><div class="st-title">▸ СИСТЕМА</div><div class="st-date">${dateStr}<span class="st-sync" id="st-sync"></span></div><button class="header-btn" data-v="settings" onclick="switchView(this.dataset.v)" aria-label="Настройки">${ico('settings',20)}</button></div>
   <div class="marquee" id="st-marquee" aria-label="Сводка дня"></div>
@@ -4098,7 +4128,10 @@ async function renderSeason(){
   const el=document.getElementById('q-season');if(!el)return;
   const s=seasonNow(),t0=today(),have=await getAchievements();
   const total=daysBetween(s.start,s.end),el_=Math.max(0,Math.min(total,daysBetween(s.start,t0))),left=Math.max(0,daysBetween(t0,s.end));
-  const monthIdx=Math.max(0,Math.min(s.phases.length-1,parseLocalDate(t0).getMonth()-9));
+  const MONTHS_NOM=['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+  const curMonth=MONTHS_NOM[parseLocalDate(t0).getMonth()];
+  let monthIdx=s.phases.findIndex(p=>p.month===curMonth);
+  if(monthIdx<0)monthIdx=Math.max(0,Math.min(s.phases.length-1,Math.floor((daysBetween(s.start,t0)/Math.max(1,total))*s.phases.length)));
   const endD=parseLocalDate(s.end);
   el.innerHTML=`<div class="season"><div class="season-word disp outline-dim" aria-hidden="true">${escapeHtml(s.name.toUpperCase())}</div>
     <div class="season-top"><div class="card-title">Сезон ${s.id} · ${escapeHtml(s.name)}</div><div class="cmd-hint">${escapeHtml(s.start)} — ${escapeHtml(s.end)} · осталось ${left} ${dayWord(left)}</div><div class="bar" style="--c:var(--bone)"><i style="transform:scaleX(${(el_/total).toFixed(3)})"></i></div></div>
@@ -4291,7 +4324,8 @@ function checkInvariants(data){
   const want=(id,amount,sphere,source,date,at,title,ids,how)=>{
     const e=xpById.get(id);
     if(!e){if(amount)add('xp','warn',`Нет опыта: ${title}`,`${date||'—'}: ожидается ${amount} XP (${id})${how?'; '+how:''}.`,ids,{kind:'xpAdd',xpId:id,sphere:sphere||null,amount,source,date:isYmd(date)?date:null,at:num(at)?at:noonAt(date)})}
-    else if(num(e.amount)&&!eq(e.amount,amount))add('xp','info',`Опыт ${id}: ${fm(e.amount)} вместо ${amount}`,`${title}, ${date||'—'}${how?'; '+how:''}.`,[id],{kind:'xpSet',xpId:id,amount});
+    // a return-bonus entry (F5) is ×1.5 of the base amount
+    else if(num(e.amount)&&!eq(e.amount,amount)&&!(e.bonus&&eq(e.amount,Math.round(amount*1.5))))add('xp','info',`Опыт ${id}: ${fm(e.amount)} вместо ${amount}`,`${title}, ${date||'—'}${how?'; '+how:''}.`,[id],{kind:'xpSet',xpId:id,amount});
   };
   let noXpHeur=0,noXpField=0;
   logs.forEach(l=>{

@@ -385,3 +385,8 @@ body.fx-paused *,body.fx-paused::after{animation-play-state:paused!important}
 /* состояние синхронизации в шапке Статуса */
 .st-sync{display:none;margin-left:8px;color:var(--money)}
 .st-sync.on{display:inline}
+
+/* F5: возвращение после остывания и плашка достижения (reduced motion) */
+.t-bonus{color:var(--money)}
+.ach-plaque{position:fixed;left:50%;top:calc(16px + env(safe-area-inset-top));transform:translateX(-50%);z-index:9800;background:var(--ink-2);border:1px solid var(--money);color:var(--bone);padding:10px 16px;border-radius:var(--radius);font:500 14px var(--font-text);max-width:calc(100% - 32px)}
+.ach-plaque span{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--money);margin-bottom:2px}
