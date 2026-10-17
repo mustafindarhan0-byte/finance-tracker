@@ -28,7 +28,7 @@
   --nav-h:64px;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:radial-gradient(ellipse 900px 500px at 50% -10%,#1c1830 0%,var(--bg) 60%) var(--bg);color:var(--text);min-height:100vh;padding-bottom:calc(var(--nav-h)+36px);-webkit-tap-highlight-color:transparent;overflow-x:hidden;position:relative}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:radial-gradient(ellipse 900px 500px at 50% -10%,#1c1830 0%,var(--bg) 60%) var(--bg);color:var(--text);min-height:100vh;padding-bottom:calc(var(--nav-h) + 36px + env(safe-area-inset-bottom));-webkit-tap-highlight-color:transparent;overflow-x:hidden;position:relative}
 .container{max-width:480px;margin:0 auto;padding:0 16px;position:relative;z-index:1}
 .bottom-nav{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));left:16px;right:16px;max-width:448px;margin:0 auto;height:var(--nav-h);background:rgba(22,22,32,.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.15);border-radius:999px;display:flex;justify-content:space-around;align-items:center;z-index:100;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 .nav-btn{background:none;border:none;color:var(--text3);font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:6px 6px;border-radius:var(--radius-sm);transition:.2s}
@@ -1031,7 +1031,11 @@ function toastUndo(msg,txId){
   el.classList.add('show');
   undoTimer=setTimeout(()=>el.classList.remove('show'),3500);
 }
+const undoing=new Set();
 async function undoTx(id){
+  if(undoing.has(id))return;
+  undoing.add(id);
+  document.getElementById('toast').classList.remove('show');
   await goalRollback(id);
   await dbDel('transactions',id);dirtyTx();
   document.getElementById('toast').classList.remove('show');
@@ -1231,7 +1235,7 @@ async function renderTemplates(){
 async function useTmpl(id){
   const tmpls=await dbAll('templates');
   const t=tmpls.find(x=>x.id===id);if(!t)return;
-  currentType=t.type||'expense';setType(currentType);
+  currentType=t.type||'expense';
   const tx=await saveTx(t.name,t.amount,t.category);
   const c=getCat(t.category);
   toastUndo(`${icoInline(c.icon)}${escapeHtml(t.name)} &middot; ${fmtCur(t.amount)}`,tx.id);
@@ -1244,12 +1248,15 @@ function openTmplModal(){
   document.getElementById('tmpl-modal').classList.add('show');
 }
 function closeTmplModal(){document.getElementById('tmpl-modal').classList.remove('show')}
+let tmplBusy=false;
 async function saveTemplate(){
+  if(tmplBusy)return;
   const name=document.getElementById('tmpl-name').value.trim();
   const amount=parseFloat(document.getElementById('tmpl-amount').value);
   const cat=document.getElementById('tmpl-cat').value;
   if(!name||!amount)return toast('Заполните все поля');
-  await dbPut('templates',{id:uid(),name,amount,category:cat,type:currentType});
+  tmplBusy=true;
+  try{await dbPut('templates',{id:uid(),name,amount,category:cat,type:'expense'})}finally{tmplBusy=false}
   document.getElementById('tmpl-name').value='';document.getElementById('tmpl-amount').value='';
   closeTmplModal();renderTemplates();toast('Шаблон создан');
 }
@@ -1641,12 +1648,12 @@ function detectBank(text){
   // of a merchant's terminal inside another bank's own statement (e.g. "..., Kaspi Bank, MCC:
   // 5812" is extremely common inside Forte/Halyk statements). Detect by each bank's own unique
   // BIK/SWIFT code or IBAN prefix instead — those never appear as a mere merchant mention.
-  if(/CASPKZKA|kaspi\.kz|Kaspi Gold/i.test(text))return'kaspi';
   if(/HSBKKZKX/i.test(text))return'halyk';
   if(/KSNVKZKA|bankffin/i.test(text))return'freedom';
   if(/KZ\d{2}96503/i.test(text))return'forte';
   if(/KZ\d{2}551D/i.test(text))return'freedom';
   if(/форте банк|forte bank/i.test(text))return'forte';
+  if(/CASPKZKA|kaspi\.kz|Kaspi Gold/i.test(text))return'kaspi';
   return null;
 }
 const BANK_NAMES={kaspi:'Kaspi Bank',forte:'Forte Bank',halyk:'Halyk Bank',freedom:'Freedom Bank',cash:'Наличные'};
@@ -1857,17 +1864,28 @@ async function applyDetectedBalance(){
   renderBankBalances();
 }
 
+// Matching key for statement rows: type | full date | amount in tiyn. Transactions of another bank (or cash) never match.
+function stmtKey(type,date,amount){return type+'|'+date+'|'+Math.round(amount*100)}
+function buildTxIndex(txs,bank,short){
+  const idx=new Map();
+  txs.forEach(t=>{
+    if(bank&&t.bank&&t.bank!==bank)return;
+    const k=short?t.type+'|'+t.date.slice(5)+'|'+Math.round(t.amount*100):stmtKey(t.type,t.date,t.amount);
+    idx.set(k,(idx.get(k)||0)+1);
+  });
+  return idx;
+}
+function takeMatch(idx,k){if(idx.get(k)>0){idx.set(k,idx.get(k)-1);return true}return false}
 async function showPdfResults(bank,parsed){
   stmtMode='pdf';
   document.getElementById('stmt-results-card').hidden=false;
   renderBalanceBanner(bank,stmtRawText);
   const txs=await getTxs();
-  const txIndex=new Map();txs.forEach(t=>{const k=t.type+'|'+t.date.slice(5)+'|'+Math.round(t.amount);txIndex.set(k,(txIndex.get(k)||0)+1)});
+  const txIndex=buildTxIndex(txs,bank);
   let matched=0,html='';
   stmtMissed=[];
   parsed.forEach(p=>{
-    const k=p.type+'|'+p.date.slice(5)+'|'+Math.round(p.amount);
-    if(txIndex.has(k)&&txIndex.get(k)>0){matched++;txIndex.set(k,txIndex.get(k)-1);html+=`<div class="match">${icoInline('check',14)}${escapeHtml(p.desc)} &mdash; ${fmtCur(p.amount)}</div>`}
+    if(takeMatch(txIndex,stmtKey(p.type,p.date,p.amount))){matched++;html+=`<div class="match">${icoInline('check',14)}${escapeHtml(p.desc)} &mdash; ${fmtCur(p.amount)}</div>`}
     else{const idx=stmtMissed.length;stmtMissed.push({desc:p.desc,amount:p.amount,date:p.date,type:p.type});html+=missRow(idx,p.desc,p.amount,p.date,p.type)}
   });
   const expenses=parsed.filter(p=>p.type==='expense'),incomes=parsed.filter(p=>p.type==='income');
@@ -1901,7 +1919,7 @@ async function analyzeStatement(){
   const dateCol=document.getElementById('map-date').value,amtCol=document.getElementById('map-amount').value,descCol=document.getElementById('map-desc').value;
   const txs=await getTxs();
   document.getElementById('stmt-results-card').hidden=false;
-  const txIndex=new Map();txs.forEach(t=>{const k=t.type+'|'+t.date.slice(5)+'|'+Math.round(t.amount);txIndex.set(k,(txIndex.get(k)||0)+1)});
+  const txIndex=buildTxIndex(txs,''),txIndexShort=buildTxIndex(txs,'',true);
   let matched=0,html='';
   stmtMissed=[];
   stmtData.forEach(row=>{
@@ -1909,8 +1927,9 @@ async function analyzeStatement(){
     const desc=row[descCol]||'',date=row[dateCol]||'';if(amt===0)return;
     const type=rawAmt>0?'income':'expense';
     const pd=parseStmtDate(date),dateKey=pd.key;
-    const k=type+'|'+dateKey+'|'+Math.round(amt);
-    if(txIndex.has(k)&&txIndex.get(k)>0){matched++;txIndex.set(k,txIndex.get(k)-1);html+=`<div class="match">${icoInline('check',14)}${escapeHtml(desc)} &mdash; ${fmtCur(amt)}</div>`}
+    // a year in the date → exact match; "dd.mm" without a year → month-day match (old behaviour)
+    const hit=pd.iso?takeMatch(txIndex,stmtKey(type,pd.iso,amt)):takeMatch(txIndexShort,type+'|'+dateKey+'|'+Math.round(amt*100));
+    if(hit){matched++;html+=`<div class="match">${icoInline('check',14)}${escapeHtml(desc)} &mdash; ${fmtCur(amt)}</div>`}
     else{
       const iso=pd.iso||today();
       const idx=stmtMissed.length;stmtMissed.push({desc,amount:amt,date:iso,type});
@@ -2591,13 +2610,16 @@ function cmdSetType(t){
 }
 async function cmdParse(s){
   s=(s||'').trim();if(!s)return null;
-  if(s[0]==='+'){const j=extractJournal(s.slice(1));return j.text?{kind:'journal',text:j.text,sphere:j.sphere}:null}
+  let forceIncome=false;
+  if(s[0]==='+'){
+    if(/^\+\s*\d/.test(s)){forceIncome=true;s=s.replace(/^\+\s*/,'')}
+    else{const j=extractJournal(s.slice(1));return j.text?{kind:'journal',text:j.text,sphere:j.sphere}:null}
+  }
   const q=parseQuickTask(s);
-  if(q.tagged||q.due||q.time)return{kind:'task',title:q.title,list:q.list,due:q.due,time:q.time};
+  if(!forceIncome&&(q.tagged||q.due||q.time))return{kind:'task',title:q.title,list:q.list,due:q.due,time:q.time};
   const p=parseInput(s);
   if(p&&p.amount>0){
-    let type=cmdType,cat=p.desc?await classify(p.desc,type):null;
-    if(!cat&&type==='expense'&&p.desc){const ci=await classify(p.desc,'income');if(ci){type='income';cat=ci}}
+    const type=forceIncome?'income':cmdType,cat=p.desc?await classify(p.desc,type):null;
     return{kind:'tx',type,desc:p.desc,amount:p.amount,cat};
   }
   return{kind:'task',title:s,list:'inbox',due:'',time:''};
@@ -2619,7 +2641,9 @@ function cmdKey(e){
   if(e.key==='Enter'){e.preventDefault();cmdSubmit()}
   else if(e.key==='Escape')closeCmd();
 }
+let cmdBusy=false;
 async function cmdSubmit(){
+  if(cmdBusy)return;
   const st=cmdState||await cmdParse(document.getElementById('cmd-input').value);
   if(!st)return;
   if(st.kind==='tx'&&!st.cat){cmdShowCats(st);return}
@@ -2628,7 +2652,8 @@ async function cmdSubmit(){
 async function cmdShowCats(st){
   const box=document.getElementById('cmd-cats');
   const tile=(id,ic,name)=>'<div class="cat-btn" data-c="'+id+'" onclick="cmdPickCat(this.dataset.c)"><span class="icon-wrap">'+ico(ic,22)+'</span>'+escapeHtml(name)+'</div>';
-  const head='<div class="cmd-hint" style="grid-column:1/-1">Не удалось определить категорию — выберите:</div>';
+  const other=st.type==='expense'?'income':'expense';
+  const head='<div class="cmd-hint cmd-cats-head" style="grid-column:1/-1">Не удалось определить категорию — выберите:<button class="cmd-flip" data-t="'+other+'" onclick="cmdFlipType(this.dataset.t)">Это '+(other==='income'?'доход':'расход')+'</button></div>';
   const base=CATS[st.type].map(c=>tile(c.id,c.icon,c.name)).join('');
   box.innerHTML=head+base;box.hidden=false;
   if(st.type==='expense'){
@@ -2636,13 +2661,25 @@ async function cmdShowCats(st){
     if(!box.hidden&&goals.length)box.innerHTML=head+base+goals.map(g=>tile('goal_'+g.id,'goal',g.name)).join('');
   }
 }
+async function cmdFlipType(t){
+  if(!cmdState||cmdState.kind!=='tx')return;
+  cmdState.type=t;cmdState.cat=cmdState.desc?await classify(cmdState.desc,t):null;
+  document.getElementById('cmd-chips').innerHTML=cmdChipHtml(cmdState);
+  if(cmdState.cat){document.getElementById('cmd-cats').hidden=true}else cmdShowCats(cmdState);
+}
 async function cmdPickCat(id){
-  if(!cmdState)return;
-  if(cmdState.desc)await learnCategory(cmdState.desc,id);
-  cmdState.cat=id;document.getElementById('cmd-chips').innerHTML=cmdChipHtml(cmdState);
-  await cmdSave(cmdState);
+  if(!cmdState||cmdBusy)return;
+  const st=cmdState;st.cat=id;
+  document.getElementById('cmd-chips').innerHTML=cmdChipHtml(st);
+  if(st.desc)learnCategory(st.desc,id);
+  await cmdSave(st);
 }
 async function cmdSave(st){
+  if(cmdBusy)return;
+  cmdBusy=true;cmdState=null;
+  try{await cmdSaveInner(st)}finally{cmdBusy=false}
+}
+async function cmdSaveInner(st){
   const chip=document.getElementById('cmd-chip'),nav=document.querySelector('.nav-btn[data-view="'+(st.kind==='tx'?'money':'quests')+'"]');
   fxFlash(document.getElementById('cmd-field'));
   try{
@@ -2859,8 +2896,8 @@ function setReps(i,v){
 function pickExercise(i){wkCur=+i;renderBody()}
 async function finishWorkout(){
   if(!wk)return;
-  wk.done=true;wk.at=Date.now();await wkSave();
   const w=wk;wk=null;
+  w.done=true;w.at=Date.now();await colPut('workouts',w);
   if(w.taskId){await getTasks();if(tasksCache.some(t=>t.id===w.taskId&&!t.done))await completeTask(w.taskId,{noXp:true})}
   await awardXp('workout_'+w.id,'body',60,'workout');
   checkAchievements();
