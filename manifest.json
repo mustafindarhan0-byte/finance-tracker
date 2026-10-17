@@ -1,7 +1,9 @@
 {
-  "name": "Finance Tracker",
-  "short_name": "Finance",
-  "description": "Personal finance tracker",
+  "id": "/finance-tracker/",
+  "name": "Система",
+  "short_name": "Система",
+  "description": "Деньги, задачи и тренировки в одном приложении — с уровнями и опытом",
+  "lang": "ru",
   "start_url": "/finance-tracker/",
   "display": "standalone",
   "background_color": "#000000",
@@ -19,6 +21,35 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Расход",
+      "short_name": "Расход",
+      "description": "Записать трату",
+      "url": "/finance-tracker/?action=add",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Квест дня",
+      "short_name": "Квест дня",
+      "description": "Задачи и привычки на сегодня",
+      "url": "/finance-tracker/?view=quests",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Тренировка",
+      "short_name": "Тренировка",
+      "description": "Открыть экран «Тело»",
+      "url": "/finance-tracker/?view=body",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }
