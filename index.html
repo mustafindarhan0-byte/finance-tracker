@@ -6,9 +6,10 @@
 <meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Система">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
-<title>Finance Tracker</title>
+<title>Система</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" integrity="sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js" integrity="sha384-3dQMr5IYbX54CRsE04108MMs7jeEV/IWSMASoZPvju7G87xGB1a2oHweoRc6Fc4z" crossorigin="anonymous"></script>
@@ -293,6 +294,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .setup-wrap h1{margin-bottom:8px}
 .setup-wrap p{color:var(--text2);margin-bottom:24px;font-size:14px}
 .setup-status{margin-top:16px;color:var(--text2);font-size:13px;min-height:18px}
+.setup-note{margin:16px 0 0!important;font-size:13px!important;line-height:1.45}
+.setup-join{margin-top:16px;text-align:left}
+.setup-label{display:block;font-size:13px;color:var(--text2);margin-bottom:2px}
 .code-display{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:16px;background:var(--bg3);padding:14px;border-radius:var(--radius-sm);word-break:break-all;text-align:center;margin-bottom:12px;user-select:all}
 
 /* Desktop/laptop: max effect tier — glass cards + glow, gated behind width so phones never pay for it */
@@ -322,18 +326,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div id="view-setup" class="view active">
 <div class="container">
   <div class="setup-wrap">
-    <div class="icon-wrap" id="setup-emoji"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11A8 8 0 0 0 6.3 5.3L4 7.6"/><path d="M4 4v4h4"/><path d="M4 13a8 8 0 0 0 13.7 5.7L20 16.4"/><path d="M20 20v-4h-4"/></svg></div>
-    <h1 id="setup-title">Синхронизация</h1>
-    <p id="setup-subtitle">Первый запуск на этом устройстве. Выбери один из вариантов:</p>
+    <div class="icon-wrap" id="setup-emoji" aria-hidden="true"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="12" cy="12" r="9" stroke-dasharray="44 13"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/></svg></div>
+    <h1 id="setup-title">Система</h1>
+    <p id="setup-subtitle">Деньги, задачи и тренировки в одном приложении — с уровнями и опытом.</p>
     <div id="setup-options">
-      <button class="save-btn primary" onclick="createNewSpace()">Создать аккаунт из данных этого устройства</button>
-      <button class="save-btn neutral" onclick="document.getElementById('join-form').hidden=false">У меня уже есть код</button>
-      <div id="join-form" hidden style="margin-top:16px;text-align:left">
-        <input type="text" id="join-code" class="settings-input" placeholder="Вставь код доступа" autocomplete="off">
-        <button class="save-btn income" onclick="joinExistingSpace()">Подключиться</button>
+      <button type="button" class="save-btn primary" onclick="createNewSpace()">Новое пространство</button>
+      <button type="button" class="save-btn neutral" aria-controls="join-form" aria-expanded="false" onclick="document.getElementById('join-form').hidden=false;this.setAttribute('aria-expanded','true');document.getElementById('join-code').focus()">У меня есть код</button>
+      <p class="setup-note">Пространство открывается кодом доступа: сохрани его в менеджере паролей — без него на новом устройстве не войти.</p>
+      <div id="join-form" class="setup-join" hidden>
+        <label class="setup-label" for="join-code">Код доступа</label>
+        <input type="text" id="join-code" class="settings-input" placeholder="Вставь код из менеджера паролей" autocomplete="off" autocapitalize="off" spellcheck="false" onkeydown="if(event.key==='Enter'){event.preventDefault();joinExistingSpace()}">
+        <button type="button" class="save-btn income" onclick="joinExistingSpace()">Подключиться</button>
       </div>
     </div>
-    <div class="setup-status" id="setup-status"></div>
+    <div class="setup-status" id="setup-status" role="status" aria-live="polite"></div>
   </div>
 </div>
 </div>
@@ -576,6 +582,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   </div>
   <div class="card" style="margin-top:12px">
     <div class="settings-item" style="border:none">
+      <div><div class="settings-label">Стартовый набор</div><div class="settings-desc">Задачи, привычки и 3 плана тренировок. Уже добавленное не меняется</div></div>
+      <button class="settings-btn" onclick="offerStarterPack(false)">Добавить</button>
+    </div>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <div class="settings-item" style="border:none">
       <div><div class="settings-label">Проверка данных</div><div class="settings-desc">Цели, рассрочки, опыт, задачи, операции, балансы</div></div>
       <button class="settings-btn" id="integrity-btn" onclick="runIntegrityCheck()">Проверить данные</button>
     </div>
@@ -689,7 +701,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div class="modal-overlay" id="code-modal">
 <div class="modal">
   <h3>Сохрани свой код доступа</h3>
-  <p style="color:var(--text2);font-size:13px;margin-bottom:12px">Он понадобится, чтобы подключить другое устройство. Без него данные не восстановить — сохрани в менеджер паролей или заметки.</p>
+  <p style="color:var(--text2);font-size:13px;margin-bottom:12px">Код открывает твоё пространство на другом телефоне или компьютере. Сохрани его в менеджере паролей — без него на новом устройстве не войти.</p>
   <div class="code-display" id="code-display"></div>
   <button class="save-btn primary" onclick="copyCode()">Скопировать код</button>
   <button class="save-btn expense" style="background:var(--green)" id="code-modal-confirm">Продолжить</button>
@@ -1032,7 +1044,7 @@ async function showDevices(){
   }catch(e){el.innerHTML=`<div class="settings-desc" style="padding:8px 0">Не удалось загрузить: ${escapeHtml(e.code||e.message)}</div>`}
 }
 async function revokeDevice(uid){
-  if(!confirm('Отключить это устройство? Ему понадобится снова ввести код.'))return;
+  if(!await sheetConfirm({title:'Отключить устройство?',text:'Ему понадобится снова ввести код.',ok:'Отключить',danger:true}))return;
   try{await spaceRef.collection('members').doc(uid).delete();toast('Устройство отключено');showDevices()}
   catch(e){toast('Не удалось: '+(e.code||e.message))}
 }
@@ -1102,6 +1114,7 @@ function showCodeModal(code,mode){
   document.getElementById('code-display').textContent=code;
   const btn=document.getElementById('code-modal-confirm');
   if(mode==='setup'){btn.textContent='Я сохранил, продолжить';btn.onclick=confirmCodeSaved}
+  else if(mode==='check'){btn.textContent='Я сохранил';btn.onclick=()=>{document.getElementById('code-modal').classList.remove('show');lsSet(firstRunKey('codeSaved'),'1');refreshStatusIfVisible()}}
   else{btn.textContent='Закрыть';btn.onclick=()=>document.getElementById('code-modal').classList.remove('show')}
   document.getElementById('code-modal').classList.add('show');
 }
@@ -1112,7 +1125,9 @@ async function copyCode(){
 function confirmCodeSaved(){
   document.getElementById('code-modal').classList.remove('show');
   localStorage.setItem('syncCode',pendingCode);
-  startApp();
+  lsSet(firstRunKey('codeSaved'),'1');
+  // first run: after the intro, offer the starter pack once
+  startApp().then(()=>offerStarterPack(true)).catch(e=>console.warn('starter offer',e));
 }
 function showMyCode(){
   const code=localStorage.getItem('syncCode');
@@ -1121,7 +1136,7 @@ function showMyCode(){
 }
 
 async function createNewSpace(){
-  document.getElementById('setup-status').textContent='Создаём аккаунт...';
+  document.getElementById('setup-status').textContent='Создаём пространство…';
   const code=generateCode(),spaceId=await sha256Hex(code);
   await connectSpace(spaceId);
   localStorage.setItem('syncSpace',spaceId);
@@ -1133,7 +1148,7 @@ async function createNewSpace(){
   await spaceRef.collection('_meta').doc('info').set({createdAt:Date.now()});
   const legacy=await readLegacyIndexedDB();
   if(hasAnyLegacyData(legacy)){
-    document.getElementById('setup-status').textContent='Переносим существующие данные...';
+    document.getElementById('setup-status').textContent='Переносим данные с этого устройства…';
     downloadLegacyBackup(legacy);
     await uploadLegacyData(legacy);
   }
@@ -1143,8 +1158,8 @@ async function createNewSpace(){
 
 async function joinExistingSpace(){
   const code=document.getElementById('join-code').value.trim();
-  if(!code)return toast('Введите код');
-  document.getElementById('setup-status').textContent='Проверяем код...';
+  if(!code)return toast('Введи код доступа');
+  document.getElementById('setup-status').textContent='Проверяем код…';
   const spaceId=await sha256Hex(code);
   await connectSpace(spaceId);
   const joined=await ensureMember(code); // strict rules: fails for a wrong code
@@ -1160,6 +1175,7 @@ async function joinExistingSpace(){
   await ensureSpaceDoc();
   localStorage.setItem('syncSpace',spaceId);
   localStorage.setItem('syncCode',code);
+  lsSet(firstRunKey('codeSaved'),'1'); // the code was just typed in, so it is saved somewhere
   document.getElementById('setup-status').textContent='';
   startApp();
 }
@@ -1812,7 +1828,7 @@ async function saveBudget(){
   document.getElementById('budget-form').classList.remove('show');
   refreshBudgets();toast('Лимит установлен');
 }
-async function delBudget(key){if(!confirm('Удалить лимит?'))return;await dbDel('budgets',key);refreshBudgets();toast('Лимит удалён')}
+async function delBudget(key){if(!await sheetConfirm({title:'Удалить лимит?',ok:'Удалить',danger:true}))return;await dbDel('budgets',key);refreshBudgets();toast('Лимит удалён')}
 
 // Goals double as expense categories ("goal_<id>") so picking one in the fallback grid both
 // files the transaction and grows the goal — registered dynamically since goals are user-created.
@@ -1858,7 +1874,7 @@ async function addToGoal(id){
   if(isNaN(val)||val<=0)return toast('Введите положительное число');
   await contributeToGoal(id,val);refreshGoals();toast('Пополнено');
 }
-async function deleteGoal(id){if(!confirm('Удалить цель?'))return;await dbDel('goals',id);refreshGoals();toast('Цель удалена')}
+async function deleteGoal(id){if(!await sheetConfirm({title:'Удалить копилку?',ok:'Удалить',danger:true}))return;await dbDel('goals',id);refreshGoals();toast('Копилка удалена')}
 
 // ── Statement ──
 let stmtParsed=[];
@@ -2986,7 +3002,7 @@ async function importData(e){
     await uploadLegacyData(parsed.data);
     await reloadAfterBulkChange();
     if(parsed.version===1&&obj.currency){currency=obj.currency;document.getElementById('currency-sel').value=currency;saveSetting('currency',currency)}
-    toast(`Импортировано: ${(parsed.data.transactions||[]).length} операций`);refreshDashboard();
+    toast(importSummary(parsed.data));refreshDashboard();
   }catch{toast('Ошибка формата файла')}
   finally{e.target.value=''}
 }
@@ -3030,7 +3046,8 @@ async function startRestore(parsed,label,resume){
   if(parsed.error){toast(parsed.error);document.getElementById('restore-panel').hidden=true;return}
   if(restoreBusy)return;
   if(!resume&&readRestoreJob()){
-    if(!confirm('Есть незавершённое восстановление. Начать новое?'))return;
+    if(!await sheetConfirm({title:'Начать новое восстановление?',text:'Есть незавершённое восстановление. Уже записанное останется.',ok:'Начать новое'}))return;
+    if(restoreBusy)return;
     clearRestoreJob();
   }
   restorePanel('<div class="settings-desc" style="padding:8px 0">Сравниваем с текущими данными…</div>');
@@ -3062,9 +3079,10 @@ function renderRestorePlan(){
     </div></div>`);
   if(!n&&p.resume)clearRestoreJob();
 }
-function cancelRestore(){
+async function cancelRestore(){
   if(restoreBusy)return;
-  if(restorePlan&&restorePlan.resume&&restorePlan.ops.length&&confirm('Отменить незавершённое восстановление? Уже записанное останется.'))clearRestoreJob();
+  if(restorePlan&&restorePlan.resume&&restorePlan.ops.length&&await sheetConfirm({title:'Отменить незавершённое восстановление?',text:'Уже записанное останется.',ok:'Отменить его',cancel:'Оставить'}))clearRestoreJob();
+  if(restoreBusy)return;
   restorePlan=null;document.getElementById('restore-panel').hidden=true;
 }
 function restoreOpToBatch(b,op){
@@ -3078,7 +3096,8 @@ function restoreOpToBatch(b,op){
 }
 async function applyRestore(){
   const p=restorePlan;if(!p||restoreBusy)return;
-  if(!p.resume&&!confirm(`Заменить данные: ${p.label}? Записей: ${p.ops.length}.`))return;
+  if(!p.resume&&!await sheetConfirm({title:'Заменить данные?',text:`Источник: ${p.label}. Записей: ${p.ops.length}. Перед заменой сохранится снимок текущих данных.`,ok:'Заменить',danger:true}))return;
+  if(restoreBusy||restorePlan!==p)return;
   restoreBusy=true;
   try{
     if(!p.resume){
@@ -3122,8 +3141,8 @@ async function resumeRestore(){
 }
 
 async function clearAll(){
-  if(!confirm('Удалить ВСЕ данные? Это необратимо!'))return;
-  if(!confirm('Точно уверены?'))return;
+  if(!await sheetConfirm({title:'Удалить все данные?',text:'Операции, задачи, привычки, тренировки и опыт этого пространства. Это необратимо.',ok:'Удалить',danger:true}))return;
+  if(!await sheetConfirm({title:'Точно удалить всё?',text:'Отменить будет нельзя.',ok:'Да, удалить всё',danger:true}))return;
   try{
     await Promise.all([dbClear('transactions'),dbClear('goals'),dbClear('budgets'),dbClear('templates'),dbClear('learned'),dbClear('settings'),dbClear('importedStatements'),...EXTRA_STORES.map(dbClear)]);
     trackWrite(spaceRef.collection('_meta').doc('info').set({resetAt:serverTs()},{merge:true}));
@@ -3133,6 +3152,256 @@ async function clearAll(){
   }catch(err){
     toast('Не всё удалилось, попробуйте ещё раз: '+err.message);
   }
+}
+
+// ── F6.6 first run · F6.7 bottom sheet · F6.9 launch shortcuts ──
+// firstrun:pure-begin
+// Built-in starter pack = the generic part of seed-v1 (tasks, habits, workout plans; no personal data).
+// The seed dates are only a template — starterPackDocs() moves them after today.
+const STARTER_PACK={
+  tasks:[
+    {id:"seed_gymA",title:"Тренировка A",list:"gym",due:"2026-10-06",time:"18:00",repeat:{type:"weekly",days:[2]},workoutPlan:"A"},
+    {id:"seed_gymB",title:"Тренировка B",list:"gym",due:"2026-10-08",time:"18:00",repeat:{type:"weekly",days:[4]},workoutPlan:"B"},
+    {id:"seed_gymC",title:"Тренировка C",list:"gym",due:"2026-10-11",time:"",repeat:{type:"weekly",days:[7]},workoutPlan:"C"},
+    {id:"seed_run",title:"Бег 5 км",list:"gym",due:"2026-10-10",time:"",repeat:{type:"weekly",days:[6]}},
+    {id:"seed_dfir_wed",title:"DFIR — повторение темы недели, 1 ч",list:"dfir",due:"2026-10-07",time:"19:00",repeat:{type:"weekly",days:[3]},xp:40},
+    {id:"seed_dfir_lab",title:"DFIR — практика на кейсе, 3 ч",list:"dfir",due:"2026-10-10",time:"11:00",repeat:{type:"weekly",days:[6]},xp:80},
+    {id:"seed_dfir_w01",title:"DFIR неделя 1: процесс расследования, цепочка хранения, образы дисков",list:"dfir",due:"2026-10-05",time:"19:00",repeat:null,xp:60},
+    {id:"seed_dfir_w02",title:"DFIR неделя 2: NTFS — MFT, журналы, ADS",list:"dfir",due:"2026-10-12",time:"19:00",repeat:null,xp:60},
+    {id:"seed_dfir_w03",title:"DFIR неделя 3: артефакты Windows — реестр, Prefetch, Amcache, Shimcache, LNK, Jump Lists",list:"dfir",due:"2026-10-19",time:"19:00",repeat:null,xp:60},
+    {id:"seed_dfir_w04",title:"DFIR неделя 4: журналы событий Windows",list:"dfir",due:"2026-10-26",time:"19:00",repeat:null,xp:60},
+    {id:"seed_dfir_w05",title:"DFIR неделя 5: таймлайн — инструменты Eric Zimmerman, KAPE, Plaso",list:"dfir",due:"2026-11-02",time:"19:00",repeat:null,xp:60},
+    {id:"seed_dfir_w06",title:"DFIR неделя 6: криминалистика памяти — Volatility 3",list:"dfir",due:"2026-11-09",time:"19:00",repeat:null,xp:60},
+    {id:"seed_dfir_w07",title:"DFIR неделя 7: браузеры, почта, USB-устройства",list:"dfir",due:"2026-11-16",time:"19:00",repeat:null,xp:60},
+    {id:"seed_dfir_w08",title:"DFIR неделя 8: артефакты Linux",list:"dfir",due:"2026-11-23",time:"19:00",repeat:null,xp:60},
+    {id:"seed_dfir_w09",title:"DFIR неделя 9: основы мобильной криминалистики",list:"dfir",due:"2026-11-30",time:"19:00",repeat:null,xp:60},
+    {id:"seed_dfir_w10",title:"DFIR неделя 10: отчёт и заключение",list:"dfir",due:"2026-12-07",time:"19:00",repeat:null,xp:60},
+    {id:"seed_dfir_w11",title:"DFIR неделя 11: полный кейс от образа до отчёта, часть 1",list:"dfir",due:"2026-12-14",time:"19:00",repeat:null,xp:100},
+    {id:"seed_dfir_w12",title:"DFIR неделя 12: полный кейс, часть 2, и выбор сертификата",list:"dfir",due:"2026-12-21",time:"19:00",repeat:null,xp:100},
+    {id:"seed_salary",title:"Распределить зарплату",list:"money",due:"2026-10-31",time:"10:00",repeat:{type:"monthly_last"}},
+    {id:"seed_meal",title:"Готовка на неделю",list:"home",due:"2026-10-11",time:"",repeat:{type:"weekly",days:[7]}},
+    {id:"seed_review",title:"Воскресная сверка",list:"home",due:"2026-10-11",time:"18:50",repeat:{type:"weekly",days:[7]}},
+    {id:"seed_weigh",title:"Взвеситься",list:"gym",due:"2026-10-11",time:"",repeat:{type:"weekly",days:[7]},xp:10}
+  ],
+  habits:[
+    {id:"seed_h_evening",name:"Вечерняя отметка",sphere:null,order:1,archived:false},
+    {id:"seed_h_protein",name:"Белок 120 г+",sphere:"body",order:2,archived:false}
+  ],
+  workoutPlans:[
+    {id:"A",name:"Тренировка A",exercises:[{id:"squat",name:"Присед",sets:3,repsMin:6,repsMax:8,step:2.5},{id:"bench",name:"Жим лёжа",sets:3,repsMin:6,repsMax:8,step:2.5},{id:"bbrow",name:"Тяга штанги в наклоне",sets:3,repsMin:8,repsMax:8,step:2.5},{id:"dbpress",name:"Жим гантелей сидя",sets:2,repsMin:10,repsMax:10,step:2},{id:"abs",name:"Пресс",sets:3,repsMin:15,repsMax:15,step:0}]},
+    {id:"B",name:"Тренировка B",exercises:[{id:"rdl",name:"Румынская тяга",sets:3,repsMin:8,repsMax:8,step:2.5},{id:"incline",name:"Жим гантелей на наклонной",sets:3,repsMin:8,repsMax:10,step:2},{id:"pullup",name:"Подтягивания или верхний блок",sets:3,repsMin:8,repsMax:10,step:2.5},{id:"lunge",name:"Выпады",sets:2,repsMin:10,repsMax:10,step:2},{id:"arms",name:"Бицепс + трицепс",sets:2,repsMin:12,repsMax:12,step:1}]},
+    {id:"C",name:"Тренировка C",exercises:[{id:"legpress",name:"Жим ногами",sets:3,repsMin:10,repsMax:10,step:5},{id:"ohp",name:"Жим штанги стоя",sets:3,repsMin:6,repsMax:8,step:2.5},{id:"dbrow",name:"Тяга гантели одной рукой",sets:3,repsMin:10,repsMax:10,step:2},{id:"dips",name:"Брусья",sets:3,repsMin:6,repsMax:15,step:0},{id:"plank",name:"Планка, секунд",sets:3,repsMin:45,repsMax:45,step:0}]}
+  ]
+};
+// Starter pack → documents to write. Ids come from the seed, so whatever already exists is skipped and a second
+// run writes nothing. Repeating tasks start on their first matching day after today; one-off tasks (DFIR weeks)
+// keep their spacing and move together so the earliest lands on the first day after today with the same weekday.
+function starterPackDocs(pack,todayStr,existing,now){
+  const has=s=>new Set(((existing&&existing[s])||[]).map(String));
+  const hasT=has('tasks'),hasH=has('habits'),hasP=has('workoutPlans');
+  const copy=x=>JSON.parse(JSON.stringify(x));
+  const once=pack.tasks.filter(t=>!t.repeat&&t.due).map(t=>t.due).sort();
+  const shift=once.length?daysBetween(once[0],nextOccurrence({type:'weekly',days:[isoWeekday(once[0])]},todayStr)):0;
+  return{
+    tasks:pack.tasks.filter(t=>!hasT.has(t.id)).map(t=>({...copy(t),repeat:t.repeat?copy(t.repeat):null,
+      due:t.repeat?(nextOccurrence(t.repeat,todayStr)||todayStr):(t.due?addDays(t.due,shift):''),
+      done:false,doneAt:null,createdAt:now,source:'seed'})),
+    habits:pack.habits.filter(h=>!hasH.has(h.id)).map(h=>({...copy(h),archived:false,createdAt:now})),
+    workoutPlans:pack.workoutPlans.filter(p=>!hasP.has(p.id)).map(copy)
+  };
+}
+const COUNT_LABELS={transactions:'операций',goals:'копилок',budgets:'лимитов',templates:'шаблонов',settings:'настроек',learned:'правил категорий',tasks:'задач',taskLog:'выполнений задач',habits:'привычек',habitChecks:'отметок привычек',journal:'записей журнала',debts:'рассрочек',allocations:'распределений',workoutPlans:'планов',workouts:'тренировок',bodyWeights:'взвешиваний',xpLog:'записей опыта'};
+// {tasks:22,habits:2} → «задач 22, привычек 2» (zeros are left out)
+function countsText(counts,order){
+  return (order||Object.keys(counts||{})).filter(s=>counts&&counts[s]>0).map(s=>(COUNT_LABELS[s]||s)+' '+counts[s]).join(', ');
+}
+// toast after «Импорт (объединить)»: what was in the file, per collection
+function importSummary(data){
+  const counts={};ALL_STORES.forEach(s=>{counts[s]=((data&&data[s])||[]).length});
+  const t=countsText(counts,ALL_STORES);
+  return t?'Импортировано: '+t:'В файле нет записей';
+}
+// F6.9 — home-screen shortcuts: ?action=add opens [+], ?view=<screen> opens that screen; anything else is ignored
+const LAUNCH_VIEWS=['status','quests','body','money','home','history','stats','plans','debts','alloc','settings'];
+function launchIntent(search){
+  let p;try{p=new URLSearchParams(search||'')}catch(e){return null}
+  if(p.get('action')==='add')return{action:'add'};
+  const v=p.get('view');
+  return v&&LAUNCH_VIEWS.includes(v)?{view:v}:null;
+}
+// the text a plain window.confirm shows when the sheet steps aside
+function sheetMessage(o){return [o&&o.title,o&&o.text].filter(Boolean).join('\n\n')}
+// focus trap: index of the next focusable for Tab / Shift+Tab, wrapping around
+function sheetNextFocus(i,n,back){return n?(back?(i<=0?n-1:i-1):(i>=n-1?0:i+1)):-1}
+// first-run checklist: code saved → bank balances → starter pack → first expense
+function firstRunStateFrom(x){
+  x=x||{};
+  const code=x.codeSaved==='1';
+  const balances=(x.settings||[]).some(s=>s&&/^balAt_/.test(s.key)&&s.value!=null);
+  const starter=x.starterFlag==='1'||(x.tasks||[]).some(t=>t&&(t.source==='seed'||String(t.id).startsWith('seed_')));
+  const expense=(x.txs||[]).some(t=>t&&t.type==='expense');
+  return{code,balances,starter,expense,done:code&&balances&&starter&&expense};
+}
+const FIRST_RUN_STEPS=[
+  {k:'code',t:'Код доступа сохранён',d:'Без него на новом устройстве не войти',b:'Показать код'},
+  {k:'balances',t:'Балансы банков',d:'Сколько сейчас на картах — от этого считаются остатки',b:'Указать'},
+  {k:'starter',t:'Стартовый набор',d:'Задачи, привычки и планы тренировок',b:'Добавить'},
+  {k:'expense',t:'Первая трата',d:'Нажми [+] и напиши, например, «кофе 500»',b:'Открыть [+]'},
+];
+// HTML of the «Первые шаги» card ('' when everything is done or the card was hidden)
+function firstRunChecklistHtml(st){
+  st=st||firstRunStateSync();
+  if(!st||st.done||st.hidden)return '';
+  const n=FIRST_RUN_STEPS.filter(s=>st[s.k]).length;
+  const tick='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7"/></svg>';
+  return `<section class="card hud frc" aria-labelledby="frc-title">
+  <div class="frc-head"><h2 class="frc-title" id="frc-title">Первые шаги</h2><span class="frc-count" aria-label="выполнено ${n} из ${FIRST_RUN_STEPS.length}">${n}/${FIRST_RUN_STEPS.length}</span><button type="button" class="frc-hide" onclick="firstRunHide()" aria-label="Скрыть первые шаги"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+  <ol class="frc-list">${FIRST_RUN_STEPS.map(s=>{const done=!!st[s.k];return `<li class="frc-item${done?' done':''}"><span class="frc-mark">${done?tick:''}</span><span class="frc-body"><span class="frc-t">${escapeHtml(s.t)}</span><span class="frc-d">${done?'Готово':escapeHtml(s.d)}</span></span>${done?'':`<button type="button" class="settings-btn frc-btn" data-act="${s.k}" onclick="firstRunAct(this.dataset.act)">${escapeHtml(s.b)}</button>`}</li>`}).join('')}</ol>
+</section>`;
+}
+// firstrun:pure-end
+
+// sheet:dom-begin
+// F6.7 — bottom sheet instead of window.confirm/prompt: sheetConfirm → Promise<boolean>, sheetPrompt → Promise<string|null>.
+// If window.confirm / window.prompt has been replaced (tests, console scripts such as
+// `window.confirm=()=>true; await clearAll()`) or there is no document body, the replacement answers instead and no
+// sheet is drawn — the call sites keep their exact conditions either way.
+const NATIVE_CONFIRM=window.confirm,NATIVE_PROMPT=window.prompt;
+let sheetChain=Promise.resolve(),sheetSeq=0;
+function sheetNative(kind){
+  const cur=kind==='prompt'?window.prompt:window.confirm;
+  return cur!==(kind==='prompt'?NATIVE_PROMPT:NATIVE_CONFIRM)||!document.body;
+}
+function sheetConfirm(o){
+  o=o||{};
+  if(sheetNative('confirm'))return Promise.resolve(!!window.confirm(sheetMessage(o)));
+  return sheetQueue({...o,kind:'confirm'}).then(v=>v===true);
+}
+function sheetPrompt(o){
+  o=o||{};
+  if(sheetNative('prompt')){const v=window.prompt(o.label||o.title||'',o.value==null?'':String(o.value));return Promise.resolve(v==null?null:String(v))}
+  return sheetQueue({...o,kind:'prompt'});
+}
+// one sheet at a time: the next one opens after the previous is answered
+function sheetQueue(o){
+  const p=sheetChain.then(()=>new Promise(res=>sheetOpen(o,res)));
+  sheetChain=p.catch(()=>{});
+  return p;
+}
+function sheetEl(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
+function sheetOpen(o,resolve){
+  const id='sheet'+(++sheetSeq),prev=document.activeElement,isPrompt=o.kind==='prompt';
+  const layer=sheetEl('div','sheet-layer'),back=sheetEl('div','sheet-backdrop'),box=sheetEl('div','sheet hud'+(o.danger?' sheet-danger':''));
+  box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');box.setAttribute('aria-labelledby',id+'-t');
+  box.appendChild(sheetEl('div','sheet-handle')).setAttribute('aria-hidden','true');
+  box.appendChild(sheetEl('h2','sheet-title',o.title||'')).id=id+'-t';
+  if(o.text){box.appendChild(sheetEl('p','sheet-text',o.text)).id=id+'-d';box.setAttribute('aria-describedby',id+'-d')}
+  let input=null;
+  if(isPrompt){
+    box.appendChild(sheetEl('label','sheet-label',o.label||o.title||'')).setAttribute('for',id+'-i');
+    input=box.appendChild(sheetEl('input','settings-input sheet-input'));
+    input.id=id+'-i';input.type='text';input.setAttribute('autocomplete','off');input.setAttribute('enterkeyhint','done');
+    input.value=o.value==null?'':String(o.value);if(o.placeholder)input.placeholder=o.placeholder;
+  }
+  const row=box.appendChild(sheetEl('div','sheet-actions'));
+  const no=row.appendChild(sheetEl('button','save-btn neutral sheet-cancel',o.cancel||'Отмена'));
+  const yes=row.appendChild(sheetEl('button','save-btn sheet-ok '+(o.danger?'sheet-ok-danger':'primary'),o.ok||(isPrompt?'Сохранить':'Да')));
+  no.type=yes.type='button';
+  layer.appendChild(back);layer.appendChild(box);
+  const focusables=[input,no,yes].filter(Boolean);
+  let closed=false;
+  const close=v=>{
+    if(closed)return;closed=true;
+    document.removeEventListener('keydown',onKey,true);
+    layer.classList.remove('show');
+    setTimeout(()=>layer.remove(),reducedMotion()?0:240);
+    try{if(prev&&typeof prev.focus==='function'&&prev!==document.body)prev.focus()}catch(e){}
+    resolve(v);
+  };
+  const ok=()=>close(isPrompt?input.value:true),cancel=()=>close(isPrompt?null:false);
+  function onKey(e){
+    if(e.key==='Escape'){e.preventDefault();e.stopPropagation();cancel()}
+    else if(e.key==='Tab'){
+      e.preventDefault();
+      const i=focusables.indexOf(document.activeElement),n=focusables.length;
+      focusables[sheetNextFocus(i<0?(e.shiftKey?0:n-1):i,n,e.shiftKey)].focus();
+    }
+    else if(e.key==='Enter'&&isPrompt&&document.activeElement===input){e.preventDefault();ok()}
+  }
+  back.addEventListener('click',cancel);no.addEventListener('click',cancel);yes.addEventListener('click',ok);
+  document.addEventListener('keydown',onKey,true);
+  document.body.appendChild(layer);
+  void layer.offsetWidth; // start the slide-up from the closed position
+  layer.classList.add('show');
+  // destructive questions start on «Отмена», so a stray Enter does not delete anything
+  const first=isPrompt?input:(o.danger?no:yes);
+  try{first.focus();if(isPrompt&&input.select)input.select()}catch(e){}
+}
+// sheet:dom-end
+
+// F6.6 — starter pack: one batch (stamped like every write), ids from the seed, existing documents untouched
+function firstRunKey(k){return k+':'+(spaceRef?spaceRef.id:'')}
+let starterBusy=false;
+async function starterPackPending(){
+  const [tasks,habits,plans]=await Promise.all([getTasks(),getHabits(),getCol('workoutPlans')]);
+  const ids=a=>a.map(x=>x.id);
+  return{tasks,habits,plans,docs:starterPackDocs(STARTER_PACK,today(),{tasks:ids(tasks),habits:ids(habits),workoutPlans:ids(plans)},Date.now())};
+}
+async function installStarterPack(){
+  if(starterBusy)return null;
+  starterBusy=true;
+  try{
+    const{tasks,habits,plans,docs}=await starterPackPending();
+    const ops=[...docs.workoutPlans.map(d=>['workoutPlans',d]),...docs.habits.map(d=>['habits',d]),...docs.tasks.map(d=>['tasks',d])];
+    for(const part of chunkList(ops,RESTORE_BATCH)){const b=fsDb.batch();part.forEach(([s,d])=>batchPut(b,s,d));commitBatch(b)}
+    docs.tasks.forEach(t=>cachePut(tasks,t));docs.habits.forEach(h=>cachePut(habits,h));docs.workoutPlans.forEach(p=>cachePut(plans,p));
+    lsSet(firstRunKey('starterPack'),'1');
+    if(ops.length)refreshActive();
+    return{tasks:docs.tasks.length,habits:docs.habits.length,workoutPlans:docs.workoutPlans.length};
+  }finally{starterBusy=false}
+}
+// Settings «Стартовый набор» and the offer after the code modal (firstRun: asked once per space)
+async function offerStarterPack(firstRun){
+  try{
+    if(firstRun){if(lsGet(firstRunKey('starterOffered')))return;lsSet(firstRunKey('starterOffered'),'1')}
+    const{docs}=await starterPackPending();
+    const counts={tasks:docs.tasks.length,habits:docs.habits.length,workoutPlans:docs.workoutPlans.length};
+    const what=countsText(counts);
+    if(!what){lsSet(firstRunKey('starterPack'),'1');if(!firstRun)toast('Стартовый набор уже добавлен');return}
+    const ok=await sheetConfirm(firstRun
+      ?{title:'Стартовый набор',text:'Добавить стартовый набор задач, привычек и тренировок?\n\nТренировки A, B, C, 12 недель DFIR, две привычки. Всё можно поменять или удалить.',ok:'Добавить',cancel:'Не сейчас'}
+      :{title:'Стартовый набор',text:`Добавится: ${what}. То, что уже есть, не изменится.`,ok:'Добавить'});
+    if(!ok)return;
+    const r=await installStarterPack();
+    if(r)toast(countsText(r)?'Добавлено: '+countsText(r):'Стартовый набор уже добавлен');
+  }catch(e){toast('Не удалось добавить: '+(e.code||e.message))}
+}
+
+// F6.6 — first-run checklist («Первые шаги»): state from localStorage + caches. The async version loads what is
+// missing (operations, settings, tasks) once; after all four steps it remembers that and never reads again.
+function firstRunStateSync(){
+  if(lsGet(firstRunKey('firstRunDone'))==='1')return{done:true};
+  const st=firstRunStateFrom({codeSaved:lsGet(firstRunKey('codeSaved')),starterFlag:lsGet(firstRunKey('starterPack')),settings:settingsCache||[],tasks:tasksCache||[],txs:txCache||[]});
+  st.hidden=lsGet(firstRunKey('firstRunHidden'))==='1';
+  return st;
+}
+async function firstRunChecklistState(){
+  if(lsGet(firstRunKey('firstRunDone'))==='1')return{done:true};
+  try{await Promise.all([getTxs(),getSetting('currency'),getTasks()])}catch(e){}
+  const st=firstRunStateSync();
+  if(st.done)lsSet(firstRunKey('firstRunDone'),'1');
+  return st;
+}
+function firstRunHide(){lsSet(firstRunKey('firstRunHidden'),'1');refreshStatusIfVisible()}
+async function firstRunAct(k){
+  if(k==='code'){const code=lsGet('syncCode');if(!code)return toast('Код не найден на этом устройстве');showCodeModal(code,'check')}
+  else if(k==='balances'){
+    switchView('home');
+    const f=document.getElementById('bank-edit-form');
+    if(f&&f.hidden&&window.toggleBankEdit)setTimeout(()=>toggleBankEdit(),300);
+  }
+  else if(k==='starter'){await offerStarterPack(false);refreshStatusIfVisible()}
+  else if(k==='expense')openCmd();
 }
 
 // ── Tasks & habits: data and logic ──
@@ -3282,7 +3551,7 @@ async function setHabitSphere(id,val){
   try{await dbPut('habits',upd)}catch(err){toast('Не удалось сохранить: '+err.message)}
 }
 async function addHabit(){
-  const name=(prompt('Название привычки')||'').trim();if(!name)return;
+  const name=((await sheetPrompt({title:'Новая привычка',label:'Название привычки',placeholder:'Например, прогулка 30 минут',ok:'Добавить'}))||'').trim();if(!name)return;
   const habits=await getHabits();
   const h={id:uid(),name,sphere:null,order:Math.max(0,...habits.map(x=>x.order||0))+1,archived:false,createdAt:Date.now()};
   cachePut(habitsCache,h);renderTasks();
@@ -3291,7 +3560,7 @@ async function addHabit(){
 async function archiveHabit(id){
   await getHabits();
   const h=habitsCache.find(x=>x.id===id);if(!h)return;
-  if(!confirm(`Архивировать привычку «${h.name}»?`))return;
+  if(!await sheetConfirm({title:'Архивировать привычку?',text:`«${h.name}» пропадёт из списка, отметки сохранятся.`,ok:'В архив'}))return;
   const upd={...h,archived:true};
   cachePut(habitsCache,upd);renderTasks();
   try{await dbPut('habits',upd)}catch(err){toast('Не удалось сохранить: '+err.message);dirtyTasks();refreshTasks()}
@@ -3425,7 +3694,7 @@ async function saveTaskEdit(id){
   try{await dbPut('tasks',upd)}catch(err){toast('Не удалось сохранить: '+err.message);dirtyTasks();refreshTasks()}
 }
 async function deleteTask(id){
-  if(!confirm('Удалить задачу?'))return;
+  if(!await sheetConfirm({title:'Удалить задачу?',ok:'Удалить',danger:true}))return;
   await getTasks();
   tasksCache=tasksCache.filter(x=>x.id!==id);editingTaskId=null;renderTasks();
   try{await dbDel('tasks',id)}catch(err){toast('Не удалось удалить: '+err.message);dirtyTasks();refreshTasks()}
@@ -3820,7 +4089,7 @@ async function saveDebt(){
   toast('Рассрочка добавлена');renderDebts();
 }
 async function deleteDebt(id){
-  if(!confirm('Удалить рассрочку и её задачу?'))return;
+  if(!await sheetConfirm({title:'Удалить рассрочку?',text:'Её задача тоже удалится.',ok:'Удалить',danger:true}))return;
   await colDel('debts',id);
   await getTasks();
   for(const t of tasksCache.filter(x=>x.debtId===id)){await dbDel('tasks',t.id)}
@@ -4025,7 +4294,7 @@ function resumeWorkout(id){
 }
 async function dropWorkout(id){
   const w=wcol('workouts').find(x=>x.id===id&&!x.done);if(!w)return renderBody();
-  if(!confirm('Отменить незавершённую тренировку от '+wkDate(w.date)+'?'))return;
+  if(!await sheetConfirm({title:'Отменить тренировку?',text:'Незавершённая тренировка от '+wkDate(w.date)+' будет удалена.',ok:'Отменить её',cancel:'Оставить',danger:true}))return;
   await colDel('workouts',w.id);renderBody();
 }
 function wkSave(){return colPut('workouts',wk)}
@@ -4086,7 +4355,7 @@ async function finishWorkout(){
 }
 function closeWorkoutSummary(){wkSummary=null;renderBody()}
 async function cancelWorkout(){
-  if(!wk||!confirm('Отменить тренировку?'))return;
+  if(!wk||!await sheetConfirm({title:'Отменить тренировку?',text:'Введённые подходы не сохранятся.',ok:'Отменить её',cancel:'Продолжить',danger:true})||!wk)return;
   await colDel('workouts',wk.id);wk=null;renderBody();
 }
 async function saveBodyWeight(){
@@ -4693,7 +4962,7 @@ async function integrityApply(f){
 }
 async function integrityFix(i){
   const x=integrityIssues[i];if(!x||!x.fix||integrityBusy)return;
-  if(!confirm(x.title+'\n\n'+integrityFixText(x.fix)))return;
+  if(!await sheetConfirm({title:x.title,text:integrityFixText(x.fix),ok:'Исправить'})||integrityBusy)return;
   integrityBusy=true;
   try{
     if(!await integrityBeforeFix())return;
@@ -4705,7 +4974,7 @@ async function integrityFix(i){
 async function integrityFixClass(cls){
   const xs=integrityIssues.filter(x=>x.cls===cls&&x.fix);if(!xs.length||integrityBusy)return;
   const kinds=[...new Set(xs.map(x=>integrityFixText(x.fix)))];
-  if(!confirm(`Исправить ${xs.length} в группе «${INTEGRITY_CLASSES[cls]}»?\n\n`+kinds.slice(0,6).join('\n')+(kinds.length>6?'\n…':'')))return;
+  if(!await sheetConfirm({title:`Исправить ${xs.length} в группе «${INTEGRITY_CLASSES[cls]}»?`,text:kinds.slice(0,6).join('\n')+(kinds.length>6?'\n…':''),ok:'Исправить'})||integrityBusy)return;
   integrityBusy=true;let ok=0,fail=0;
   try{
     if(!await integrityBeforeFix())return;
@@ -4722,9 +4991,11 @@ async function startApp(){
   document.getElementById('bottom-nav').hidden=false;
   // the Status frame is drawn at once (empty data), so the screen is never a bare black grid while Firestore loads
   if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
-  introPending=!fxRM();
+  const intent=launchIntent(location.search);
+  if(intent){try{history.replaceState(null,'',location.pathname+location.hash)}catch(e){}} // a reload must not repeat it
+  introPending=!fxRM()&&!intent;
   renderStatus();
-  const boot=window.fxBoot?fxBoot():Promise.resolve();
+  const boot=window.fxBoot&&!intent?fxBoot():Promise.resolve();
   const load=(async()=>{
     ensureMembership();
     await checkRemoteReset();
@@ -4736,6 +5007,7 @@ async function startApp(){
   document.getElementById('smart-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();handleSmartInput()}});
   buildMoneyTabs();moveLamp();
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view==='status'));
+  if(intent){if(intent.view)switchView(intent.view);else if(intent.action==='add')openCmd()}
   try{await Promise.all([boot,load]);await refreshStatus()}
   finally{moveLamp();playStatusIntro()}
   runCooling().then(refreshStatusIfVisible).catch(e=>console.warn('cooling',e));
@@ -4746,8 +5018,8 @@ async function init(){
   const savedSpace=localStorage.getItem('syncSpace');
   if(savedSpace){
     document.getElementById('setup-emoji').classList.add('spin');
-    document.getElementById('setup-title').textContent='Загрузка...';
-    document.getElementById('setup-subtitle').textContent='Подключаемся к вашим данным';
+    document.getElementById('setup-title').textContent='Загрузка…';
+    document.getElementById('setup-subtitle').textContent='Подключаемся к твоим данным';
     document.getElementById('setup-options').hidden=true;
     try{
       await connectSpace(savedSpace);
@@ -4755,7 +5027,7 @@ async function init(){
     }catch(err){
       document.getElementById('setup-emoji').classList.remove('spin');
       document.getElementById('setup-title').textContent='Не удалось загрузить';
-      document.getElementById('setup-subtitle').textContent=err.message+'. Проверьте интернет и обновите страницу.';
+      document.getElementById('setup-subtitle').textContent=err.message+'. Проверь интернет и обнови страницу.';
     }
   }
 }
