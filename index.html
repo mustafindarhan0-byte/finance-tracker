@@ -2641,7 +2641,7 @@ async function bankBalance(k,txs){
   const base=parseFloat(raw)||0,since=parseFloat(at)||0;
   // statement snapshot: everything dated up to the period end is already inside it; manual snapshot: count what was entered after it
   const byDate=(await getSetting('balMode_'+k))==='date',sinceDay=localDate(new Date(since));
-  const d=txs.filter(t=>t.bank===k&&t.source!=='statement'&&(byDate?t.date>sinceDay:(t.createdAt||0)>since)).reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
+  const d=txs.filter(t=>t.bank===k&&t.source!=='statement'&&(byDate?t.date>sinceDay:(t.createdAt||0)>since&&t.date>=sinceDay)).reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
   return Math.round((base+d)*100)/100;
 }
 async function setBankBalance(k,v,at){
@@ -4722,9 +4722,11 @@ const MONTHS_GEN=['января','февраля','марта','апреля','�
 const WD_SHORT=['пн','вт','ср','чт','пт','сб','вс'];
 const dayWord=n=>{const a=n%10,b=n%100;return b>=11&&b<=14?'дней':a===1?'день':a>=2&&a<=4?'дня':'дней'};
 let statusAvatar=null,heroPrev=null,introPending=false;
+let firstRunState=null;
 async function refreshStatus(){
   await Promise.all([getTasks(),getHabits(),getChecks(),getTaskLog(),getCol('xpLog'),getCol('journal')]);
   statusAvatar=await getSetting('avatar');
+  try{firstRunState=typeof firstRunChecklistState==='function'?await firstRunChecklistState():null}catch(e){firstRunState=null}
   renderStatus();
 }
 function statusSummary(){
@@ -4778,6 +4780,7 @@ function renderStatus(){
   <div class="bento">${tile('money')}${tile('dfir')}${tile('body')}</div>
   ${plaques?`<div class="st-plaques">${plaques}</div>`:''}
   <div class="card hud spot qw"><div class="qw-head"><span>Квест дня</span><span class="qw-count">${sm.done}/${sm.total}</span></div>${taskRows}${habRows}${(!taskRows&&!habRows)?'<div class="cmd-hint" style="padding:10px 0">На сегодня всё выполнено</div>':''}<div class="qw-foot">если не выполнить: ${foot}</div></div>
+  ${typeof firstRunChecklistHtml==='function'&&firstRunState?firstRunChecklistHtml(firstRunState):''}
   <div class="card"><div class="card-title">Ближайшее</div>${ev.length?ev.map(e=>`<div class="upc-row"><div class="upc-when">${escapeHtml(formatTaskDate(e.date))}${e.time?' · '+escapeHtml(e.time):''}</div><div class="upc-title">${escapeHtml(e.title)}${e.repeat?ico('repeat',12):''}</div></div>`).join(''):'<div class="cmd-hint">Ближайших событий нет</div>'}</div>`;
   renderSyncState();
   if(window.fxMarquee)fxMarquee(document.getElementById('st-marquee'),mq.map(escapeHtml).join(' &nbsp;•&nbsp; '));
