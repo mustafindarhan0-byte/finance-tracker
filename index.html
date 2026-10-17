@@ -801,6 +801,7 @@ const KEYWORDS={
   telecom:['связь','телефон','мобильный','теле2','tele2','билайн','мтс','activ','altel','kcell','beeline','тариф','симка','мегафон'],
   education:['курсы','книга','учебник','обучение','тренинг','udemy','coursera','репетитор','школа','университет','семинар','мастер-класс','вебинар','hackthebox'],
   gifts:['подарок','подарк','цветы','цветов','букет','сувенир','открытка','день рождения','свадьба','юбилей'],
+  debts:['кредит','рассрочк','погашение кредита'],
   subscriptions:['netflix','spotify','youtube premium','apple music','icloud','google one','chatgpt','claude','adobe','антивирус','vpn','подписка','premium','pro','plus'],
   salary:['зарплата','зп','аванс','оклад','премия'],
   freelance:['фриланс','подработка','проект','заказ','халтура','гонорар'],
@@ -1711,9 +1712,33 @@ function parseHalykPdf(text){
   const results=[];
   const lines=text.split('\n');
   const HALYK_WORDS={'Операцияоплатыукоммерсанта':'Оплата','Операцияоплатыу':'Оплата','Поступлениеперевода':'Поступление','ПоступлениенасчетТОО':'Поступление от ТОО','Переводнадругуюкарту':'Перевод на карту','ПереводнакредитRS':'Перевод на кредит','Поступлениенасчет':'Поступление'};
-  let last=null;
+  let last=null,pend=null;
+  const AMT=/^\s*(-?\d{1,3}(?:[\s ]\d{3})*,\d{2})\s+KZT\s+(-?\d{1,3}(?:[\s ]\d{3})*,\d{2})\s+(-?\d{1,3}(?:[\s ]\d{3})*,\d{2})/;
+  const num=s=>parseFloat(s.replace(/[\s ]/g,'').replace(',','.'));
   for(const line of lines){
     const m=line.match(/(\d{2}\.\d{2}\.\d{4})\s+\d{2}\.\d{2}\.\d{4}\s+(.+?)\s+([-\d\s]+,\d{2})\s+KZT\s+([-\d\s]+,\d{2})\s+([-\d\s]+,\d{2})/);
+    if(!m){
+      // newer exports break one operation over several lines: dates + description, more description, then the amounts
+      const two=line.match(/^\s*(\d{2}\.\d{2}\.\d{4})\s+\d{2}\.\d{2}\.\d{4}\s*(.*)$/);
+      if(two){pend={date:two[1],parts:[two[2]]};last=null;continue}
+      if(pend){
+        if(/Место печати|Выписка действительна|Всего:/.test(line)){pend=null;continue}
+        const am=line.match(AMT);
+        if(am){
+          const sum=num(am[1]),income=num(am[2]),expense=num(am[3]),p=pend;pend=null;
+          if(Math.abs(sum)<1)continue;
+          let d=p.parts.join(' ').replace(/\(KZT\)/g,'').replace(/\s+/g,' ').trim();
+          for(const[k,v]of Object.entries(HALYK_WORDS))d=d.replace(k,v+' ');
+          d=d.replace(/([а-яё])([A-Z])/g,'$1 $2').trim();
+          if(/Комисси|задолженност|P2P|RegularCharge|Ежемесячная/i.test(d))continue;
+          const dd=p.date.split('.');
+          results.push({date:dd[2]+'-'+dd[1]+'-'+dd[0],amount:Math.abs(sum),desc:d||'Операция Halyk',type:income>0?'income':'expense',op:d});
+          continue;
+        }
+        if(line.trim())pend.parts.push(line.trim());
+        continue;
+      }
+    }
     if(m){
       const dd=m[1].split('.'),date=`${dd[2]}-${dd[1]}-${dd[0]}`;
       const rawDesc=m[2].trim();
@@ -1801,7 +1826,7 @@ function extractBalanceKaspiForte(text){
   return m?parseAmt(m[1]):null;
 }
 function extractBalanceHalyk(text){
-  const m=text.match(/Исходящийостаток:\s*([\d\s]+,\d{2})\s*KZT/);
+  const m=text.match(/Исходящий\s*остаток:\s*(-?[\d\s ]+,\d{2})\s*KZT/);
   return m?parseAmt(m[1]):null;
 }
 function extractBalanceFreedom(text){
