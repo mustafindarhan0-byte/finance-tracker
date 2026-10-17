@@ -645,6 +645,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       <button class="stmt-batch-toggle" onclick="toggleAllStmt()">Отметить/снять все</button>
       <button class="stmt-batch-add" onclick="addSelectedStmt()">Добавить отмеченные</button>
     </div>
+    <button class="settings-btn stmt-undo" id="stmt-undo" hidden onclick="undoStmtImport()">Отменить импорт</button>
     <div class="stmt-results" id="stmt-results"></div>
   </div>
 </div>
@@ -1806,9 +1807,17 @@ function parseFreedomPdf(text){
   return results;
 }
 
-function missRow(idx,desc,amount,date,type){
-  const isIncome=type==='income';
-  return`<div class="${isIncome?'miss-income':'miss'}"><input type="checkbox" id="stmt-chk-${idx}" checked><label for="stmt-chk-${idx}">${icoInline(isIncome?'plusCircle':'close',14)}${escapeHtml(desc)} &mdash; ${isIncome?'+':'-'}${fmtCur(amount)} <span style="font-size:11px;color:var(--text3)">${escapeHtml(date)}</span></label></div>`;
+function missRow(idx,desc,amount,date,type,opt){
+  opt=opt||{};
+  const isIncome=type==='income',cat=opt.cat||(isIncome?'other_inc':'other_exp');
+  const cats=CATS[isIncome?'income':'expense'].concat(isIncome?[]:[...CAT_MAP.values()].filter(c=>c.id.startsWith('goal_')));
+  const sel=`<select class="stmt-cat" data-i="${idx}" onchange="setStmtCat(this.dataset.i,this.value)" aria-label="Категория">${cats.map(c=>`<option value="${escapeHtml(c.id)}"${c.id===cat?' selected':''}>${escapeHtml(c.name)}</option>`).join('')}</select>`;
+  const note=opt.maybe?`<div class="stmt-maybe">Похоже, уже записано: ${escapeHtml(opt.maybe)}</div>`:'';
+  return`<div class="${isIncome?'miss-income':'miss'}${opt.maybe?' maybe':''}"><input type="checkbox" id="stmt-chk-${idx}"${opt.unchecked?'':' checked'}><label for="stmt-chk-${idx}">${icoInline(isIncome?'plusCircle':'card',14)}${escapeHtml(desc)} &mdash; ${isIncome?'+':'−'}${fmtCur(amount)} <span style="font-size:11px;color:var(--text3)">${escapeHtml(formatDateShort?formatDateShort(date):date)}</span>${note}</label>${sel}</div>`;
+}
+function setStmtCat(i,cat){
+  const m=stmtMissed[+i];if(!m)return;
+  m.cat=cat;m.catTouched=true;
 }
 
 let stmtBank='',stmtMode='pdf',stmtMissed=[],stmtRawText='',detectedBalance=null,stmtFileHash=null;
@@ -1851,13 +1860,13 @@ function renderBalanceBanner(bank,text){
   const banner=document.getElementById('stmt-balance-banner');
   const amount=extractStatementBalance(bank,text);
   if(amount==null){banner.hidden=true;detectedBalance=null;return}
-  detectedBalance={bank,amount};
+  detectedBalance={bank,amount,at:statementPeriodEnd(text)};
   banner.hidden=false;
   banner.innerHTML=`${icoInline('card',15)}Баланс ${BANK_NAMES[bank]} по выписке: <b>${fmtCur(amount)}</b> <button class="settings-btn" style="flex-shrink:0" onclick="applyDetectedBalance()">Обновить</button>`;
 }
 async function applyDetectedBalance(){
   if(!detectedBalance)return;
-  await setBankBalance(detectedBalance.bank,detectedBalance.amount);
+  await setBankBalance(detectedBalance.bank,detectedBalance.amount,detectedBalance.at);
   toast('Баланс обновлён');
   document.getElementById('stmt-balance-banner').hidden=true;
   detectedBalance=null;
@@ -1876,18 +1885,39 @@ function buildTxIndex(txs,bank,short){
   return idx;
 }
 function takeMatch(idx,k){if(idx.get(k)>0){idx.set(k,idx.get(k)-1);return true}return false}
+// Statement rows vs recorded transactions. Exact: same type, date, tiyn and bank (a tx without bank matches any bank).
+// Second pass: ±1 day, any bank → "possible" (shown unchecked, never imported silently).
+async function matchStatementRows(parsed,txs,bank){
+  const used=new Set(),cents=a=>Math.round(a*100);
+  const pool=txs;
+  const find=(p,loose)=>pool.find(t=>!used.has(t.id)&&t.type===p.type&&cents(t.amount)===cents(p.amount)&&(loose
+    ?Math.abs(daysBetween(t.date,p.date))<=1
+    :t.date===p.date&&(!bank||!t.bank||t.bank===bank)));
+  const matched=[],pending=[];
+  for(const p of parsed){const t=find(p,false);if(t){used.add(t.id);matched.push(p)}else pending.push(p)}
+  const rows=[];
+  for(const p of pending){
+    const t=find(p,true);
+    if(t)used.add(t.id);
+    const cat=await classify(p.descFull||p.desc,p.type)||(p.type==='income'?'other_inc':'other_exp');
+    rows.push({desc:p.desc,descFull:p.descFull||p.desc,amount:p.amount,date:p.date,type:p.type,cat,
+      maybe:t?`${t.description||getCat(t.category).name} · ${formatDateShort(t.date)}${t.bank?' · '+(BANK_NAMES[t.bank]||t.bank).replace(' Bank',''):''}`:''});
+  }
+  return{matched,rows};
+}
 async function showPdfResults(bank,parsed){
   stmtMode='pdf';
   document.getElementById('stmt-results-card').hidden=false;
   renderBalanceBanner(bank,stmtRawText);
   const txs=await getTxs();
-  const txIndex=buildTxIndex(txs,bank);
-  let matched=0,html='';
-  stmtMissed=[];
-  parsed.forEach(p=>{
-    if(takeMatch(txIndex,stmtKey(p.type,p.date,p.amount))){matched++;html+=`<div class="match">${icoInline('check',14)}${escapeHtml(p.desc)} &mdash; ${fmtCur(p.amount)}</div>`}
-    else{const idx=stmtMissed.length;stmtMissed.push({desc:p.desc,amount:p.amount,date:p.date,type:p.type});html+=missRow(idx,p.desc,p.amount,p.date,p.type)}
-  });
+  const {matched:mList,rows}=await matchStatementRows(parsed,txs,bank);
+  const matched=mList.length;
+  stmtMissed=rows;
+  let html='';
+  const maybe=rows.filter(r=>r.maybe),fresh=rows.filter(r=>!r.maybe);
+  if(fresh.length)html+=`<div class="stmt-group">Новые операции (${fresh.length})</div>`+fresh.map(r=>missRow(rows.indexOf(r),r.desc,r.amount,r.date,r.type,{cat:r.cat})).join('');
+  if(maybe.length)html+=`<div class="stmt-group">Возможно, уже записано (${maybe.length}) — проверь и отметь вручную</div>`+maybe.map(r=>missRow(rows.indexOf(r),r.desc,r.amount,r.date,r.type,{cat:r.cat,maybe:r.maybe,unchecked:true})).join('');
+  if(matched)html+=`<details class="stmt-matched"><summary>${icoInline('check',14)}Уже записано: ${matched}</summary>${mList.map(p=>`<div class="match">${escapeHtml(p.desc)} &mdash; ${fmtCur(p.amount)} <span style="font-size:11px;color:var(--text3)">${escapeHtml(formatDateShort(p.date))}</span></div>`).join('')}</details>`;
   const expenses=parsed.filter(p=>p.type==='expense'),incomes=parsed.filter(p=>p.type==='income');
   const missed=stmtMissed.length;
   const missedExpense=stmtMissed.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);
@@ -1949,8 +1979,24 @@ function toggleAllStmt(){
 }
 
 let isAddingStmt=false;
+// Last statement import, so it can be undone from the results card
+let lastImport={ids:[],goals:{},hash:null};
+async function undoStmtImport(){
+  const li=lastImport;if(!li.ids.length)return;
+  if(!confirm(`Удалить ${li.ids.length} операций, добавленных из выписки?`))return;
+  lastImport={ids:[],goals:{},hash:null};
+  try{
+    for(let i=0;i<li.ids.length;i+=450){const b=fsDb.batch();li.ids.slice(i,i+450).forEach(id=>b.delete(spaceRef.collection('transactions').doc(encodeURIComponent(id))));await b.commit()}
+    for(const[g,amt]of Object.entries(li.goals))await contributeToGoal(g,-amt);
+    if(li.hash)await spaceRef.collection('importedStatements').doc(li.hash).delete();
+    dirtyTx();toast('Импорт отменён');
+    document.getElementById('stmt-undo').hidden=true;
+    if(stmtMode==='pdf')showPdfResults(stmtBank,stmtParsed);else analyzeStatement();
+  }catch(err){toast('Не удалось отменить: '+err.message)}
+}
 async function addSelectedStmt(){
   if(isAddingStmt)return;
+  lastImport={ids:[],goals:{},hash:null};
   const toAdd=stmtMissed.filter((_,i)=>document.getElementById('stmt-chk-'+i)?.checked);
   if(!toAdd.length)return toast('Ничего не выбрано');
   isAddingStmt=true;
@@ -1962,18 +2008,22 @@ async function addSelectedStmt(){
       const batch=fsDb.batch();
       for(const item of chunk){
         const type=item.type||'expense';
-        const catId=await classify(item.desc,type)||(type==='income'?'other_inc':'other_exp');
+        const catId=item.cat||await classify(item.descFull||item.desc,type)||(type==='income'?'other_inc':'other_exp');
+        if(item.catTouched)learnCategory(item.descFull||item.desc,catId);
         const tx={id:uid(),type,amount:item.amount,category:catId,description:item.desc,date:item.date,createdAt:Date.now(),source:'statement'};
         if(stmtMode==='pdf'&&stmtBank)tx.bank=stmtBank;
+        lastImport.ids.push(tx.id);
         if(catId.startsWith('goal_'))goalAdds[catId.slice(5)]=(goalAdds[catId.slice(5)]||0)+item.amount;
         batch.set(spaceRef.collection('transactions').doc(docId('transactions',tx)),tx);
       }
       await batch.commit();
     }
     for(const[g,amt]of Object.entries(goalAdds))await contributeToGoal(g,amt);
+    lastImport.goals=goalAdds;
     dirtyTx();
-    if(stmtFileHash)await spaceRef.collection('importedStatements').doc(stmtFileHash).set({bank:stmtBank,importedAt:Date.now(),count:toAdd.length});
+    if(stmtFileHash){await spaceRef.collection('importedStatements').doc(stmtFileHash).set({bank:stmtBank,importedAt:Date.now(),count:toAdd.length});lastImport.hash=stmtFileHash}
     toast(`Добавлено: ${toAdd.length}`);
+    const ub=document.getElementById('stmt-undo');if(ub){ub.hidden=false;ub.textContent=`Отменить импорт (${toAdd.length})`}
     if(stmtMode==='pdf')showPdfResults(stmtBank,stmtParsed);else analyzeStatement();
   }catch(err){
     toast('Ошибка при добавлении: '+err.message);
@@ -2002,14 +2052,26 @@ const PERIOD_LABELS={week:'неделю',month:'месяц',year:'год'};
 // Balance of a bank = last saved snapshot (typed by hand or taken from a statement) + manual transactions
 // of that bank created after the snapshot. Statement imports are already inside the statement balance.
 async function bankBalance(k,txs){
-  const base=parseFloat(await getSetting('bal_'+k))||0,since=parseFloat(await getSetting('balAt_'+k))||0;
-  const d=txs.filter(t=>t.bank===k&&t.source!=='statement'&&(t.createdAt||0)>since).reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
+  const raw=await getSetting('bal_'+k),at=await getSetting('balAt_'+k);
+  if(raw==null&&at==null)return null;
+  const base=parseFloat(raw)||0,since=parseFloat(at)||0;
+  // statement snapshot: everything dated up to the period end is already inside it; manual snapshot: count what was entered after it
+  const byDate=(await getSetting('balMode_'+k))==='date',sinceDay=localDate(new Date(since));
+  const d=txs.filter(t=>t.bank===k&&t.source!=='statement'&&(byDate?t.date>sinceDay:(t.createdAt||0)>since)).reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
   return Math.round((base+d)*100)/100;
 }
-async function setBankBalance(k,v){await saveSetting('bal_'+k,v);await saveSetting('balAt_'+k,Date.now())}
+async function setBankBalance(k,v,at){await saveSetting('bal_'+k,v);await saveSetting('balAt_'+k,Math.min(at||Date.now(),Date.now()));await saveSetting('balMode_'+k,at?'date':'time')}
+// "… по 08.10.2026" / "с 10.10.2026 по 17.10.2026" / "по 15.10.25" → end of that day (ms); manual entries made later are added on top
+function statementPeriodEnd(text){
+  const m=String(text||'').match(/по\s+(\d{2})\.(\d{2})\.(\d{2,4})/i);
+  if(!m)return null;
+  const y=m[3].length===2?2000+ +m[3]:+m[3];
+  const d=new Date(y,+m[2]-1,+m[1],23,59,59,999);
+  return isNaN(d)?null:d.getTime();
+}
 async function renderBankBalances(){
   const vals={};let total=0,any=false;const allTx=await getTxs();
-  for(const k of BANK_KEYS){const v=await bankBalance(k,allTx);vals[k]=v;if(v)any=true;total+=v}
+  for(const k of BANK_KEYS){const v=await bankBalance(k,allTx);vals[k]=v||0;if(v)any=true;total+=v||0}
   document.getElementById('bank-balances-card').hidden=false;
   document.getElementById('bank-total').textContent=fmtCur(total);
   const activeBanks=BANK_KEYS.filter(k=>vals[k]);
