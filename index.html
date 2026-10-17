@@ -2671,6 +2671,8 @@ async function collectBackupData(){
 
 // F3.4 — snapshot = backups/{date} {createdAt, v:2, enc, gz, counts}; > 900 KB → backups/{date}_p1.._pN + `parts`
 let snapshotBusy=false;
+// used by «Проверка данных» before the first repair (throws on failure → the repair is cancelled)
+window.makeSnapshot=why=>createSnapshot(why);
 async function createSnapshot(why){
   const data=await collectBackupData();
   if(why==='auto'&&!Object.values(data).some(a=>a.length))return null;
@@ -3948,6 +3950,7 @@ function renderStatus(){
   if(dfirWeek)mq.push((dfirWeek.title.match(/^DFIR неделя \d+/)||['DFIR'])[0]);
   if(sal){const n=daysBetween(t0,sal.due);mq.push(`до зарплаты ${n} ${dayWord(n)}`)}
   Object.keys(warn).forEach(s=>mq.push(`${SPHERES[s]} остынет через ${warn[s]} ${dayWord(warn[s])}`));
+  const backupNote=typeof backupReminderText==='function'?backupReminderText():'';if(backupNote)mq.push(backupNote);
   const src=statusAvatar||'figure.jpg';
   const tile=(s,wide)=>{
     const info=levelInfo(tot[s]),w=warn[s];
