@@ -490,3 +490,6 @@ body.fx-paused *,body.fx-paused::after{animation-play-state:paused!important}
 .al-income input{width:20px;height:20px;accent-color:var(--bone)}
 .al-dup{margin-bottom:8px}
 .al-bank{margin-bottom:12px}
+
+/* навигация скрыта до входа */
+.bottom-nav[hidden]{display:none!important}
