@@ -1,4 +1,4 @@
-const CACHE_NAME = 'finance-v32';
+const CACHE_NAME = 'finance-v33';
 const ASSETS = [
   './',
   './index.html',
@@ -18,6 +18,8 @@ const ASSETS = [
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
   'https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js',
+  'https://www.gstatic.com/firebasejs/12.18.0/firebase-auth-compat.js',
+  'https://www.gstatic.com/firebasejs/12.18.0/firebase-app-check-compat.js',
   'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore-compat.js'
 ];
 
@@ -40,6 +42,8 @@ self.addEventListener('fetch', e => {
   // Let Firestore/Google API traffic pass through untouched — don't cache or interfere with it
   const host = new URL(e.request.url).hostname;
   if (/(^|\.)googleapis\.com$|(^|\.)firebaseio\.com$|(^|\.)google\.com$/.test(host)) return;
+  // reCAPTCHA (App Check) scripts must never come from the cache
+  if (e.request.url.includes('/recaptcha/')) return;
   e.respondWith(
     fetch(e.request).then(r => {
       const clone = r.clone();

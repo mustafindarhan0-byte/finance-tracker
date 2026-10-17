@@ -9,10 +9,12 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <title>Finance Tracker</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" integrity="sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js" integrity="sha384-3dQMr5IYbX54CRsE04108MMs7jeEV/IWSMASoZPvju7G87xGB1a2oHweoRc6Fc4z" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-auth-compat.js" integrity="sha384-5I6kB//hXDU3+uF6P5whMNsiMpLfjPrRMnO628LkoLTV1F4roavOGYGkaES3TPAa" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-check-compat.js" integrity="sha384-B/AP4FGRp30uqxiGDJ1XO7TvHcPxaZEPR798W+ASc3xztnppTUQe2E0ThTTM2+FH" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore-compat.js" integrity="sha384-x/Sc6BbQTFJ8Xok/nKTwZ6hrjKCAPuoiUBD0gRRS0yNLtHZiq2MpDvGVEGBUQefs" crossorigin="anonymous"></script>
 <script src="fx.js"></script>
 <style>
 :root{
@@ -580,6 +582,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       <div><div class="settings-label">Синхронизировать сейчас</div></div>
       <button class="settings-btn" onclick="syncNow()">Обновить</button>
     </div>
+    <div class="settings-item" style="border:none">
+      <div><div class="settings-label">Устройства</div><div class="settings-desc">С доступом к этим данным</div></div>
+      <button class="settings-btn" onclick="showDevices()">Показать</button>
+    </div>
+    <div id="devices-list" hidden></div>
   </div>
   <div class="card" style="margin-top:12px">
     <div class="settings-item" style="border:none">
@@ -985,9 +992,79 @@ async function sha256Hex(str){
   const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
+// App Check (reCAPTCHA v3): stays off until a site key is set here
+const APPCHECK_SITE_KEY='';
+let authUser=null;
+// Anonymous sign-in: each browser/PWA is its own user; it becomes a member of the space by proving the code.
+// Failure (offline first run, provider not enabled yet) is not fatal while the rules are still open.
+async function ensureAuth(){
+  if(!firebase.auth)return null;
+  try{
+    const auth=firebase.auth();
+    const u=await new Promise(res=>{const un=auth.onAuthStateChanged(x=>{un();res(x)})});
+    authUser=u||await Promise.race([auth.signInAnonymously().then(r=>r.user),new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),8000))]);
+  }catch(e){console.warn('anonymous auth',e.code||e.message);authUser=null}
+  return authUser;
+}
+const withTimeout=(p,ms)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(Object.assign(new Error('timeout'),{code:'timeout'})),ms))]);
+function deviceLabel(){
+  const ua=navigator.userAgent,os=/iPhone/.test(ua)?'iPhone':/iPad/.test(ua)?'iPad':/Android/.test(ua)?'Android':/Windows/.test(ua)?'Windows':/Mac/.test(ua)?'Mac':'устройство';
+  const pwa=matchMedia&&matchMedia('(display-mode: standalone)').matches?' · приложение':' · браузер';
+  return os+pwa;
+}
+const memberKey=()=>'member:'+spaceRef.id+':'+(authUser&&authUser.uid);
+// spaces/{id} = {codeHash}; created once (the rules check new members' codes against it)
+async function ensureSpaceDoc(){
+  if(!authUser)return;
+  try{
+    const d=await withTimeout(spaceRef.get(),8000);
+    if(!d.exists)await withTimeout(spaceRef.set({codeHash:spaceRef.id,createdAt:serverTs()}),8000);
+  }catch(e){/* not a member yet / offline — nothing to do */}
+}
+// members/{uid}: created with the code (rules compare sha256(code) with codeHash), then the code is removed
+async function ensureMember(code){
+  if(!authUser||!code)return false;
+  try{if(localStorage.getItem(memberKey())==='1')return true}catch(e){}
+  const ref=spaceRef.collection('members').doc(authUser.uid);
+  try{
+    await withTimeout(ref.set({code,joinedAt:serverTs(),label:deviceLabel()}),10000);
+    await withTimeout(ref.update({code:firebase.firestore.FieldValue.delete(),lastSeen:serverTs()}),10000);
+    try{localStorage.setItem(memberKey(),'1')}catch(e){}
+    return true;
+  }catch(e){console.warn('membership',e.code||e.message);return false}
+}
+async function ensureMembership(){
+  const code=localStorage.getItem('syncCode');
+  if(!authUser||!code)return;
+  await ensureSpaceDoc();
+  await ensureMember(code);
+}
+async function showDevices(){
+  const el=document.getElementById('devices-list');el.hidden=false;
+  el.innerHTML='<div class="settings-desc" style="padding:8px 0">Загружаем…</div>';
+  try{
+    const snap=await spaceRef.collection('members').get();countRead('members',Math.max(1,snap.size));
+    const me=authUser&&authUser.uid;
+    const fmtTs=t=>t&&t.toDate?t.toDate().toLocaleDateString('ru-RU',{day:'numeric',month:'short',year:'numeric'}):'—';
+    el.innerHTML=snap.docs.length?snap.docs.map(d=>{const m=d.data();return `<div class="settings-item"><div><div class="settings-label">${escapeHtml(m.label||'устройство')}${d.id===me?' · это устройство':''}</div><div class="settings-desc">добавлено ${escapeHtml(fmtTs(m.joinedAt))}</div></div>${d.id===me?'':`<button class="settings-btn" data-id="${escapeHtml(d.id)}" onclick="revokeDevice(this.dataset.id)">Отключить</button>`}</div>`}).join('')
+      :'<div class="settings-desc" style="padding:8px 0">Список пуст: устройства появятся после включения входа (анонимная авторизация в Firebase).</div>';
+  }catch(e){el.innerHTML=`<div class="settings-desc" style="padding:8px 0">Не удалось загрузить: ${escapeHtml(e.code||e.message)}</div>`}
+}
+async function revokeDevice(uid){
+  if(!confirm('Отключить это устройство? Ему понадобится снова ввести код.'))return;
+  try{await spaceRef.collection('members').doc(uid).delete();toast('Устройство отключено');showDevices()}
+  catch(e){toast('Не удалось: '+(e.code||e.message))}
+}
 async function connectSpace(spaceId){
   if(!fsDb){
     firebase.initializeApp(firebaseConfig);
+    if(APPCHECK_SITE_KEY&&firebase.appCheck){
+      try{
+        if(location.hostname==='localhost')self.FIREBASE_APPCHECK_DEBUG_TOKEN=true;
+        firebase.appCheck().activate(APPCHECK_SITE_KEY,true);
+      }catch(e){console.warn('app check',e)}
+    }
+    await ensureAuth();
     fsDb=firebase.firestore();
     // enablePersistence can hang indefinitely if another tab/PWA instance still holds the
     // IndexedDB lock (common when a phone keeps the PWA alive in the background) — never let
@@ -1066,9 +1143,13 @@ async function createNewSpace(){
   document.getElementById('setup-status').textContent='Создаём аккаунт...';
   const code=generateCode(),spaceId=await sha256Hex(code);
   await connectSpace(spaceId);
-  await spaceRef.collection('_meta').doc('info').set({createdAt:Date.now()});
   localStorage.setItem('syncSpace',spaceId);
   localStorage.setItem('syncCode',code);
+  if(authUser){
+    try{await withTimeout(spaceRef.set({codeHash:spaceId,createdAt:serverTs()}),10000)}catch(e){console.warn('space doc',e.code||e.message)}
+    await ensureMember(code);
+  }
+  await spaceRef.collection('_meta').doc('info').set({createdAt:Date.now()});
   const legacy=await readLegacyIndexedDB();
   if(hasAnyLegacyData(legacy)){
     document.getElementById('setup-status').textContent='Переносим существующие данные...';
@@ -1085,13 +1166,17 @@ async function joinExistingSpace(){
   document.getElementById('setup-status').textContent='Проверяем код...';
   const spaceId=await sha256Hex(code);
   await connectSpace(spaceId);
+  const joined=await ensureMember(code); // strict rules: fails for a wrong code
   let exists=false;
-  try{const doc=await spaceRef.collection('_meta').doc('info').get();exists=doc.exists}catch(e){}
+  try{const doc=await spaceRef.collection('_meta').doc('info').get({source:'server'});exists=doc.exists}catch(e){}
   if(!exists){
+    // open rules let a wrong code create a member doc in an empty path — remove it again
+    if(joined&&authUser){try{await spaceRef.collection('members').doc(authUser.uid).delete();localStorage.removeItem(memberKey())}catch(e){}}
     document.getElementById('setup-status').textContent='Код не найден. Проверь и попробуй снова.';
     spaceRef=null;
     return;
   }
+  await ensureSpaceDoc();
   localStorage.setItem('syncSpace',spaceId);
   localStorage.setItem('syncCode',code);
   document.getElementById('setup-status').textContent='';
@@ -1751,7 +1836,7 @@ async function loadPdfStatement(file){
     if(typeof pdfjsLib==='undefined')return toast('pdf.js не загружен');
     pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     const buf=await file.arrayBuffer();
-    const pdf=await pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise;
+    const pdf=await pdfjsLib.getDocument({data:new Uint8Array(buf),isEvalSupported:false}).promise; // CVE-2024-4367
     let fullText='';
     for(let i=1;i<=pdf.numPages;i++){
       const page=await pdf.getPage(i);
@@ -4400,6 +4485,7 @@ async function startApp(){
   renderStatus();
   const boot=window.fxBoot?fxBoot():Promise.resolve();
   const load=(async()=>{
+    ensureMembership();
     await checkRemoteReset();
     const [cur,learned,goals]=await Promise.all([getSetting('currency'),dbAll('learned'),dbAll('goals')]);
     if(cur){currency=cur;document.getElementById('currency-sel').value=currency}
