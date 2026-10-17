@@ -111,7 +111,7 @@ const OLD=oldShape(NEW);
 {const d=clone(NEW);delete d.goals[0].currentAmount;const x=has(run(d).list,'goal',/не число/,'goalSet');ok(x.length===1&&x[0].severity==='error','goal currentAmount missing → error')}
 // 8. transactions on a deleted goal
 {const d=clone(NEW);d.transactions.push({id:'t9',type:'expense',amount:100,category:'goal_gone',description:'x',date:'2026-10-01',createdAt:1});
- const x=has(run(d).list,'goal',/удалённую цель gone/);ok(x.length===1&&x[0].fix===null&&x[0].ids[0]==='t9','tx on deleted goal → info, no fix',x)}
+ const x=has(run(d).list,'goal',/удалённую копилку gone/);ok(x.length===1&&x[0].fix===null&&x[0].ids[0]==='t9','tx on deleted goal → info, no fix',x)}
 // 9. debt remaining vs remaining0 − Σ payments
 {const d=clone(NEW);d.debts[0].remaining=50000;const r=run(d),x=has(r.list,'debt',/не сходится/,'debtSet');
  ok(x.length===1&&x[0].fix.remaining===45000&&x[0].fix.close===false,'debt remaining mismatch → fix 45000',r.list);

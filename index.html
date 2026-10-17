@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -319,8 +319,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div class="fx-grid" aria-hidden="true"></div>
 <div class="fx-vignette" aria-hidden="true"></div>
 
-<div id="toast" class="toast"></div>
-<div id="warning" class="warning-banner"></div>
+<div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+<div id="warning" class="warning-banner" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <!-- SETUP / SYNC -->
 <div id="view-setup" class="view active">
@@ -365,10 +365,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div id="habits-list"></div>
   </div>
   <div class="smart-input-wrap">
-    <input type="text" class="smart-input" id="task-quick" placeholder="Новая задача" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();addQuickTask()}">
-    <button class="smart-send" onclick="addQuickTask()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+    <input type="text" class="smart-input" id="task-quick" placeholder="Новая задача" aria-label="Новая задача" aria-describedby="task-quick-hint" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();addQuickTask()}">
+    <button type="button" class="smart-send" onclick="addQuickTask()" aria-label="Добавить задачу"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
   </div>
-  <div class="smart-hint">Например: Тренировка A #зал вт 18:00</div>
+  <div class="smart-hint" id="task-quick-hint">Например: Тренировка A #зал вт 18:00</div>
   <div id="tasks-list"></div>
   <div id="journal-today"></div>
   </div>
@@ -413,10 +413,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="bank-cards-scroll" id="bank-cards-scroll"></div>
     <div class="bank-cards-pager" id="bank-cards-pager"></div>
     <div id="bank-edit-form" hidden style="margin-top:12px">
-      <div class="bank-edit-row"><span style="width:80px;font-size:13px">Kaspi</span><input type="number" id="bal-kaspi" inputmode="decimal" placeholder="0"></div>
-      <div class="bank-edit-row"><span style="width:80px;font-size:13px">Freedom</span><input type="number" id="bal-freedom" inputmode="decimal" placeholder="0"></div>
-      <div class="bank-edit-row"><span style="width:80px;font-size:13px">Halyk</span><input type="number" id="bal-halyk" inputmode="decimal" placeholder="0"></div>
-      <div class="bank-edit-row"><span style="width:80px;font-size:13px">Forte</span><input type="number" id="bal-forte" inputmode="decimal" placeholder="0"></div>
+      <div class="bank-edit-row"><label for="bal-kaspi" style="width:80px;font-size:13px">Kaspi</label><input type="number" id="bal-kaspi" inputmode="decimal" placeholder="0"></div>
+      <div class="bank-edit-row"><label for="bal-freedom" style="width:80px;font-size:13px">Freedom</label><input type="number" id="bal-freedom" inputmode="decimal" placeholder="0"></div>
+      <div class="bank-edit-row"><label for="bal-halyk" style="width:80px;font-size:13px">Halyk</label><input type="number" id="bal-halyk" inputmode="decimal" placeholder="0"></div>
+      <div class="bank-edit-row"><label for="bal-forte" style="width:80px;font-size:13px">Forte</label><input type="number" id="bal-forte" inputmode="decimal" placeholder="0"></div>
       <button class="save-btn primary" onclick="saveBankBalances()" style="margin-top:8px">Сохранить</button>
     </div>
   </div>
@@ -433,10 +433,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <button class="type-btn" id="btn-income" onclick="setType('income')">Доход</button>
   </div>
   <div class="smart-input-wrap">
-    <input type="text" class="smart-input" id="smart-input" placeholder='кофе 500' autocomplete="off" inputmode="text">
-    <button class="smart-send" onclick="handleSmartInput()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+    <input type="text" class="smart-input" id="smart-input" placeholder='кофе 500' aria-label="Описание и сумма" autocomplete="off" inputmode="text">
+    <button type="button" class="smart-send" onclick="handleSmartInput()" aria-label="Записать"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
   </div>
-  <div class="smart-hint">Введите описание и сумму в любом порядке</div>
+  <div class="smart-hint">Введи описание и сумму в любом порядке</div>
   <div class="templates-wrap" id="templates-wrap">
     <div class="card-title" style="margin-top:12px">Шаблоны</div>
     <div class="templates-scroll" id="templates-list"></div>
@@ -461,19 +461,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   </div>
   <div class="calendar-wrap" id="history-calendar" hidden>
     <div class="calendar-nav">
-      <button class="calendar-nav-btn" onclick="shiftHistoryCalMonth(-1)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg></button>
-      <div class="calendar-month-label" id="cal-month-label"></div>
-      <button class="calendar-nav-btn" onclick="shiftHistoryCalMonth(1)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></button>
+      <button type="button" class="calendar-nav-btn" onclick="shiftHistoryCalMonth(-1)" aria-label="Предыдущий месяц"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg></button>
+      <div class="calendar-month-label" id="cal-month-label" aria-live="polite"></div>
+      <button type="button" class="calendar-nav-btn" onclick="shiftHistoryCalMonth(1)" aria-label="Следующий месяц"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></button>
     </div>
     <div class="calendar-grid" id="cal-weekdays"></div>
     <div class="calendar-grid" id="cal-days"></div>
   </div>
   <div class="search-wrap">
-    <span class="search-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
-    <input type="text" id="history-search" class="search-input" placeholder="Поиск по описанию..." oninput="setHistorySearch(this.value)">
+    <span class="search-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
+    <input type="text" id="history-search" class="search-input" placeholder="Поиск по описанию…" aria-label="Поиск по описанию" oninput="setHistorySearch(this.value)">
   </div>
   <div style="display:flex;gap:8px;margin-bottom:16px">
-    <select class="currency-select" id="history-bank-filter" style="flex:1" onchange="setHistoryBank(this.value)">
+    <select class="currency-select" id="history-bank-filter" style="flex:1" onchange="setHistoryBank(this.value)" aria-label="Банк">
       <option value="">Все банки</option>
       <option value="kaspi">Kaspi Bank</option>
       <option value="forte">Forte Bank</option>
@@ -496,10 +496,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <button class="period-tab" data-p="year" onclick="setStatsPeriod(this.dataset.p,this)">Год</button>
     <button class="period-tab" data-p="all" onclick="setStatsPeriod(this.dataset.p,this)">Всё</button>
   </div>
-  <input type="month" id="stats-month-picker" class="settings-input" style="margin-bottom:16px" onchange="setStatsMonth(this.value)">
+  <input type="month" id="stats-month-picker" class="settings-input" style="margin-bottom:16px" onchange="setStatsMonth(this.value)" aria-label="Месяц">
   <div class="stat-cards">
-    <div class="stat-card"><div class="label">Ср. расход/день</div><div class="value" id="stat-avg">0</div></div>
-    <div class="stat-card"><div class="label">Топ категория</div><div class="value" id="stat-top">-</div></div>
+    <div class="stat-card"><div class="label">В среднем за день</div><div class="value" id="stat-avg">0</div></div>
+    <div class="stat-card"><div class="label">Больше всего</div><div class="value" id="stat-top">—</div></div>
   </div>
   <div class="card"><div class="card-title">Расходы за период</div>
     <div class="ring-wrap">
@@ -531,8 +531,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div class="sub-view active" id="sub-budget">
     <div class="add-form card" id="budget-form">
       <div class="card-title">Новый лимит</div>
+      <label class="fld-label" for="budget-cat">Категория</label>
       <select id="budget-cat"><option value="general">Общий лимит</option></select>
-      <input type="number" id="budget-limit" placeholder="Лимит на месяц" inputmode="decimal">
+      <label class="fld-label" for="budget-limit">Лимит на месяц</label>
+      <input type="number" id="budget-limit" placeholder="Например, 150000" inputmode="decimal">
       <button class="save-btn primary" onclick="saveBudget()">Сохранить лимит</button>
     </div>
     <div id="budget-list"></div>
@@ -541,8 +543,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div class="sub-view" id="sub-goals">
     <div class="add-form card" id="goal-form">
       <div class="card-title">Новая копилка</div>
-      <input type="text" id="goal-name" placeholder="Название копилки">
-      <input type="number" id="goal-target" placeholder="Сумма цели" inputmode="decimal">
+      <label class="fld-label" for="goal-name">Название</label>
+      <input type="text" id="goal-name" placeholder="Например, подушка">
+      <label class="fld-label" for="goal-target">Сколько накопить</label>
+      <input type="number" id="goal-target" placeholder="Например, 500000" inputmode="decimal">
+      <label class="fld-label" for="goal-deadline">Срок (необязательно)</label>
       <input type="date" id="goal-deadline">
       <button class="save-btn income" onclick="saveGoal()">Создать копилку</button>
     </div>
@@ -561,7 +566,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div class="header"><h1>Настройки</h1><button class="header-btn" onclick="closeSettings()" aria-label="Закрыть"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
   <div class="card">
     <div class="settings-item">
-      <div><div class="settings-label">Код синхронизации</div><div class="settings-desc">Для подключения другого устройства</div></div>
+      <div><div class="settings-label">Код доступа</div><div class="settings-desc">Для подключения другого устройства</div></div>
       <button class="settings-btn" onclick="showMyCode()">Показать</button>
     </div>
     <div class="settings-item" style="border:none">
@@ -577,7 +582,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div class="card" style="margin-top:12px">
     <div class="settings-item" style="border:none">
       <div><div class="settings-label">Фото героя</div><div class="settings-desc">Экран «Статус», квадрат до 560 px</div></div>
-      <div style="display:flex;gap:6px"><label class="settings-btn" style="cursor:pointer">Выбрать<input type="file" accept="image/*" hidden onchange="setAvatar(event)"></label><button class="settings-btn" onclick="resetAvatar()">Сброс</button></div>
+      <div style="display:flex;gap:6px"><label class="settings-btn" style="cursor:pointer" tabindex="0" role="button">Выбрать<input type="file" accept="image/*" hidden onchange="setAvatar(event)"></label><button class="settings-btn" onclick="resetAvatar()">Сброс</button></div>
     </div>
   </div>
   <div class="card" style="margin-top:12px">
@@ -588,7 +593,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   </div>
   <div class="card" style="margin-top:12px">
     <div class="settings-item" style="border:none">
-      <div><div class="settings-label">Проверка данных</div><div class="settings-desc">Цели, рассрочки, опыт, задачи, операции, балансы</div></div>
+      <div><div class="settings-label">Проверка данных</div><div class="settings-desc">Копилки, рассрочки, опыт, задачи, операции, балансы</div></div>
       <button class="settings-btn" id="integrity-btn" onclick="runIntegrityCheck()">Проверить данные</button>
     </div>
     <div id="integrity-results" hidden></div>
@@ -596,7 +601,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div class="card" style="margin-top:12px">
     <div class="settings-item">
       <div><div class="settings-label">Валюта</div></div>
-      <select class="currency-select" id="currency-sel" onchange="setCurrency(this.value)">
+      <select class="currency-select" id="currency-sel" onchange="setCurrency(this.value)" aria-label="Валюта">
         <option value="KZT">&#8376; Тенге</option>
         <option value="RUB">&#8381; Рубль</option>
         <option value="USD">$ Доллар</option>
@@ -653,22 +658,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div id="view-statement" class="view">
 <div class="container">
   <div class="header"><h1>Выписка</h1><button class="header-btn" data-v="history" onclick="switchView(this.dataset.v)" aria-label="Закрыть"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
-  <div class="stmt-upload" onclick="document.getElementById('stmt-file').click()">
-    <div style="margin-bottom:8px;display:flex;justify-content:center;color:var(--text3)"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2.5H7a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 2.5V8h5"/></svg></div>
-    <div style="font-size:14px;color:var(--text2)">Загрузите PDF или CSV выписку</div>
-    <div style="font-size:12px;color:var(--text3);margin-top:4px">Kaspi, Forte, Halyk, Freedom</div>
+  <div class="stmt-upload" role="button" tabindex="0" aria-describedby="stmt-upload-banks" onclick="document.getElementById('stmt-file').click()">
+    <div style="margin-bottom:8px;display:flex;justify-content:center;color:var(--text3)" aria-hidden="true"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2.5H7a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 2.5V8h5"/></svg></div>
+    <div style="font-size:14px;color:var(--text2)">Загрузи выписку: PDF или CSV</div>
+    <div style="font-size:12px;color:var(--text3);margin-top:4px" id="stmt-upload-banks">Kaspi, Forte, Halyk, Freedom</div>
     <input type="file" id="stmt-file" accept=".csv,.pdf" hidden onchange="loadStatement(event)">
   </div>
   <div class="card" id="stmt-mapping" hidden>
     <div class="card-title">Столбцы</div>
-    <div style="margin-bottom:8px"><label style="font-size:13px;color:var(--text2)">Дата</label><select class="currency-select" id="map-date" style="width:100%;margin-top:4px"></select></div>
-    <div style="margin-bottom:8px"><label style="font-size:13px;color:var(--text2)">Сумма</label><select class="currency-select" id="map-amount" style="width:100%;margin-top:4px"></select></div>
-    <div style="margin-bottom:8px"><label style="font-size:13px;color:var(--text2)">Описание</label><select class="currency-select" id="map-desc" style="width:100%;margin-top:4px"></select></div>
-    <div style="font-size:12px;color:var(--text3);margin:4px 0 8px">Если выписка с отдельными столбцами прихода и расхода — укажите их, тогда сумма и тип берутся из них, а не из знака.</div>
-    <div style="margin-bottom:8px"><label style="font-size:13px;color:var(--text2)">Приход (необязательно)</label><select class="currency-select" id="map-income" style="width:100%;margin-top:4px"></select></div>
-    <div style="margin-bottom:8px"><label style="font-size:13px;color:var(--text2)">Расход (необязательно)</label><select class="currency-select" id="map-expense" style="width:100%;margin-top:4px"></select></div>
-    <div style="margin-bottom:8px"><label style="font-size:13px;color:var(--text2)">Тип операции (необязательно)</label><select class="currency-select" id="map-type" style="width:100%;margin-top:4px"></select></div>
-    <div style="margin-bottom:8px"><label style="font-size:13px;color:var(--text2)">Банк</label><select class="currency-select" id="map-bank" style="width:100%;margin-top:4px"><option value="kaspi">Kaspi</option><option value="freedom">Freedom</option><option value="halyk">Halyk</option><option value="forte">Forte</option><option value="">Наличные / не указан</option></select></div>
+    <div style="margin-bottom:8px"><label for="map-date" style="font-size:13px;color:var(--text2)">Дата</label><select class="currency-select" id="map-date" style="width:100%;margin-top:4px"></select></div>
+    <div style="margin-bottom:8px"><label for="map-amount" style="font-size:13px;color:var(--text2)">Сумма</label><select class="currency-select" id="map-amount" style="width:100%;margin-top:4px"></select></div>
+    <div style="margin-bottom:8px"><label for="map-desc" style="font-size:13px;color:var(--text2)">Описание</label><select class="currency-select" id="map-desc" style="width:100%;margin-top:4px"></select></div>
+    <div style="font-size:12px;color:var(--text3);margin:4px 0 8px">Если в выписке приход и расход в разных столбцах — укажи их, тогда сумма и тип берутся из них, а не из знака.</div>
+    <div style="margin-bottom:8px"><label for="map-income" style="font-size:13px;color:var(--text2)">Приход (необязательно)</label><select class="currency-select" id="map-income" style="width:100%;margin-top:4px"></select></div>
+    <div style="margin-bottom:8px"><label for="map-expense" style="font-size:13px;color:var(--text2)">Расход (необязательно)</label><select class="currency-select" id="map-expense" style="width:100%;margin-top:4px"></select></div>
+    <div style="margin-bottom:8px"><label for="map-type" style="font-size:13px;color:var(--text2)">Тип операции (необязательно)</label><select class="currency-select" id="map-type" style="width:100%;margin-top:4px"></select></div>
+    <div style="margin-bottom:8px"><label for="map-bank" style="font-size:13px;color:var(--text2)">Банк</label><select class="currency-select" id="map-bank" style="width:100%;margin-top:4px"><option value="kaspi">Kaspi</option><option value="freedom">Freedom</option><option value="halyk">Halyk</option><option value="forte">Forte</option><option value="">Наличные / не указан</option></select></div>
     <button class="save-btn primary" onclick="analyzeStatement()">Анализировать</button>
   </div>
   <div class="card" id="stmt-results-card" hidden>
@@ -687,10 +692,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 <!-- Template modal -->
 <div class="modal-overlay" id="tmpl-modal">
-<div class="modal">
-  <h3>Новый шаблон</h3>
-  <input type="text" class="settings-input" id="tmpl-name" placeholder="Название (напр. Аренда)" style="margin-bottom:8px">
-  <input type="number" class="settings-input" id="tmpl-amount" placeholder="Сумма" inputmode="decimal" style="margin-bottom:8px">
+<div class="modal" role="dialog" aria-modal="true" aria-labelledby="tmpl-modal-t">
+  <h3 id="tmpl-modal-t">Новый шаблон</h3>
+  <label class="fld-label" for="tmpl-name">Название</label>
+  <input type="text" class="settings-input" id="tmpl-name" placeholder="Например, аренда" style="margin-bottom:8px">
+  <label class="fld-label" for="tmpl-amount">Сумма</label>
+  <input type="number" class="settings-input" id="tmpl-amount" inputmode="decimal" style="margin-bottom:8px">
+  <label class="fld-label" for="tmpl-cat">Категория</label>
   <select class="currency-select" id="tmpl-cat" style="width:100%;margin-bottom:8px;padding:10px"></select>
   <button class="save-btn primary" onclick="saveTemplate()">Сохранить</button>
   <button class="save-btn neutral" onclick="closeTmplModal()" style="margin-top:8px">Отмена</button>
@@ -699,8 +707,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 <!-- Sync code modal -->
 <div class="modal-overlay" id="code-modal">
-<div class="modal">
-  <h3>Сохрани свой код доступа</h3>
+<div class="modal" role="dialog" aria-modal="true" aria-labelledby="code-modal-t">
+  <h3 id="code-modal-t">Сохрани свой код доступа</h3>
   <p style="color:var(--text2);font-size:13px;margin-bottom:12px">Код открывает твоё пространство на другом телефоне или компьютере. Сохрани его в менеджере паролей — без него на новом устройстве не войти.</p>
   <div class="code-display" id="code-display"></div>
   <button class="save-btn primary" onclick="copyCode()">Скопировать код</button>
@@ -708,14 +716,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </div>
 </div>
 
-<div id="cmd-layer" class="cmd-layer" hidden>
+<div id="cmd-layer" class="cmd-layer" hidden role="dialog" aria-modal="true" aria-label="Быстрый ввод: трата, задача или запись в журнал">
   <div class="cmd-top">
-    <div class="cmd-seg" id="cmd-seg"><button id="cmd-exp" class="on" onclick="cmdSetType('expense')">Расход</button><button id="cmd-inc" onclick="cmdSetType('income')">Доход</button></div>
-    <button class="header-btn" onclick="closeCmd()" aria-label="Закрыть"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    <div class="cmd-seg" id="cmd-seg" role="group" aria-label="Тип операции"><button type="button" id="cmd-exp" class="on" aria-pressed="true" onclick="cmdSetType('expense')">Расход</button><button type="button" id="cmd-inc" aria-pressed="false" onclick="cmdSetType('income')">Доход</button></div>
+    <button type="button" class="header-btn" onclick="closeCmd()" aria-label="Закрыть быстрый ввод"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
   </div>
   <div class="cmd-field" id="cmd-field"><input id="cmd-input" class="cmd-input" type="text" autocomplete="off" autocapitalize="off" placeholder="кофе 500" oninput="cmdUpdate()" onkeydown="cmdKey(event)" aria-label="Команда"></div>
   <div id="cmd-chips" class="cmd-chips" aria-live="polite"></div>
-  <div id="cmd-dates" class="cmd-dates" role="group" aria-label="Дата операции"><button class="cmd-date on" data-d="today" onclick="cmdSetDate(this.dataset.d)">Сегодня</button><button class="cmd-date" data-d="yesterday" onclick="cmdSetDate(this.dataset.d)">Вчера</button><label class="cmd-date cmd-date-pick" data-d="pick"><span id="cmd-date-pick-l">Дата…</span><input type="date" id="cmd-date-input" onclick="try{this.showPicker&amp;&amp;this.showPicker()}catch(e){}" onchange="cmdSetDate('pick',this.value)" aria-label="Выбрать дату операции"></label></div>
+  <div id="cmd-dates" class="cmd-dates" role="group" aria-label="Дата операции"><button type="button" class="cmd-date on" data-d="today" aria-pressed="true" onclick="cmdSetDate(this.dataset.d)">Сегодня</button><button type="button" class="cmd-date" data-d="yesterday" aria-pressed="false" onclick="cmdSetDate(this.dataset.d)">Вчера</button><label class="cmd-date cmd-date-pick" data-d="pick"><span id="cmd-date-pick-l">Дата…</span><input type="date" id="cmd-date-input" onclick="try{this.showPicker&amp;&amp;this.showPicker()}catch(e){}" onchange="cmdSetDate('pick',this.value)" aria-label="Выбрать дату операции"></label></div>
   <div id="cmd-banks" class="cmd-banks" role="group" aria-label="Банк или карта"></div>
   <div id="cmd-cats" class="cat-grid" hidden></div>
   <div id="cmd-templates"></div>
@@ -769,6 +777,8 @@ const ICON_PATHS={
   flame:'<path d="M12 3c.6 3.2 4.2 5 4.2 9.3a4.2 4.2 0 0 1-8.4 0c0-1.9.9-3 1.9-4 .4 1.3 1.1 1.8 1.7 1.9-.3-2.6-.6-5 .6-7.2Z"/>',
   chevDown:'<path d="m6 9 6 6 6-6"/>',
   chevUp:'<path d="m18 15-6-6-6 6"/>',
+  chevLeft:'<path d="m15 6-6 6 6 6"/>',
+  chevRight:'<path d="m9 6 6 6-6 6"/>',
   repeat:'<path d="m17 2 4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="m7 22-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/>'
 };
 function ico(name,size,color){
@@ -884,7 +894,7 @@ function stamped(d){return{...d,updatedAt:serverTs()}}
 function tombstone(s,id){return{[STORE_KEY_FIELD[s]||'id']:String(id),deleted:true,updatedAt:serverTs()}}
 function trackWrite(p){
   pendingWrites++;renderSyncState();
-  p.catch(err=>{console.warn('write failed',err);toast('Не сохранилось на сервере: '+(err.code||err.message))})
+  p.catch(err=>{console.warn('write failed',err);toast('Не сохранилось на сервере. '+errText(err))})
    .finally(()=>{pendingWrites--;renderSyncState()});
   return p;
 }
@@ -1042,12 +1052,12 @@ async function showDevices(){
     const fmtTs=t=>t&&t.toDate?t.toDate().toLocaleDateString('ru-RU',{day:'numeric',month:'short',year:'numeric'}):'—';
     el.innerHTML=snap.docs.length?snap.docs.map(d=>{const m=d.data();return `<div class="settings-item"><div><div class="settings-label">${escapeHtml(m.label||'устройство')}${d.id===me?' · это устройство':''}</div><div class="settings-desc">добавлено ${escapeHtml(fmtTs(m.joinedAt))}</div></div>${d.id===me?'':`<button class="settings-btn" data-id="${escapeHtml(d.id)}" onclick="revokeDevice(this.dataset.id)">Отключить</button>`}</div>`}).join('')
       :'<div class="settings-desc" style="padding:8px 0">Список пуст: устройства появятся после включения входа (анонимная авторизация в Firebase).</div>';
-  }catch(e){el.innerHTML=`<div class="settings-desc" style="padding:8px 0">Не удалось загрузить: ${escapeHtml(e.code||e.message)}</div>`}
+  }catch(e){el.innerHTML=`<div class="settings-desc" style="padding:8px 0">Список не загрузился. ${escapeHtml(errText(e,'read'))}</div>`}
 }
 async function revokeDevice(uid){
   if(!await sheetConfirm({title:'Отключить устройство?',text:'Ему понадобится снова ввести код.',ok:'Отключить',danger:true}))return;
   try{await spaceRef.collection('members').doc(uid).delete();toast('Устройство отключено');showDevices()}
-  catch(e){toast('Не удалось: '+(e.code||e.message))}
+  catch(e){toast('Устройство не отключено. '+errText(e))}
 }
 async function connectSpace(spaceId){
   if(!fsDb){
@@ -1210,6 +1220,45 @@ function today(){return localDate()}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const getCat=id=>CAT_MAP.get(id)||{name:id,icon:'coin'};
 function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+// i18n:pure-begin — Russian plurals and user-facing error texts (tests/a11y_texts.cjs, tests/foundation.cjs)
+// plural(5,['операция','операции','операций']) → 'операций'; nWord(5,…) → '5 операций'
+function plural(n,f){const a=Math.abs(Math.trunc(Number(n)||0)),b=a%100,c=a%10;return b>=11&&b<=14?f[2]:c===1?f[0]:c>=2&&c<=4?f[1]:f[2]}
+function nWord(n,f){return n+' '+plural(n,f)}
+const W_OPS=['операция','операции','операций'],W_TASKS=['задача','задачи','задач'],W_RECORDS=['запись','записи','записей'];
+// errText(e[, 'read']) — what the user reads when something fails: Russian, with a hint what to do.
+// The raw code goes to the console only. 'read' = a failed read (nothing is queued), otherwise a write.
+const ERR_OFFLINE_WRITE='Нет связи — запись уйдёт, когда появится интернет',ERR_OFFLINE_READ='Нет связи — проверь интернет и попробуй ещё раз';
+const ERR_TEXTS={
+  'permission-denied':'Нет доступа — устройство не в списке. Введи код ещё раз',
+  'unauthenticated':'Вход не выполнен — закрой приложение и открой снова',
+  'resource-exhausted':'Дневной лимит базы исчерпан — продолжи завтра',
+  'not-found':'Не найдено — возможно, уже удалено',
+  'already-exists':'Такая запись уже есть',
+  'invalid-argument':'Сервер не принял данные — проверь введённое',
+  'failed-precondition':'Сервер не принял запрос — обнови страницу',
+  'aborted':'Запись прервалась — попробуй ещё раз',
+  'cancelled':'Действие отменено',
+  'internal':'Сбой на сервере — попробуй ещё раз',
+  'unknown':'Сбой на сервере — попробуй ещё раз',
+  'data-loss':'Сбой на сервере — попробуй ещё раз',
+  'QuotaExceededError':'Память браузера заполнена — освободи место на устройстве',
+  'NotAllowedError':'Браузер не разрешил действие — попробуй ещё раз',
+  'SecurityError':'Браузер закрыл доступ к хранилищу — выключи приватный режим'
+};
+const ERR_OFFLINE_CODES=['unavailable','deadline-exceeded','timeout','network-request-failed'];
+function errCode(e){if(!e||typeof e!=='object')return '';return String(e.code||e.name||'').replace(/^(auth|firestore|storage|functions)\//,'')}
+function errText(e,kind){
+  const code=errCode(e);
+  try{console.warn('error:',code||'(no code)',e)}catch(x){}
+  if(ERR_OFFLINE_CODES.includes(code))return kind==='read'?ERR_OFFLINE_READ:ERR_OFFLINE_WRITE;
+  if(Object.prototype.hasOwnProperty.call(ERR_TEXTS,code))return ERR_TEXTS[code];
+  const m=String(typeof e==='string'?e:(e&&e.message)||'').trim();
+  if(/failed to fetch|network|offline/i.test(m))return kind==='read'?ERR_OFFLINE_READ:ERR_OFFLINE_WRITE;
+  // our own errors are already Russian («снимок не найден»): shown as a sentence
+  if(/[А-Яа-яЁё]/.test(m)&&m.length<=160)return m[0].toUpperCase()+m.slice(1);
+  return 'Что-то пошло не так — попробуй ещё раз';
+}
+// i18n:pure-end
 
 // money-ui:pure-begin — periods, short dates, fit-to-width sizing (tests/money_ui.cjs). `t` = today, YYYY-MM-DD, local.
 // Periods mean the same on every money screen: week = this Monday–Sunday, month = this calendar month,
@@ -1297,7 +1346,7 @@ function toast(msg){
 function toastUndo(msg,txId){
   clearTimeout(undoTimer);
   const el=document.getElementById('toast');
-  el.innerHTML=`${msg} <button class="toast-undo" onclick="undoTx('${txId}')">Отменить</button>`;
+  el.innerHTML=`${msg} <button type="button" class="toast-undo" data-id="${escapeHtml(txId)}" onclick="undoTx(this.dataset.id)">Отменить</button>`;
   el.classList.add('show');
   undoTimer=setTimeout(()=>el.classList.remove('show'),3500);
 }
@@ -1433,7 +1482,7 @@ function setType(type){
 async function handleSmartInput(){
   const input=document.getElementById('smart-input').value;
   const parsed=parseInput(input);
-  if(!parsed||!parsed.amount||parsed.amount<=0)return toast('Введите описание и сумму');
+  if(!parsed||!parsed.amount||parsed.amount<=0)return toast('Введи описание и сумму');
   const catId=parsed.desc?await classify(parsed.desc,currentType):null;
   if(catId){
     const tx=await saveTx(parsed.desc,parsed.amount,catId);
@@ -1451,14 +1500,14 @@ async function handleSmartInput(){
 async function showFallbackGrid(parsed){
   const fg=document.getElementById('fallback-grid');
   fg.classList.add('show');
-  document.getElementById('fallback-info').innerHTML=`${icoInline('search')}Не удалось определить категорию для &laquo;${escapeHtml(parsed.desc)}&raquo; (${fmtCur(parsed.amount)}). Выберите вручную:`;
+  document.getElementById('fallback-info').innerHTML=`${icoInline('search')}Не удалось определить категорию для &laquo;${escapeHtml(parsed.desc)}&raquo; (${fmtCur(parsed.amount)}). Выбери вручную:`;
   const grid=document.getElementById('cat-grid');
   const cats=CATS[currentType];
-  let tiles=cats.map(c=>`<div class="cat-btn" onclick="selectFallbackCat('${c.id}',this)"><span class="icon-wrap">${ico(c.icon,22)}</span>${c.name}</div>`).join('');
+  let tiles=cats.map(c=>`<button type="button" class="cat-btn" data-c="${escapeHtml(c.id)}" onclick="selectFallbackCat(this.dataset.c,this)"><span class="icon-wrap">${ico(c.icon,22)}</span>${escapeHtml(c.name)}</button>`).join('');
   if(currentType==='expense'){
     const goals=await dbAll('goals');
     registerGoalCategories(goals);
-    tiles+=goals.map(g=>`<div class="cat-btn" onclick="selectFallbackCat('goal_${g.id}',this)"><span class="icon-wrap">${ico('goal',22)}</span>${escapeHtml(g.name)}</div>`).join('');
+    tiles+=goals.map(g=>`<button type="button" class="cat-btn" data-c="goal_${escapeHtml(g.id)}" onclick="selectFallbackCat(this.dataset.c,this)"><span class="icon-wrap">${ico('goal',22)}</span>${escapeHtml(g.name)}</button>`).join('');
   }
   grid.innerHTML=tiles;
 }
@@ -1471,7 +1520,7 @@ function selectFallbackCat(id,el){
 }
 
 async function saveFallback(){
-  if(!pendingInput||!selectedFallbackCat)return toast('Выберите категорию');
+  if(!pendingInput||!selectedFallbackCat)return toast('Выбери категорию');
   if(pendingInput.desc)await learnCategory(pendingInput.desc,selectedFallbackCat);
   const tx=await saveTx(pendingInput.desc,pendingInput.amount,selectedFallbackCat);
   document.getElementById('smart-input').value='';
@@ -1490,7 +1539,7 @@ function setCurrentBank(b){
 }
 function renderCmdBanks(){
   const el=document.getElementById('cmd-banks');if(!el)return;
-  el.innerHTML=[...BANK_KEYS,'cash'].map(k=>'<button class="cmd-bank'+(k===currentBank?' on':'')+'" data-b="'+k+'" onclick="setCurrentBank(this.dataset.b)">'+escapeHtml(BANK_NAMES[k].replace(' Bank',''))+'</button>').join('');
+  el.innerHTML=[...BANK_KEYS,'cash'].map(k=>'<button type="button" class="cmd-bank'+(k===currentBank?' on':'')+'" data-b="'+k+'" aria-pressed="'+(k===currentBank)+'" onclick="setCurrentBank(this.dataset.b)">'+escapeHtml(BANK_NAMES[k].replace(' Bank',''))+'</button>').join('');
 }
 async function saveTx(desc,amount,catId,bank,extra,batch){
   const tx={id:uid(),type:currentType,amount,category:catId,description:desc,date:today(),createdAt:Date.now(),source:'manual',bank:bank||currentBank||'cash',...(extra||{})};
@@ -1510,8 +1559,8 @@ async function renderTemplates(){
   document.getElementById('templates-wrap').style.display='block';
   list.innerHTML=tmpls.map(t=>{
     const c=getCat(t.category);
-    return`<div class="tmpl-chip" onclick="useTmpl('${t.id}')">${icoInline(c.icon,13)}${escapeHtml(t.name)} ${fmtCur(t.amount)}</div>`;
-  }).join('')+`<div class="tmpl-chip tmpl-add" onclick="openTmplModal()">+ Добавить</div>`;
+    return`<button type="button" class="tmpl-chip" data-id="${escapeHtml(t.id)}" onclick="useTmpl(this.dataset.id)">${icoInline(c.icon,13)}${escapeHtml(t.name)} ${fmtCur(t.amount)}</button>`;
+  }).join('')+`<button type="button" class="tmpl-chip tmpl-add" onclick="openTmplModal()" aria-label="Добавить шаблон">+ Шаблон</button>`;
 }
 
 async function useTmpl(id){
@@ -1536,7 +1585,7 @@ async function saveTemplate(){
   const name=document.getElementById('tmpl-name').value.trim();
   const amount=parseFloat(document.getElementById('tmpl-amount').value);
   const cat=document.getElementById('tmpl-cat').value;
-  if(!name||!amount)return toast('Заполните все поля');
+  if(!name||!amount)return toast('Заполни название и сумму');
   tmplBusy=true;
   try{await dbPut('templates',{id:uid(),name,amount,category:cat,type:'expense'})}finally{tmplBusy=false}
   document.getElementById('tmpl-name').value='';document.getElementById('tmpl-amount').value='';
@@ -1555,10 +1604,10 @@ async function checkBudget(tx){
     if(b.key==='general')spent=monthExp.reduce((s,t)=>s+t.amount,0);
     else if(b.key===tx.category)spent=monthExp.filter(t=>t.category===b.key).reduce((s,t)=>s+t.amount,0);
     else continue;
-    const pct=spent/b.limit*100;
-    const name=b.key==='general'?'общих расходов':getCat(b.key).name;
-    if(pct>=100)showWarning(`Лимит на ${name} превышен! (${Math.round(pct)}%)`,'red');
-    else if(pct>=80)showWarning(`${Math.round(pct)}% лимита на ${name}`,'orange');
+    const pct=spent/b.limit*100,p=Math.round(pct)+' %',general=b.key==='general',name=general?'':getCat(b.key).name;
+    // «Лимит общих расходов превышен: 104 %» / «Лимит превышен: Еда — 104 %» / «83 % общего лимита» / «83 % лимита: Еда»
+    if(pct>=100)showWarning(general?`Лимит общих расходов превышен: ${p}`:`Лимит превышен: ${name} — ${p}`,'red');
+    else if(pct>=80)showWarning(general?`${p} общего лимита`:`${p} лимита: ${name}`,'orange');
   }
 }
 
@@ -1574,7 +1623,7 @@ async function refreshHistory(){
   labelPeriodTabs();
   const txs=historyFilteredTxs(filterPeriod([...(await getTxs())],historyPeriod)).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt);
   const list=document.getElementById('history-list');
-  if(!txs.length){list.innerHTML=`<div class="empty-state"><span class="icon-wrap">${ico('doc',40)}</span>Нет записей</div>`;return}
+  if(!txs.length){list.innerHTML=`<div class="empty-state"><span class="icon-wrap">${ico('doc',40)}</span>Операций за этот период нет</div>`;return}
   const groups={};txs.forEach(t=>{(groups[t.date]=groups[t.date]||[]).push(t)});
   let html='';
   for(const[date,items]of Object.entries(groups)){
@@ -1583,7 +1632,7 @@ async function refreshHistory(){
       const c=getCat(t.category),cls=t.type==='expense'?'expense':'income',sign=t.type==='expense'?'-':'+';
       const col=catColor(t.category),ava=personBadge(t.description);
       const badge=ava?`<div class="recent-icon avatar" style="background:${ava.grad}">${ava.initial}</div>`:`<div class="recent-icon" style="background:${col}2e;color:${col};box-shadow:inset 0 1px 1px rgba(255,255,255,.08),0 0 12px ${col}40">${ico(c.icon,18)}</div>`;
-      html+=`<div class="recent-item">${badge}<div class="recent-info"><div class="recent-desc">${escapeHtml(t.description||c.name)}</div><div class="recent-cat">${escapeHtml(c.name)}${t.bank?' · '+escapeHtml((BANK_NAMES[t.bank]||t.bank).replace(' Bank','')):''}</div></div><div class="recent-amount ${cls}">${sign}${fmtCur(t.amount)}</div><button class="del-btn" data-id="${escapeHtml(t.id)}" onclick="deleteTx(this.dataset.id)" aria-label="Удалить">${ico('close',16)}</button></div>`;
+      html+=`<div class="recent-item">${badge}<div class="recent-info"><div class="recent-desc">${escapeHtml(t.description||c.name)}</div><div class="recent-cat">${escapeHtml(c.name)}${t.bank?' · '+escapeHtml((BANK_NAMES[t.bank]||t.bank).replace(' Bank','')):''}</div></div><div class="recent-amount ${cls}">${sign}${fmtCur(t.amount)}</div><button type="button" class="del-btn" data-id="${escapeHtml(t.id)}" onclick="deleteTx(this.dataset.id)" aria-label="Удалить операцию">${ico('close',16)}</button></div>`;
     });
   }
   list.innerHTML=html;
@@ -1605,17 +1654,17 @@ async function renderHistoryCalendar(){
   const txDaysSet=new Set(txs.filter(t=>t.date.startsWith(historyCalMonth)).map(t=>t.date));
   document.getElementById('cal-month-label').textContent=firstOfMonth.toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
   const weekdays=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-  document.getElementById('cal-weekdays').innerHTML=weekdays.map(w=>`<div class="calendar-weekday">${w}</div>`).join('');
+  document.getElementById('cal-weekdays').innerHTML=weekdays.map(w=>`<div class="calendar-weekday" aria-hidden="true">${w}</div>`).join('');
   const todayStr=today();
   let cells='';
-  for(let i=0;i<startOffset;i++)cells+='<div class="calendar-day muted"></div>';
+  for(let i=0;i<startOffset;i++)cells+='<div class="calendar-day muted" aria-hidden="true"></div>';
   for(let d=1;d<=daysInMonth;d++){
     const dateStr=`${historyCalMonth}-${String(d).padStart(2,'0')}`;
     const cls=['calendar-day'];
     if(dateStr===todayStr)cls.push('today');
     if(txDaysSet.has(dateStr))cls.push('has-tx');
     if(dateStr===historySelectedDay)cls.push('selected');
-    cells+=`<div class="${cls.join(' ')}" data-d="${dateStr}" onclick="selectHistoryDay(this.dataset.d)">${d}</div>`;
+    cells+=`<button type="button" class="${cls.join(' ')}" data-d="${dateStr}" aria-pressed="${dateStr===historySelectedDay}" aria-label="${d} ${MONTHS_GEN[mo-1]}${txDaysSet.has(dateStr)?', есть операции':''}" onclick="selectHistoryDay(this.dataset.d)">${d}</button>`;
   }
   document.getElementById('cal-days').innerHTML=cells;
 }
@@ -1632,13 +1681,13 @@ function selectHistoryDay(dateStr){
 }
 async function exportHistoryFiltered(){
   const txs=historyFilteredTxs(filterPeriod([...(await getTxs())],historyPeriod)).sort((a,b)=>b.date.localeCompare(a.date));
-  if(!txs.length)return toast('Нет данных для экспорта');
+  if(!txs.length)return toast('Нечего экспортировать — за период нет операций');
   const data=JSON.stringify({transactions:txs,bank:historyBank||'все',period:historyPeriod,exportDate:new Date().toISOString()},null,2);
   const blob=new Blob([data],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download=`finance-${historyBank||'all'}-${today()}.json`;a.click();URL.revokeObjectURL(url);
-  toast(`Экспортировано: ${txs.length}`);
+  toast(`Экспортировано: ${nWord(txs.length,W_OPS)}`);
 }
-async function deleteTx(id){if(!confirm('Удалить запись?'))return;await goalRollback(id);await dbDel('transactions',id);txCacheRemove(id);refreshHistory();toast('Удалено')}
+async function deleteTx(id){if(!await sheetConfirm({title:'Удалить операцию?',ok:'Удалить',danger:true}))return;await goalRollback(id);await dbDel('transactions',id);txCacheRemove(id);refreshHistory();toast('Операция удалена')}
 
 // ── Stats ──
 async function refreshStats(){
@@ -1668,13 +1717,13 @@ async function refreshStats(){
   buildRing(sorted,totalExp);
   document.getElementById('sphere-legend').innerHTML=sorted.map(([cat,amt],i)=>{
     const c=getCat(cat),col=statsColor(i,sorted.length);
-    return`<div class="sphere-legend-item" data-i="${i}" data-name="${escapeHtml(c.name)}" data-amt="${fmtCur(amt)}" onmouseenter="sphereShow(this)" onmouseleave="sphereReset()" onclick="sphereToggle(this)"><span class="sphere-legend-dot" style="background:${col}"></span>${escapeHtml(c.name)}</div>`;
+    return`<button type="button" class="sphere-legend-item" data-i="${i}" data-name="${escapeHtml(c.name)}" data-amt="${fmtCur(amt)}" aria-pressed="false" onmouseenter="sphereShow(this)" onmouseleave="sphereReset()" onclick="sphereToggle(this)"><span class="sphere-legend-dot" style="background:${col}" aria-hidden="true"></span>${escapeHtml(c.name)}</button>`;
   }).join('');
   const bd=document.getElementById('cat-breakdown'),maxAmt=sorted.length?sorted[0][1]:1;
   bd.innerHTML=sorted.map(([cat,amt],i)=>{
     const c=getCat(cat),pct=totalExp?Math.round(amt/totalExp*100):0,col=statsColor(i,sorted.length),colBg=statsColor(i,sorted.length,.18);
     return`<div class="cat-list-item"><span class="cat-list-icon" style="background:${colBg};color:${col}">${ico(c.icon,18)}</span><div class="cat-bar-wrap"><div style="font-size:13px;margin-bottom:4px">${escapeHtml(c.name)}</div><div class="cat-bar"><div class="cat-bar-fill" style="width:${amt/maxAmt*100}%;background:${col}"></div></div></div><div class="cat-amount">${fmtCur(amt)}</div><div class="cat-pct">${pct}%</div></div>`;
-  }).join('')||'<div class="empty-state">Нет данных</div>';
+  }).join('')||'<div class="empty-state">Расходов за период нет</div>';
   const byBank={};expenses.forEach(t=>{const k=t.bank||null;if(k)byBank[k]=(byBank[k]||0)+t.amount});
   const bankSorted=Object.entries(byBank).sort((a,b)=>b[1]-a[1]);
   const bbCard=document.getElementById('bank-breakdown-card');
@@ -1723,6 +1772,7 @@ function sphereToggle(el){
   document.querySelectorAll('.sphere-legend-item.active').forEach(x=>x.classList.remove('active'));
   if(!wasActive){el.classList.add('active');sphereShow(el)}
   else sphereReset();
+  document.querySelectorAll('.sphere-legend-item').forEach(x=>x.setAttribute('aria-pressed',String(x.classList.contains('active'))));
 }
 
 const TOOLTIP_STYLE={backgroundColor:'#0B0B0C',titleColor:'#F2F2EF',bodyColor:'#F2F2EF',borderColor:'rgba(255,255,255,.18)',borderWidth:1,padding:10,cornerRadius:10,displayColors:true,boxPadding:4,titleFont:{weight:'600'}};
@@ -1806,7 +1856,7 @@ async function renderHomeBudgetRing(){
 async function refreshBudgets(){
   const budgets=await dbAll('budgets');
   const list=document.getElementById('budget-list');
-  if(!budgets.length){list.innerHTML=`<div class="empty-state"><span class="icon-wrap">${ico('wallet',40)}</span>Задайте месячный бюджет</div>`;return}
+  if(!budgets.length){list.innerHTML=`<div class="empty-state"><span class="icon-wrap">${ico('wallet',40)}</span>Задай лимит на месяц — кнопка «+» вверху</div>`;return}
   const month=today().slice(0,7);
   const allTxs=await getTxs();
   const monthExp=allTxs.filter(t=>t.type==='expense'&&t.date.startsWith(month));
@@ -1816,14 +1866,14 @@ async function refreshBudgets(){
     const color=pct>=100?'#FF5A5F':pct>=80?'#E9C46A':'#F2F2EF';
     const icon=b.key==='general'?'wallet':getCat(b.key).icon;
     const name=b.key==='general'?'Общий лимит':getCat(b.key).name;
-    return`<div class="budget-card">${planRing(pct,color,pct+'%')}<div class="budget-info"><div class="budget-header"><div class="budget-name">${icoInline(icon,16)}${escapeHtml(name)}</div><button class="del-btn" data-k="${escapeHtml(b.key)}" onclick="delBudget(this.dataset.k)" aria-label="Удалить">${ico('close',16)}</button></div><div class="budget-amounts"><span>${fmtCur(spent)} / ${fmtCur(b.limit)}</span></div></div></div>`;
+    return`<div class="budget-card">${planRing(pct,color,pct+'%')}<div class="budget-info"><div class="budget-header"><div class="budget-name">${icoInline(icon,16)}${escapeHtml(name)}</div><button type="button" class="del-btn" data-k="${escapeHtml(b.key)}" onclick="delBudget(this.dataset.k)" aria-label="Удалить лимит: ${escapeHtml(name)}">${ico('close',16)}</button></div><div class="budget-amounts"><span>${fmtCur(spent)} / ${fmtCur(b.limit)}</span></div></div></div>`;
   }).join('');
 }
 
 async function saveBudget(){
   const key=document.getElementById('budget-cat').value;
   const limit=parseFloat(document.getElementById('budget-limit').value);
-  if(!limit||limit<=0)return toast('Введите лимит');
+  if(!limit||limit<=0)return toast('Введи лимит — число больше нуля');
   await dbPut('budgets',{key,limit});
   document.getElementById('budget-limit').value='';
   document.getElementById('budget-form').classList.remove('show');
@@ -1859,21 +1909,21 @@ async function refreshGoals(){
     const done=pct>=100;
     const dl=g.deadline?new Date(g.deadline+'T00:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}):'';
     const ring=planRing(pct,done?'#E9C46A':'#F2F2EF',done?ico('check',20):pct+'%','goal');
-    return`<div class="goal-card">${ring}<div class="goal-info"><div class="goal-name">${escapeHtml(g.name)}${done?`<span class="goal-badge">${ico('check',12)}Выполнено</span>`:''}</div>${dl?`<div class="goal-dates">${icoInline('calendar',13)}${dl}</div>`:''}<div class="goal-amounts"><span>${fmtCur(g.currentAmount)} / ${fmtCur(g.targetAmount)}</span></div><div class="goal-actions"><button class="goal-action-btn goal-add-btn" data-id="${escapeHtml(g.id)}" onclick="addToGoal(this.dataset.id)">${ico('plusCircle',15)}Пополнить</button><button class="goal-action-btn goal-del-btn" data-id="${escapeHtml(g.id)}" onclick="deleteGoal(this.dataset.id)">${ico('close',15)}Удалить</button></div></div></div>`;
+    return`<div class="goal-card">${ring}<div class="goal-info"><div class="goal-name">${escapeHtml(g.name)}${done?`<span class="goal-badge">${ico('check',12)}Заполнена</span>`:''}</div>${dl?`<div class="goal-dates">${icoInline('calendar',13)}${dl}</div>`:''}<div class="goal-amounts"><span>${fmtCur(g.currentAmount)} / ${fmtCur(g.targetAmount)}</span></div><div class="goal-actions"><button type="button" class="goal-action-btn goal-add-btn" data-id="${escapeHtml(g.id)}" onclick="addToGoal(this.dataset.id)">${ico('plusCircle',15)}Пополнить</button><button type="button" class="goal-action-btn goal-del-btn" data-id="${escapeHtml(g.id)}" onclick="deleteGoal(this.dataset.id)">${ico('close',15)}Удалить</button></div></div></div>`;
   }).join('');
 }
 async function saveGoal(){
   const name=document.getElementById('goal-name').value.trim(),target=parseFloat(document.getElementById('goal-target').value);
-  if(!name||!target)return toast('Заполните название и сумму');
+  if(!name||!target)return toast('Заполни название и сумму');
   await dbPut('goals',{id:uid(),name,targetAmount:target,currentAmount:0,deadline:document.getElementById('goal-deadline').value,createdAt:Date.now()});
   document.getElementById('goal-name').value='';document.getElementById('goal-target').value='';document.getElementById('goal-deadline').value='';
-  document.getElementById('goal-form').classList.remove('show');refreshGoals();toast('Цель создана');
+  document.getElementById('goal-form').classList.remove('show');refreshGoals();toast('Копилка создана');
 }
 async function addToGoal(id){
-  const amount=prompt('Сколько добавить?');if(amount===null)return;
+  const amount=await sheetPrompt({title:'Пополнить копилку',label:'Сколько добавить?',placeholder:'Например, 10000',inputmode:'decimal',ok:'Пополнить'});if(amount===null)return;
   const val=parseFloat(amount);
-  if(isNaN(val)||val<=0)return toast('Введите положительное число');
-  await contributeToGoal(id,val);refreshGoals();toast('Пополнено');
+  if(isNaN(val)||val<=0)return toast('Введи сумму больше нуля');
+  await contributeToGoal(id,val);refreshGoals();toast('Копилка пополнена');
 }
 async function deleteGoal(id){if(!await sheetConfirm({title:'Удалить копилку?',ok:'Удалить',danger:true}))return;await dbDel('goals',id);refreshGoals();toast('Копилка удалена')}
 
@@ -1891,7 +1941,7 @@ async function loadCsvStatement(file){
     const text=decodeCsvBuffer(await file.arrayBuffer());
     if(!(await confirmNotDuplicateStatement(text)))return;
     const t=parseCsvTable(text);
-    if(!t.rows.length)return toast('Файл пустой');
+    if(!t.rows.length)return toast('Файл пустой — выбери другой');
     stmtData=t.rows;stmtMissed=[];
     const opts=Array.from({length:t.width},(_,i)=>`<option value="${i}">${escapeHtml(t.headers[i]||('Столбец '+(i+1)))}</option>`).join('');
     const none='<option value="">— нет —</option>';
@@ -1905,13 +1955,13 @@ async function loadCsvStatement(file){
     document.getElementById('map-bank').value=['kaspi','freedom','halyk','forte'].includes(b)?b:'';
     document.getElementById('stmt-results-card').hidden=true;
     document.getElementById('stmt-mapping').hidden=false;
-  }catch(err){toast('Ошибка чтения CSV: '+err.message);console.error(err)}
+  }catch(err){toast('CSV не прочитан. '+errText(err))}
 }
 
 async function loadPdfStatement(file){
-  toast('Обработка PDF...');
+  toast('Читаю PDF…');
   try{
-    if(typeof pdfjsLib==='undefined')return toast('pdf.js не загружен');
+    if(typeof pdfjsLib==='undefined')return toast('Модуль PDF не загрузился — проверь интернет и обнови страницу');
     pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     const buf=await file.arrayBuffer();
     const pdf=await pdfjsLib.getDocument({data:new Uint8Array(buf),isEvalSupported:false}).promise; // CVE-2024-4367
@@ -1930,18 +1980,18 @@ async function loadPdfStatement(file){
       if(line.trim())fullText+=line.trim()+'\n';
     }
     const bank=detectBank(fullText);
-    if(!bank)return toast('Не удалось определить банк');
+    if(!bank)return toast('Банк не распознан — подходят выписки Kaspi, Forte, Halyk и Freedom');
     if(!(await confirmNotDuplicateStatement(fullText)))return;
     let parsed=[];
     if(bank==='kaspi')parsed=parseKaspiPdf(fullText);
     else if(bank==='forte')parsed=parseFortePdf(fullText);
     else if(bank==='halyk')parsed=parseHalykPdf(fullText);
     else if(bank==='freedom')parsed=parseFreedomPdf(fullText);
-    if(!parsed.length)return toast('Не найдено операций в выписке');
+    if(!parsed.length)return toast('В выписке не нашлось операций');
     stmtParsed=parsed;stmtBank=bank;stmtRawText=fullText;
     document.getElementById('stmt-mapping').hidden=true;
     showPdfResults(bank,parsed);
-  }catch(err){toast('Ошибка чтения PDF: '+err.message);console.error(err)}
+  }catch(err){toast('PDF не прочитан. '+errText(err))}
 }
 
 function detectBank(text){
@@ -2260,8 +2310,8 @@ async function confirmNotDuplicateStatement(content){
   try{
     const doc=await spaceRef.collection('importedStatements').doc(stmtFileHash).get();
     if(doc.exists){
-      const info=doc.data();
-      return confirm(`Похоже, эта выписка уже была загружена ${new Date(info.importedAt).toLocaleDateString('ru-RU')} (добавлено ${info.count}). Загрузить ещё раз?`);
+      const info=doc.data(),when=info.importedAt?dayMonthShort(localDate(new Date(info.importedAt))):'';
+      return await sheetConfirm({title:'Эта выписка уже загружалась',text:`${when?when+' · ':''}добавлено: ${nWord(+info.count||0,W_OPS)}. Загрузить ещё раз?`,ok:'Загрузить ещё раз'});
     }
   }catch(e){}
   return true;
@@ -2315,7 +2365,7 @@ function renderBalanceBanner(bank,text){
   if(amount==null){banner.hidden=true;detectedBalance=null;return}
   detectedBalance={bank,amount,at:statementPeriodEnd(text)};
   banner.hidden=false;
-  banner.innerHTML=`${icoInline('card',15)}Баланс ${BANK_NAMES[bank]} по выписке: <b>${fmtCur(amount)}</b> <button class="settings-btn" style="flex-shrink:0" onclick="applyDetectedBalance()">Обновить</button>`;
+  banner.innerHTML=`${icoInline('card',15)}Баланс ${BANK_NAMES[bank]} по выписке: <b>${fmtCur(amount)}</b> <button type="button" class="settings-btn" style="flex-shrink:0" onclick="applyDetectedBalance()">Обновить</button>`;
 }
 async function applyDetectedBalance(){
   if(!detectedBalance)return;
@@ -2377,7 +2427,7 @@ async function showPdfResults(bank,parsed){
   const missedIncome=stmtMissed.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
   document.getElementById('stmt-summary').innerHTML=`${icoInline('bank',15)}<b>${BANK_NAMES[bank]}</b><br>${icoInline('bars',15)}Расходов: <b>${expenses.length}</b>, доходов: <b>${incomes.length}</b>, совпадений: <b>${matched}</b><br>${icoInline('close',15)}Пропущено расходов: <b style="color:var(--red)">${fmtCur(missedExpense)}</b>, доходов: <b style="color:var(--green)">${fmtCur(missedIncome)}</b>`;
   document.getElementById('stmt-batch-bar').hidden=!missed;
-  document.getElementById('stmt-results').innerHTML=html||'<div class="empty-state">Все операции уже записаны!</div>';
+  document.getElementById('stmt-results').innerHTML=html||'<div class="empty-state">Все операции уже записаны</div>';
 }
 
 // CSV helpers (F1.8): pure functions, no DOM — tests/statements/csv.cjs extracts this block.
@@ -2520,8 +2570,8 @@ async function analyzeStatement(){
   stmtMode='csv';
   const col=id=>{const v=document.getElementById(id).value;return v===''?-1:+v};
   const map={date:col('map-date'),amount:col('map-amount'),desc:col('map-desc'),income:col('map-income'),expense:col('map-expense'),type:col('map-type')};
-  if(map.date<0)return toast('Выберите столбец даты');
-  if(map.amount<0&&map.income<0&&map.expense<0)return toast('Выберите столбец суммы или «Приход»/«Расход»');
+  if(map.date<0)return toast('Выбери столбец даты');
+  if(map.amount<0&&map.income<0&&map.expense<0)return toast('Выбери столбец суммы или «Приход»/«Расход»');
   stmtBank=document.getElementById('map-bank').value;
   const txs=await getTxs();
   document.getElementById('stmt-results-card').hidden=false;
@@ -2550,7 +2600,7 @@ async function analyzeStatement(){
   const missed=stmtMissed.length,totalMissed=stmtMissed.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0),totalMissedIncome=stmtMissed.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
   document.getElementById('stmt-summary').innerHTML=`${stmtBank?`${icoInline('bank',15)}<b>${escapeHtml(BANK_NAMES[stmtBank]||stmtBank)}</b><br>`:''}${icoInline('bars',15)}Совпадений: <b>${matched}</b>, пропущено расходов: <b style="color:var(--red)">${fmtCur(totalMissed)}</b>, доходов: <b style="color:var(--green)">${fmtCur(totalMissedIncome)}</b>${bad?`<br><span style="color:var(--red)">Дата не распознана: <b>${bad}</b> (такие строки не добавляются)</span>`:''}`;
   document.getElementById('stmt-batch-bar').hidden=!missed;
-  document.getElementById('stmt-results').innerHTML=html||'<div class="empty-state">Нет данных</div>';
+  document.getElementById('stmt-results').innerHTML=html||'<div class="empty-state">Строк с операциями не нашлось</div>';
 }
 
 function toggleAllStmt(){
@@ -2564,7 +2614,8 @@ let isAddingStmt=false;
 let lastImport={ids:[],goals:{},hash:null};
 async function undoStmtImport(){
   const li=lastImport;if(!li.ids.length)return;
-  if(!confirm(`Удалить ${li.ids.length} операций, добавленных из выписки?`))return;
+  if(!await sheetConfirm({title:`Удалить ${nWord(li.ids.length,W_OPS)} из выписки?`,text:'Удалятся операции, добавленные этим импортом; пополнения копилок из них отменятся.',ok:'Удалить',danger:true}))return;
+  if(lastImport!==li)return; // answered twice / a new import started meanwhile
   lastImport={ids:[],goals:{},hash:null};
   try{
     for(let i=0;i<li.ids.length;i+=450){const b=fsDb.batch();li.ids.slice(i,i+450).forEach(id=>b.set(spaceRef.collection('transactions').doc(encodeURIComponent(id)),tombstone('transactions',id)));commitBatch(b)}
@@ -2574,7 +2625,7 @@ async function undoStmtImport(){
     dirtyTx();toast('Импорт отменён');
     document.getElementById('stmt-undo').hidden=true;
     if(stmtMode==='pdf')showPdfResults(stmtBank,stmtParsed);else analyzeStatement();
-  }catch(err){toast('Не удалось отменить: '+err.message)}
+  }catch(err){toast('Импорт не отменён. '+errText(err))}
 }
 async function addSelectedStmt(){
   if(isAddingStmt)return;
@@ -2582,7 +2633,7 @@ async function addSelectedStmt(){
   const toAdd=stmtMissed.filter((_,i)=>document.getElementById('stmt-chk-'+i)?.checked);
   if(!toAdd.length)return toast('Ничего не выбрано');
   isAddingStmt=true;
-  toast(`Добавляем ${toAdd.length}...`);
+  toast(`Добавляем ${nWord(toAdd.length,W_OPS)}…`);
   try{
     const goalAdds={},seenRow={};
     for(let i=0;i<toAdd.length;i+=450){
@@ -2607,12 +2658,11 @@ async function addSelectedStmt(){
     lastImport.goals=goalAdds;
     dirtyTx();
     if(stmtFileHash){await spaceRef.collection('importedStatements').doc(stmtFileHash).set({bank:stmtBank,importedAt:Date.now(),count:toAdd.length});lastImport.hash=stmtFileHash}
-    toast(`Добавлено: ${toAdd.length}`);
+    toast(`Добавлено: ${nWord(toAdd.length,W_OPS)}`);
     const ub=document.getElementById('stmt-undo');if(ub){ub.hidden=false;ub.textContent=`Отменить импорт (${toAdd.length})`}
     if(stmtMode==='pdf')showPdfResults(stmtBank,stmtParsed);else analyzeStatement();
   }catch(err){
-    toast('Ошибка при добавлении: '+err.message);
-    console.error(err);
+    toast('Не всё добавилось. '+errText(err));
   }finally{
     isAddingStmt=false;
   }
@@ -2674,7 +2724,7 @@ async function renderBankBalances(){
   const hint=document.getElementById('bank-total-hint');
   if(hint){
     hint.hidden=!unset.length;
-    hint.innerHTML=unset.length?escapeHtml((any?'Не задан: ':'Балансы не заданы: ')+unset.map(k=>BANK_NAMES[k].replace(' Bank','')).join(', '))+' <button class="link-btn" onclick="openBankEdit()">Указать</button>':'';
+    hint.innerHTML=unset.length?escapeHtml((any?'Не задан: ':'Балансы не заданы: ')+unset.map(k=>BANK_NAMES[k].replace(' Bank','')).join(', '))+' <button type="button" class="link-btn" onclick="openBankEdit()">Указать</button>':'';
   }
   const scrollEl=document.getElementById('bank-cards-scroll');
   scrollEl.innerHTML=any
@@ -2833,7 +2883,7 @@ function buildTxCsv(txs,names={}){
 }
 // backup:pure-end
 
-const BACKUP_LABELS={transactions:'Операции',goals:'Цели',budgets:'Лимиты',templates:'Шаблоны',settings:'Настройки',learned:'Правила категорий',tasks:'Задачи',taskLog:'Выполнения задач',habits:'Привычки',habitChecks:'Отметки привычек',journal:'Журнал',debts:'Рассрочки',allocations:'Распределения',workoutPlans:'Планы тренировок',workouts:'Тренировки',bodyWeights:'Вес',xpLog:'XP',importedStatements:'Загруженные выписки'};
+const BACKUP_LABELS={transactions:'Операции',goals:'Копилки',budgets:'Лимиты',templates:'Шаблоны',settings:'Настройки',learned:'Правила категорий',tasks:'Задачи',taskLog:'Выполнения задач',habits:'Привычки',habitChecks:'Отметки привычек',journal:'Журнал',debts:'Рассрочки',allocations:'Распределения',workoutPlans:'Планы тренировок',workouts:'Тренировки',bodyWeights:'Вес',xpLog:'XP',importedStatements:'Загруженные выписки'};
 function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 function backupReminderText(){return reminderFor(lsGet('lastExternalBackup'),today())}
@@ -2915,12 +2965,12 @@ async function manualSnapshot(){
     const r=await createSnapshot('manual');
     toast(`Снимок сохранён · ${Math.ceil(r.bytes/1024)} КБ`);renderBackupSettings();
     if(!document.getElementById('backup-list').hidden)showSnapshots();
-  }catch(e){toast('Снимок не сделан: '+(e.code||e.message))}
+  }catch(e){toast('Снимок не сделан. '+errText(e))}
   finally{snapshotBusy=false}
 }
 function snapSummary(c){
   c=c||{};const tot=Object.values(c).reduce((a,b)=>a+(+b||0),0);
-  return `операций ${+c.transactions||0} · задач ${+c.tasks||0} · всего ${tot}`;
+  return `${nWord(+c.transactions||0,W_OPS)} · ${nWord(+c.tasks||0,W_TASKS)} · всего ${nWord(tot,W_RECORDS)}`;
 }
 async function showSnapshots(){
   const el=document.getElementById('backup-list');
@@ -2930,9 +2980,9 @@ async function showSnapshots(){
     const docs=snap.docs.filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d.id));
     el.innerHTML=docs.length?docs.map(d=>{
       const why=d.get('why')==='restore'?' · перед восстановлением':'';
-      return `<div class="settings-item"><div><div class="settings-label">${escapeHtml(dayRu(d.id))}</div><div class="settings-desc">${escapeHtml(snapSummary(d.get('counts'))+why)}</div></div><button class="settings-btn" data-date="${escapeHtml(d.id)}" onclick="restoreFromSnapshot(this.dataset.date)">Восстановить</button></div>`;
+      return `<div class="settings-item"><div><div class="settings-label">${escapeHtml(dayRu(d.id))}</div><div class="settings-desc">${escapeHtml(snapSummary(d.get('counts'))+why)}</div></div><button type="button" class="settings-btn" data-date="${escapeHtml(d.id)}" onclick="restoreFromSnapshot(this.dataset.date)" aria-label="Восстановить снимок от ${escapeHtml(dayRu(d.id))}">Восстановить</button></div>`;
     }).join(''):'<div class="settings-desc" style="padding:8px 0">Снимков пока нет</div>';
-  }catch(e){el.innerHTML=`<div class="settings-desc" style="padding:8px 0">Не загрузилось: ${escapeHtml(e.code||e.message)}</div>`}
+  }catch(e){el.innerHTML=`<div class="settings-desc" style="padding:8px 0">Список не загрузился. ${escapeHtml(errText(e,'read'))}</div>`}
 }
 function renderBackupSettings(){
   const ext=document.getElementById('backup-ext-desc');
@@ -2954,7 +3004,7 @@ async function deliverFile(blob,name){
     catch(e){
       if(e&&e.name==='AbortError')return false;
       // the tap that started it expired while the file was being built — one more tap shares it at once
-      if(e&&e.name==='NotAllowedError'){pendingShareFile=file;document.getElementById('backup-share-row').hidden=false;toast('Файл готов — нажмите «Сохранить»');return false}
+      if(e&&e.name==='NotAllowedError'){pendingShareFile=file;document.getElementById('backup-share-row').hidden=false;toast('Файл готов — нажми «Сохранить»');return false}
     }
   }
   const url=URL.createObjectURL(blob),a=document.createElement('a');
@@ -2967,7 +3017,7 @@ async function sharePendingFile(){
     await navigator.share({files:[file],title:file.name});
     pendingShareFile=null;document.getElementById('backup-share-row').hidden=true;
     if(file.name.endsWith('.json'))markExternalBackup();
-  }catch(e){if(!e||e.name!=='AbortError')toast('Не удалось: '+(e&&e.message))}
+  }catch(e){if(!e||e.name!=='AbortError')toast('Файл не сохранён. '+errText(e))}
 }
 function markExternalBackup(){lsSet('lastExternalBackup',today());renderBackupSettings()}
 // «Сделать копию»: JSON v2 {format, version, exportedAt, counts, data, sha256}
@@ -2976,13 +3026,13 @@ async function exportData(){
     const v2=await buildBackupV2(await collectBackupData());
     const ok=await deliverFile(new Blob([JSON.stringify(v2)],{type:'application/json'}),`sistema-backup-${today()}.json`);
     if(ok){markExternalBackup();toast('Копия готова')}
-  }catch(e){toast('Копия не сделана: '+(e.code||e.message))}
+  }catch(e){toast('Копия не сделана. '+errText(e,'read'))}
 }
 async function exportCsv(){
   try{
     const csv=buildTxCsv(await getTxs(),{cat:id=>(CAT_MAP.get(id)||{}).name||id,bank:k=>BANK_NAMES[k]||k});
     if(await deliverFile(new Blob([csv],{type:'text/csv;charset=utf-8'}),`operations-${today()}.csv`))toast('Таблица готова');
-  }catch(e){toast('Не получилось: '+(e.code||e.message))}
+  }catch(e){toast('Таблица не сделана. '+errText(e,'read'))}
 }
 // after any bulk change: caches, learned words, goal categories, currency
 async function reloadAfterBulkChange(){
@@ -3004,7 +3054,7 @@ async function importData(e){
     await reloadAfterBulkChange();
     if(parsed.version===1&&obj.currency){currency=obj.currency;document.getElementById('currency-sel').value=currency;saveSetting('currency',currency)}
     toast(importSummary(parsed.data));refreshDashboard();
-  }catch{toast('Ошибка формата файла')}
+  }catch{toast('Файл не читается — нужен JSON из «Сделать копию»')}
   finally{e.target.value=''}
 }
 
@@ -3033,14 +3083,14 @@ function setRestoreProgress(t){const el=document.getElementById('restore-progres
 async function restoreFromFile(e){
   const file=e.target.files[0];e.target.value='';if(!file)return;
   let parsed;
-  try{parsed=await parseBackup(JSON.parse(await file.text()))}catch(err){toast('Ошибка формата файла');return}
+  try{parsed=await parseBackup(JSON.parse(await file.text()))}catch(err){toast('Файл не читается — нужен JSON из «Сделать копию»');return}
   await startRestore(parsed,'файл '+file.name,false);
 }
 async function restoreFromSnapshot(date){
   restorePanel('<div class="settings-desc" style="padding:8px 0">Загружаем снимок…</div>');
   let parsed;
   try{parsed=await parseBackup(await loadSnapshot(date))}
-  catch(e){restorePanel(`<div class="settings-desc" style="padding:8px 0">Снимок не прочитан: ${escapeHtml(e.code||e.message)}</div>`);return}
+  catch(e){restorePanel(`<div class="settings-desc" style="padding:8px 0">Снимок не прочитан. ${escapeHtml(errText(e,'read'))}</div>`);return}
   await startRestore(parsed,'снимок '+dayRu(date),false);
 }
 async function startRestore(parsed,label,resume){
@@ -3056,7 +3106,7 @@ async function startRestore(parsed,label,resume){
     const{per,ops}=diffBackup(await collectBackupData(),parsed.data);
     restorePlan={parsed,label,ops,per,resume};
     renderRestorePlan();
-  }catch(e){restorePanel(`<div class="settings-desc" style="padding:8px 0">Не удалось прочитать текущие данные: ${escapeHtml(e.code||e.message)}</div>`)}
+  }catch(e){restorePanel(`<div class="settings-desc" style="padding:8px 0">Текущие данные не прочитались. ${escapeHtml(errText(e,'read'))}</div>`)}
 }
 function renderRestorePlan(){
   const p=restorePlan,cell='text-align:right;font-variant-numeric:tabular-nums';
@@ -3075,8 +3125,8 @@ function renderRestorePlan(){
     ${n?`<div class="settings-desc">Записей на сервер: ${n}${n>SPARK_WRITES_DAY?' — больше дневного лимита (20 000), остаток допишется на следующий день через «Продолжить»':''}${p.resume?'':' · перед заменой сохранится снимок текущих данных'}</div>`:''}
     <div class="settings-desc" id="restore-progress" style="margin-top:6px"></div>
     <div style="display:flex;gap:6px;margin-top:10px">
-      ${n?`<button class="settings-btn" style="background:var(--red-light);color:var(--red)" onclick="applyRestore()">${p.resume?'Продолжить':'Заменить'}</button>`:''}
-      <button class="settings-btn" onclick="cancelRestore()">${n?'Отмена':'Закрыть'}</button>
+      ${n?`<button type="button" class="settings-btn" style="background:var(--red-light);color:var(--red)" onclick="applyRestore()">${p.resume?'Продолжить':'Заменить'}</button>`:''}
+      <button type="button" class="settings-btn" onclick="cancelRestore()">${n?'Отмена':'Закрыть'}</button>
     </div></div>`);
   if(!n&&p.resume)clearRestoreJob();
 }
@@ -3124,20 +3174,20 @@ async function applyRestore(){
     setRestoreProgress(`Записано ${done} / ${p.ops.length} · ждём сервер (можно закрыть — продолжится при следующем открытии)`);
     const res=await Promise.allSettled(sent);
     if(res.some(r=>r.status==='rejected')){
-      setRestoreProgress('Часть записей сервер не принял — позже нажмите «Продолжить»');
+      setRestoreProgress('Часть записей сервер не принял — позже нажми «Продолжить»');
       renderBackupSettings();
     }else{
       clearRestoreJob();restorePlan=null;
       setRestoreProgress('Готово: данные заменены');toast('Данные восстановлены');
     }
   }catch(e){
-    setRestoreProgress('Остановлено: '+(e.code||e.message));toast('Восстановление остановлено: '+(e.code||e.message));
+    const why=errText(e);setRestoreProgress('Остановлено. '+why);toast('Восстановление остановлено. '+why);
   }finally{restoreBusy=false}
 }
 async function resumeRestore(){
   const job=readRestoreJob();if(!job)return renderBackupSettings();
   let src=null;try{src=await restoreStash('get')}catch(e){}
-  if(!src||!src.data){clearRestoreJob();toast('Копия для продолжения не сохранилась — начните восстановление заново');return}
+  if(!src||!src.data){clearRestoreJob();toast('Копия для продолжения не сохранилась — начни восстановление заново');return}
   await startRestore(src,job.label,true);
 }
 
@@ -3151,7 +3201,7 @@ async function clearAll(){
     dirtyTx();dirtyTasks();learnedMap={};settingsCache=null;currency='KZT';
     toast('Все данные удалены');refreshDashboard();
   }catch(err){
-    toast('Не всё удалилось, попробуйте ещё раз: '+err.message);
+    toast('Не всё удалилось. '+errText(err));
   }
 }
 
@@ -3211,10 +3261,11 @@ function starterPackDocs(pack,todayStr,existing,now){
     workoutPlans:pack.workoutPlans.filter(p=>!hasP.has(p.id)).map(copy)
   };
 }
-const COUNT_LABELS={transactions:'операций',goals:'копилок',budgets:'лимитов',templates:'шаблонов',settings:'настроек',learned:'правил категорий',tasks:'задач',taskLog:'выполнений задач',habits:'привычек',habitChecks:'отметок привычек',journal:'записей журнала',debts:'рассрочек',allocations:'распределений',workoutPlans:'планов',workouts:'тренировок',bodyWeights:'взвешиваний',xpLog:'записей опыта'};
-// {tasks:22,habits:2} → «задач 22, привычек 2» (zeros are left out)
+// one / few / many forms per collection (nWord from the i18n block)
+const COUNT_FORMS={transactions:W_OPS,goals:['копилка','копилки','копилок'],budgets:['лимит','лимита','лимитов'],templates:['шаблон','шаблона','шаблонов'],settings:['настройка','настройки','настроек'],learned:['правило категорий','правила категорий','правил категорий'],tasks:W_TASKS,taskLog:['выполнение задачи','выполнения задач','выполнений задач'],habits:['привычка','привычки','привычек'],habitChecks:['отметка привычки','отметки привычек','отметок привычек'],journal:['запись журнала','записи журнала','записей журнала'],debts:['рассрочка','рассрочки','рассрочек'],allocations:['распределение','распределения','распределений'],workoutPlans:['план тренировки','плана тренировок','планов тренировок'],workouts:['тренировка','тренировки','тренировок'],bodyWeights:['взвешивание','взвешивания','взвешиваний'],xpLog:['запись опыта','записи опыта','записей опыта']};
+// {tasks:22,habits:2} → «22 задачи, 2 привычки» (zeros are left out)
 function countsText(counts,order){
-  return (order||Object.keys(counts||{})).filter(s=>counts&&counts[s]>0).map(s=>(COUNT_LABELS[s]||s)+' '+counts[s]).join(', ');
+  return (order||Object.keys(counts||{})).filter(s=>counts&&counts[s]>0).map(s=>nWord(counts[s],COUNT_FORMS[s]||[s,s,s])).join(', ');
 }
 // toast after «Импорт (объединить)»: what was in the file, per collection
 function importSummary(data){
@@ -3303,6 +3354,7 @@ function sheetOpen(o,resolve){
     input=box.appendChild(sheetEl('input','settings-input sheet-input'));
     input.id=id+'-i';input.type='text';input.setAttribute('autocomplete','off');input.setAttribute('enterkeyhint','done');
     input.value=o.value==null?'':String(o.value);if(o.placeholder)input.placeholder=o.placeholder;
+    if(o.inputmode)input.setAttribute('inputmode',o.inputmode);
   }
   const row=box.appendChild(sheetEl('div','sheet-actions'));
   const no=row.appendChild(sheetEl('button','save-btn neutral sheet-cancel',o.cancel||'Отмена'));
@@ -3375,7 +3427,7 @@ async function offerStarterPack(firstRun){
     if(!ok)return;
     const r=await installStarterPack();
     if(r)toast(countsText(r)?'Добавлено: '+countsText(r):'Стартовый набор уже добавлен');
-  }catch(e){toast('Не удалось добавить: '+(e.code||e.message))}
+  }catch(e){toast('Набор не добавлен. '+errText(e))}
 }
 
 // F6.6 — first-run checklist («Первые шаги»): state from localStorage + caches. The async version loads what is
@@ -3496,7 +3548,7 @@ async function completeTaskInner(id,opts){
 function toastUndoTask(msg,logId){
   clearTimeout(undoTimer);
   const el=document.getElementById('toast');
-  el.innerHTML=`${msg} <button class="toast-undo" onclick="undoTask('${logId}')">Отменить</button>`;
+  el.innerHTML=`${msg} <button type="button" class="toast-undo" data-id="${escapeHtml(logId)}" onclick="undoTask(this.dataset.id)">Отменить</button>`;
   el.classList.add('show');
   undoTimer=setTimeout(()=>el.classList.remove('show'),3500);
 }
@@ -3543,20 +3595,20 @@ async function toggleHabitInner(hid,el){
       if(!checksCache.some(x=>x.key===key))await revokeXp('habit_'+key);
       checkAchievements();
     }
-  }catch(err){toast('Не удалось сохранить: '+err.message);dirtyTasks();refreshTasks()}
+  }catch(err){toast('Не сохранилось. '+errText(err));dirtyTasks();refreshTasks()}
 }
 async function setHabitSphere(id,val){
   await getHabits();
   const h0=habitsCache.find(x=>x.id===id);if(!h0)return;
   const upd={...h0,sphere:val||null};cachePut(habitsCache,upd);
-  try{await dbPut('habits',upd)}catch(err){toast('Не удалось сохранить: '+err.message)}
+  try{await dbPut('habits',upd)}catch(err){toast('Не сохранилось. '+errText(err))}
 }
 async function addHabit(){
   const name=((await sheetPrompt({title:'Новая привычка',label:'Название привычки',placeholder:'Например, прогулка 30 минут',ok:'Добавить'}))||'').trim();if(!name)return;
   const habits=await getHabits();
   const h={id:uid(),name,sphere:null,order:Math.max(0,...habits.map(x=>x.order||0))+1,archived:false,createdAt:Date.now()};
   cachePut(habitsCache,h);renderTasks();
-  try{await dbPut('habits',h)}catch(err){toast('Не удалось сохранить: '+err.message);dirtyTasks();refreshTasks()}
+  try{await dbPut('habits',h)}catch(err){toast('Не сохранилось. '+errText(err));dirtyTasks();refreshTasks()}
 }
 async function archiveHabit(id){
   await getHabits();
@@ -3564,7 +3616,7 @@ async function archiveHabit(id){
   if(!await sheetConfirm({title:'Архивировать привычку?',text:`«${h.name}» пропадёт из списка, отметки сохранятся.`,ok:'В архив'}))return;
   const upd={...h,archived:true};
   cachePut(habitsCache,upd);renderTasks();
-  try{await dbPut('habits',upd)}catch(err){toast('Не удалось сохранить: '+err.message);dirtyTasks();refreshTasks()}
+  try{await dbPut('habits',upd)}catch(err){toast('Не сохранилось. '+errText(err));dirtyTasks();refreshTasks()}
 }
 function formatTaskDate(s){
   const t=today();
@@ -3604,7 +3656,7 @@ function taskRowHtml(t,showDate){
   ].join('');
   const id=escapeHtml(t.id),act=taskActionKind(t);
   const go=act?`<span class="task-badge task-go">${act==='workout'?'тренировка →':'распределение →'}</span>`:'';
-  const row=`<div class="task-row" data-id="${id}" onclick="taskTap(this.dataset.id,'row')"><button class="task-check" aria-label="${act==='workout'?'Открыть тренировку':act==='salary'?'Открыть распределение зарплаты':'Выполнить'}" data-id="${id}" onclick="event.stopPropagation();taskTap(this.dataset.id,'check',this)"></button><div class="task-main"><div class="task-title">${escapeHtml(t.title)}</div><div class="task-meta">${go}${meta}</div></div>${act?`<button class="header-btn task-edit-btn" data-id="${id}" onclick="event.stopPropagation();editTask(this.dataset.id)" aria-label="Изменить задачу">${ico('settings',16)}</button>`:''}</div>`;
+  const row=`<div class="task-row" data-id="${id}" role="button" tabindex="0" onclick="taskTap(this.dataset.id,'row')"><button type="button" class="task-check" aria-label="${act==='workout'?'Открыть тренировку':act==='salary'?'Открыть распределение зарплаты':'Выполнить'}" data-id="${id}" onclick="event.stopPropagation();taskTap(this.dataset.id,'check',this)"></button><div class="task-main"><div class="task-title">${escapeHtml(t.title)}</div><div class="task-meta">${go}${meta}</div></div>${act?`<button type="button" class="header-btn task-edit-btn" data-id="${id}" onclick="event.stopPropagation();editTask(this.dataset.id)" aria-label="Изменить задачу">${ico('settings',16)}</button>`:''}</div>`;
   return `<div class="task-item">${row}${editingTaskId===t.id?taskEditHtml(t):''}</div>`;
 }
 // F6.5: a workout task opens its workout, the salary task opens the allocation — for the row and the checkbox alike
@@ -3623,19 +3675,20 @@ function taskEditHtml(t){
   const wd=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map((n,i)=>`<label><input type="checkbox" class="te-wd" value="${i+1}"${r&&r.type==='weekly'&&(r.days||[]).includes(i+1)?' checked':''}>${n}</label>`).join('');
   const opt=(v,l)=>`<option value="${v}"${kind===v?' selected':''}>${l}</option>`;
   return `<div class="task-edit">
-    <input type="text" class="settings-input" id="te-title" value="${escapeHtml(t.title)}" placeholder="Название">
+    <label class="fld-label" for="te-title">Название</label>
+    <input type="text" class="settings-input" id="te-title" value="${escapeHtml(t.title)}">
     <div class="task-edit-row">
-      <select class="currency-select" id="te-list">${LISTS.map(l=>`<option value="${l.id}"${t.list===l.id?' selected':''}>${l.name}</option>`).join('')}</select>
-      <input type="date" class="settings-input" id="te-due" value="${escapeHtml(t.due||'')}">
-      <input type="time" class="settings-input" id="te-time" value="${escapeHtml(t.time||'')}">
+      <select class="currency-select" id="te-list" aria-label="Список">${LISTS.map(l=>`<option value="${l.id}"${t.list===l.id?' selected':''}>${l.name}</option>`).join('')}</select>
+      <input type="date" class="settings-input" id="te-due" value="${escapeHtml(t.due||'')}" aria-label="Срок">
+      <input type="time" class="settings-input" id="te-time" value="${escapeHtml(t.time||'')}" aria-label="Время">
     </div>
-    <select class="currency-select" id="te-repeat" onchange="taskRepeatChanged()">${opt('none','Не повторять')}${opt('daily','Каждый день')}${opt('weekly','По дням недели')}${opt('monthly','Число месяца')}${opt('monthly_last','Последний день месяца')}</select>
+    <select class="currency-select" id="te-repeat" onchange="taskRepeatChanged()" aria-label="Повтор">${opt('none','Не повторять')}${opt('daily','Каждый день')}${opt('weekly','По дням недели')}${opt('monthly','Число месяца')}${opt('monthly_last','Последний день месяца')}</select>
     <div class="te-weekdays" id="te-weekdays"${kind==='weekly'?'':' hidden'}>${wd}</div>
-    <input type="number" class="settings-input" id="te-monthday" min="1" max="31" placeholder="Число месяца (1–31)" value="${r&&r.type==='monthly'?escapeHtml(r.day):''}"${kind==='monthly'?'':' hidden'}>
+    <input type="number" class="settings-input" id="te-monthday" min="1" max="31" placeholder="Число месяца (1–31)" aria-label="Число месяца (1–31)" value="${r&&r.type==='monthly'?escapeHtml(r.day):''}"${kind==='monthly'?'':' hidden'}>
     <div class="task-edit-actions">
-      <button class="goal-action-btn goal-add-btn" data-id="${escapeHtml(t.id)}" onclick="saveTaskEdit(this.dataset.id)">${ico('check',15)}Сохранить</button>
-      <button class="goal-action-btn task-cancel-btn" onclick="editTask(null)">Отмена</button>
-      <button class="goal-action-btn goal-del-btn" data-id="${escapeHtml(t.id)}" onclick="deleteTask(this.dataset.id)">${ico('close',15)}Удалить</button>
+      <button type="button" class="goal-action-btn goal-add-btn" data-id="${escapeHtml(t.id)}" onclick="saveTaskEdit(this.dataset.id)">${ico('check',15)}Сохранить</button>
+      <button type="button" class="goal-action-btn task-cancel-btn" onclick="editTask(null)">Отмена</button>
+      <button type="button" class="goal-action-btn goal-del-btn" data-id="${escapeHtml(t.id)}" onclick="deleteTask(this.dataset.id)">${ico('close',15)}Удалить</button>
     </div>
   </div>`;
 }
@@ -3653,12 +3706,12 @@ function renderTasks(){
   const hs=habits.filter(h=>!h.archived).sort((a,b)=>(a.order||0)-(b.order||0));
   document.getElementById('habits-edit-btn').textContent=habitsEditing?'Готово':'Настроить';
   let hh=hs.map(h=>{
-    if(habitsEditing)return `<div class="habit-row" style="cursor:default"><div class="habit-name">${escapeHtml(h.name)}</div><select class="currency-select" data-id="${escapeHtml(h.id)}" onchange="setHabitSphere(this.dataset.id,this.value)" aria-label="Сфера"><option value="">Без сферы</option>${Object.entries(SPHERES).map(([k,v])=>`<option value="${k}"${h.sphere===k?' selected':''}>${v}</option>`).join('')}</select><button class="del-btn" data-id="${escapeHtml(h.id)}" onclick="archiveHabit(this.dataset.id)" aria-label="Архивировать">${ico('close',16)}</button></div>`;
+    if(habitsEditing)return `<div class="habit-row" style="cursor:default"><div class="habit-name">${escapeHtml(h.name)}</div><select class="currency-select" data-id="${escapeHtml(h.id)}" onchange="setHabitSphere(this.dataset.id,this.value)" aria-label="Сфера"><option value="">Без сферы</option>${Object.entries(SPHERES).map(([k,v])=>`<option value="${k}"${h.sphere===k?' selected':''}>${v}</option>`).join('')}</select><button type="button" class="del-btn" data-id="${escapeHtml(h.id)}" onclick="archiveHabit(this.dataset.id)" aria-label="Архивировать привычку «${escapeHtml(h.name)}»">${ico('close',16)}</button></div>`;
     const done=checks.some(c=>c.key===`${h.id}_${t0}`),n=habitStreak(h.id,checks);
-    return `<div class="habit-row" data-id="${escapeHtml(h.id)}" onclick="toggleHabit(this.dataset.id,this.querySelector('.habit-check'))"><div class="habit-check${done?' done':''}">${done?ico('check',14):''}</div><div class="habit-name">${escapeHtml(h.name)}</div><div class="habit-streak${n?' on':''}">${ico('flame',16)}${n}</div></div>`;
+    return `<button type="button" class="habit-row" data-id="${escapeHtml(h.id)}" aria-pressed="${done}" onclick="toggleHabit(this.dataset.id,this.querySelector('.habit-check'))"><span class="habit-check${done?' done':''}" aria-hidden="true">${done?ico('check',14):''}</span><span class="habit-name">${escapeHtml(h.name)}</span><span class="habit-streak${n?' on':''}" title="Серия: ${nWord(n,['день','дня','дней'])}">${ico('flame',16)}${n}</span></button>`;
   }).join('');
-  if(habitsEditing)hh+=`<button class="settings-btn" style="margin-top:10px" onclick="addHabit()">+ Добавить привычку</button>`;
-  else if(!hs.length)hh='<div class="empty-state" style="padding:12px 0">Нет привычек — нажмите «Настроить»</div>';
+  if(habitsEditing)hh+=`<button type="button" class="settings-btn" style="margin-top:10px" onclick="addHabit()">+ Добавить привычку</button>`;
+  else if(!hs.length)hh='<div class="empty-state" style="padding:12px 0">Привычек нет — нажми «Настроить»</div>';
   document.getElementById('habits-list').innerHTML=hh;
   // task list
   const open=tasks.filter(t=>!t.done).sort(cmpTasks);
@@ -3667,7 +3720,7 @@ function renderTasks(){
   let html=sec('Просрочено',open.filter(t=>t.due&&t.due<t0),'overdue',true)
     +sec('Сегодня',open.filter(t=>t.due===t0))
     +sec('Завтра',open.filter(t=>t.due===t1));
-  if(later.length)html+=`<div class="task-section-title fold" onclick="toggleTasksLater()"><span>Позже (${later.length})</span>${ico(tasksLaterOpen?'chevUp':'chevDown',16)}</div>`+(tasksLaterOpen?later.map(t=>taskRowHtml(t,true)).join(''):'');
+  if(later.length)html+=`<button type="button" class="task-section-title fold" aria-expanded="${tasksLaterOpen}" onclick="toggleTasksLater()"><span>Позже (${later.length})</span>${ico(tasksLaterOpen?'chevUp':'chevDown',16)}</button>`+(tasksLaterOpen?later.map(t=>taskRowHtml(t,true)).join(''):'');
   const nodate=open.filter(t=>!t.due);
   if(nodate.length){
     html+='<div class="task-section-title">Без даты</div>';
@@ -3688,30 +3741,30 @@ async function saveTaskEdit(id){
   await getTasks();
   const t=tasksCache.find(x=>x.id===id);if(!t)return;
   const title=document.getElementById('te-title').value.trim();
-  if(!title)return toast('Введите название');
+  if(!title)return toast('Введи название');
   const kind=document.getElementById('te-repeat').value;
   let repeat=null;
   if(kind==='daily')repeat={type:'daily'};
   else if(kind==='weekly'){
     const days=[...document.querySelectorAll('.te-wd:checked')].map(x=>+x.value);
-    if(!days.length)return toast('Выберите дни недели');
+    if(!days.length)return toast('Выбери дни недели');
     repeat={type:'weekly',days};
   }else if(kind==='monthly'){
     const day=parseInt(document.getElementById('te-monthday').value,10);
-    if(!(day>=1&&day<=31))return toast('Укажите число месяца (1–31)');
+    if(!(day>=1&&day<=31))return toast('Укажи число месяца (1–31)');
     repeat={type:'monthly',day};
   }else if(kind==='monthly_last')repeat={type:'monthly_last'};
   let due=document.getElementById('te-due').value;
   if(repeat&&!due)due=nextOccurrence(repeat,addDays(today(),-1));
   const upd={...t,title,list:document.getElementById('te-list').value,due,time:document.getElementById('te-time').value,repeat};
   editingTaskId=null;cachePut(tasksCache,upd);renderTasks();
-  try{await dbPut('tasks',upd)}catch(err){toast('Не удалось сохранить: '+err.message);dirtyTasks();refreshTasks()}
+  try{await dbPut('tasks',upd)}catch(err){toast('Не сохранилось. '+errText(err));dirtyTasks();refreshTasks()}
 }
 async function deleteTask(id){
   if(!await sheetConfirm({title:'Удалить задачу?',ok:'Удалить',danger:true}))return;
   await getTasks();
   tasksCache=tasksCache.filter(x=>x.id!==id);editingTaskId=null;renderTasks();
-  try{await dbDel('tasks',id)}catch(err){toast('Не удалось удалить: '+err.message);dirtyTasks();refreshTasks()}
+  try{await dbDel('tasks',id)}catch(err){toast('Не удалилось. '+errText(err));dirtyTasks();refreshTasks()}
 }
 
 // Quick input, parsed from the end: [#list] [date] [HH:MM] in any order after the title
@@ -3751,7 +3804,7 @@ function parseQuickTask(text){
 async function addQuickTask(){
   const input=document.getElementById('task-quick');
   const p=parseQuickTask(input.value);
-  if(!p.title)return toast('Введите название задачи');
+  if(!p.title)return toast('Введи название задачи');
   input.value='';
   let t;try{t=await createTask(p)}catch(e){return}
   if(t.due&&t.due>addDays(today(),1))tasksLaterOpen=true;
@@ -3867,12 +3920,12 @@ const ACHIEVEMENTS=[
  {id:'plus25',name:'+2,5 кг',desc:'Первый рост рабочего веса'},
  {id:'trainWeek',name:'Первая тренировочная неделя 3/3',desc:'Три тренировки за неделю'},
  {id:'noDebts',name:'Без долгов',desc:'Закрыта последняя рассрочка'},
- {id:'firstGoal',name:'Первая копилка заполнена',desc:'Цель достигла 100%'},
+ {id:'firstGoal',name:'Первая копилка заполнена',desc:'Копилка заполнена на 100 %'},
  {id:'dfirWeek',name:'Неделя DFIR 2/2',desc:'Оба повторения DFIR за неделю'},
  {id:'firstCase',name:'Первый кейс',desc:'Выполнена неделя 11 DFIR'},
  {id:'tier2',name:'Tier 2',desc:'Достигнут 15-й уровень'},
  {id:'seasonEnd',name:'Финал сезона',desc:'Сезон дошёл до финала'},
- {id:'quests100',name:'100 квестов',desc:'Сто выполненных задач'},
+ {id:'quests100',name:'100 задач',desc:'Выполнено сто задач'},
  {id:'journal30',name:'Журнал: 30 записей',desc:'Тридцать записей в журнале'}
 ];
 async function getAchievements(){return (await getSetting('achievements'))||{}}
@@ -3935,14 +3988,14 @@ async function deleteJournal(id){
 function renderJournalToday(){
   const el=document.getElementById('journal-today');if(!el)return;
   const list=((colCache.journal&&colCache.journal.data)||[]).filter(e=>e.date===today()).sort((a,b)=>b.at-a.at);
-  el.innerHTML=list.length?'<div class="task-section-title">Журнал</div>'+list.map(e=>`<div class="jr-row"><span class="jr-time">${hhmm(e.at)}</span><span class="jr-dot" style="--c:${sphereColor(e.sphere)}"></span><span class="jr-text">${escapeHtml(e.text)}</span><button class="del-btn" data-id="${escapeHtml(e.id)}" onclick="deleteJournal(this.dataset.id)" aria-label="Удалить">${ico('close',14)}</button></div>`).join(''):'';
+  el.innerHTML=list.length?'<div class="task-section-title">Журнал</div>'+list.map(e=>`<div class="jr-row"><span class="jr-time">${hhmm(e.at)}</span><span class="jr-dot" style="--c:${sphereColor(e.sphere)}"></span><span class="jr-text">${escapeHtml(e.text)}</span><button type="button" class="del-btn" data-id="${escapeHtml(e.id)}" onclick="deleteJournal(this.dataset.id)" aria-label="Удалить запись журнала">${ico('close',14)}</button></div>`).join(''):'';
 }
 
 async function createTask(p){
   await getTasks();
   const t={id:uid(),title:p.title,list:p.list||'inbox',due:p.due||'',time:p.time||'',repeat:null,done:false,doneAt:null,createdAt:Date.now(),source:'app'};
   cachePut(tasksCache,t);
-  try{await dbPut('tasks',t)}catch(err){toast('Не удалось сохранить: '+err.message);dirtyTasks();throw err}
+  try{await dbPut('tasks',t)}catch(err){toast('Не сохранилось. '+errText(err));dirtyTasks();throw err}
   return t;
 }
 
@@ -4037,7 +4090,7 @@ function statusTileTarget(s){return s==='money'?{view:'money'}:s==='dfir'?{view:
 // Overwrite question for the general monthly budget (null = nothing to ask)
 function allocBudgetQuestion(oldLimit,newLimit,f){
   if(!(oldLimit>0)||Math.round(oldLimit*100)===Math.round(newLimit*100))return null;
-  return `Общий бюджет месяца сейчас ${f(oldLimit)}. Заменить на ${f(newLimit)} (сумма «Жизнь»)?\n\nОтмена — оставить ${f(oldLimit)}, остальное распределится как обычно.`;
+  return `Общий бюджет месяца сейчас ${f(oldLimit)}. Заменить на ${f(newLimit)} (сумма «Жизнь»)?\n\n«Оставить» — бюджет останется ${f(oldLimit)}, остальное распределится как обычно.`;
 }
 // The same salary already entered as income in the last 7 days (then «Записать доход» starts unticked)
 function findRecordedSalary(txs,S,t0){
@@ -4052,8 +4105,11 @@ function refreshActive(){
   const n=v.id.slice(5);
   ({status:refreshStatus,quests:refreshTasks,body:refreshBody,home:refreshDashboard,history:refreshHistory,stats:refreshStats,plans:refreshPlans}[n]||(()=>{}))();
 }
+let cmdPrevFocus=null;
 function openCmd(){
-  const L=document.getElementById('cmd-layer');L.hidden=false;
+  const L=document.getElementById('cmd-layer');
+  if(L.hidden)cmdPrevFocus=document.activeElement;
+  L.hidden=false;
   const tw=document.getElementById('templates-wrap'),host=document.getElementById('cmd-templates');
   if(tw&&host&&tw.parentElement!==host)host.appendChild(tw);
   renderTemplates();renderCmdBanks();
@@ -4064,17 +4120,24 @@ function openCmd(){
   renderCmdDates();cmdSyncRows(null);
   requestAnimationFrame(()=>{L.classList.add('show');inp.focus()});
 }
-function closeCmd(){const L=document.getElementById('cmd-layer');L.classList.remove('show');setTimeout(()=>{if(!L.classList.contains('show'))L.hidden=true},220)}
+// F6.8: focus goes back to whatever opened [+] (usually the nav button)
+function closeCmd(){
+  const L=document.getElementById('cmd-layer');if(L.hidden)return;
+  L.classList.remove('show');setTimeout(()=>{if(!L.classList.contains('show'))L.hidden=true},220);
+  const back=cmdPrevFocus;cmdPrevFocus=null;
+  try{if(back&&back!==document.body&&document.contains(back)&&typeof back.focus==='function')back.focus();else{const b=document.querySelector('.nav-add');if(b)b.focus()}}catch(e){}
+}
 function cmdSetType(t){
   cmdType=t;
-  document.getElementById('cmd-exp').classList.toggle('on',t==='expense');
-  document.getElementById('cmd-inc').classList.toggle('on',t==='income');
+  const ex=document.getElementById('cmd-exp'),inc=document.getElementById('cmd-inc');
+  ex.classList.toggle('on',t==='expense');inc.classList.toggle('on',t==='income');
+  ex.setAttribute('aria-pressed',String(t==='expense'));inc.setAttribute('aria-pressed',String(t==='income'));
   return cmdUpdate();
 }
 function cmdCurDate(){return cmdDateValue(cmdDate.choice,cmdDate.picked,today())}
 function renderCmdDates(){
   const box=document.getElementById('cmd-dates');if(!box)return;
-  box.querySelectorAll('.cmd-date').forEach(b=>b.classList.toggle('on',b.dataset.d===cmdDate.choice));
+  box.querySelectorAll('.cmd-date').forEach(b=>{const on=b.dataset.d===cmdDate.choice;b.classList.toggle('on',on);if(b.tagName==='BUTTON')b.setAttribute('aria-pressed',String(on))});
   const l=document.getElementById('cmd-date-pick-l');if(l)l.textContent=cmdDate.choice==='pick'?cmdDateLabel(cmdDate.picked,today()):'Дата…';
 }
 function cmdSetDate(choice,val){
@@ -4114,11 +4177,11 @@ async function cmdParse(s){
 }
 function cmdChipHtml(st){
   if(st.kind==='journal')return `<span class="cmd-chip" id="cmd-chip"><b>Журнал</b>${st.sphere?' · '+escapeHtml(SPHERES[st.sphere]):''} · ${escapeHtml(st.text)}</span>`;
-  if(st.kind==='task'&&st.hint)return `<div class="cmd-chip-row"><span class="cmd-chip cmd-chip-hint" id="cmd-chip">${st.hint.fixed?'Исправь сумму:':'Добавь сумму:'} <button class="cmd-part" data-s="${escapeHtml(st.hint.fill)}" onclick="cmdApplyHint(this.dataset.s)">${escapeHtml(st.hint.text)}</button></span><button class="cmd-flip" onclick="cmdSaveHintAsTask()">Это задача</button></div>`
+  if(st.kind==='task'&&st.hint)return `<div class="cmd-chip-row"><span class="cmd-chip cmd-chip-hint" id="cmd-chip">${st.hint.fixed?'Исправь сумму:':'Добавь сумму:'} <button type="button" class="cmd-part" data-s="${escapeHtml(st.hint.fill)}" onclick="cmdApplyHint(this.dataset.s)">${escapeHtml(st.hint.text)}</button></span><button type="button" class="cmd-flip" onclick="cmdSaveHintAsTask()">Это задача</button></div>`
     +(cmdHintArmed?`<div class="cmd-hint cmd-armed">Ещё раз Enter — сохранить «${escapeHtml(st.title)}» задачей во «Входящие»</div>`:'');
   if(st.kind==='task')return `<span class="cmd-chip" id="cmd-chip"><b>Задача</b> · ${escapeHtml(listName(st.list))}${st.due?' · '+escapeHtml(formatTaskDate(st.due)):''}${st.time?' · '+escapeHtml(st.time):''} · ${escapeHtml(st.title)}</span>`;
   const c=st.cat?getCat(st.cat).name:'выбери категорию',bank=(BANK_NAMES[currentBank]||'').replace(' Bank','');
-  const part=(p,label,aria)=>`<button class="cmd-part" data-p="${p}" onclick="cmdEditPart(this.dataset.p)" aria-label="${aria}: ${escapeHtml(label)}">${escapeHtml(label)}</button>`;
+  const part=(p,label,aria)=>`<button type="button" class="cmd-part" data-p="${p}" onclick="cmdEditPart(this.dataset.p)" aria-label="${aria}: ${escapeHtml(label)}">${escapeHtml(label)}</button>`;
   return `<span class="cmd-chip" id="cmd-chip"><b>${st.type==='income'?'Доход':'Расход'}</b> · ${part('cat',c,'Категория')} · ${fmtCur(st.amount)} · ${part('bank',bank,'Банк')} · ${part('date',cmdDateLabel(cmdCurDate(),today()),'Дата')}${st.desc?' · '+escapeHtml(st.desc):''}</span>`;
 }
 async function cmdUpdate(){
@@ -4166,9 +4229,9 @@ function cmdEditPart(p){
 async function cmdShowCats(st,mode){
   cmdCatsMode=mode==='edit'?'edit':'save';
   const box=document.getElementById('cmd-cats');
-  const tile=(id,ic,name)=>'<div class="cat-btn'+(id===st.cat?' selected':'')+'" data-c="'+escapeHtml(id)+'" onclick="cmdPickCat(this.dataset.c)"><span class="icon-wrap">'+ico(ic,22)+'</span>'+escapeHtml(name)+'</div>';
+  const tile=(id,ic,name)=>'<button type="button" class="cat-btn'+(id===st.cat?' selected':'')+'" data-c="'+escapeHtml(id)+'" aria-pressed="'+(id===st.cat)+'" onclick="cmdPickCat(this.dataset.c)"><span class="icon-wrap">'+ico(ic,22)+'</span>'+escapeHtml(name)+'</button>';
   const other=st.type==='expense'?'income':'expense';
-  const head='<div class="cmd-hint cmd-cats-head" style="grid-column:1/-1">'+(cmdCatsMode==='edit'?'Выбери категорию:':'Не удалось определить категорию — выбери:')+'<button class="cmd-flip" data-t="'+other+'" onclick="cmdFlipType(this.dataset.t)">Это '+(other==='income'?'доход':'расход')+'</button></div>';
+  const head='<div class="cmd-hint cmd-cats-head" style="grid-column:1/-1">'+(cmdCatsMode==='edit'?'Выбери категорию:':'Не удалось определить категорию — выбери:')+'<button type="button" class="cmd-flip" data-t="'+other+'" onclick="cmdFlipType(this.dataset.t)">Это '+(other==='income'?'доход':'расход')+'</button></div>';
   const base=CATS[st.type].map(c=>tile(c.id,c.icon,c.name)).join('');
   box.innerHTML=head+base;box.hidden=false;
   if(st.type==='expense'){
@@ -4212,7 +4275,7 @@ async function cmdSaveInner(st){
       toastUndo(`${icoInline(c.icon)}${escapeHtml(c.name)} &middot; ${escapeHtml(st.desc)} &middot; ${fmtCur(st.amount)}${back?' &middot; '+escapeHtml(cmdDateLabel(d,t0).toLowerCase()):''}`,tx.id);
       await checkBudget(tx);
     }
-  }catch(err){toast('Не удалось сохранить: '+err.message);return}
+  }catch(err){toast('Не сохранилось. '+errText(err));return}
   if(window.fxFly)fxFly(chip,nav);
   setTimeout(closeCmd,180);
   setTimeout(refreshActive,260);
@@ -4235,7 +4298,7 @@ function renderDebts(){
   const card=d=>{
     const tk=tasks.find(t=>t.debtId===d.id),nextDate=(tk&&tk.due)||nextPayDate(d.payDay),lp=debtLastPayment(d,nextDate);
     const paid=d.total>0?Math.max(0,Math.min(1,(d.total-d.remaining)/d.total)):0;
-    return `<div class="card debt-card spot"><div class="debt-top"><div><div class="debt-name">${escapeHtml(d.name)}</div><div class="debt-bank">${escapeHtml(d.bank||'')}</div></div><button class="del-btn" data-id="${escapeHtml(d.id)}" onclick="deleteDebt(this.dataset.id)" aria-label="Удалить">${ico('close',16)}</button></div>
+    return `<div class="card debt-card spot"><div class="debt-top"><div><div class="debt-name">${escapeHtml(d.name)}</div><div class="debt-bank">${escapeHtml(d.bank||'')}</div></div><button type="button" class="del-btn" data-id="${escapeHtml(d.id)}" onclick="deleteDebt(this.dataset.id)" aria-label="Удалить рассрочку «${escapeHtml(d.name)}»">${ico('close',16)}</button></div>
       <div class="debt-rem disp">${fmtCur(d.remaining)}</div><div class="debt-cap">остаток из ${fmtCur(d.total)}</div>
       <div class="bar"><i style="transform:scaleX(${paid})"></i></div>
       <div class="debt-meta"><span>Платёж: ${fmtCur(d.monthly)} · ${d.payDay}-го</span><span>Следующий: ${escapeHtml(formatTaskDate(nextDate))}</span></div>
@@ -4243,20 +4306,26 @@ function renderDebts(){
   };
   el.innerHTML=`<div id="debt-form" class="card" hidden>
     <div class="card-title">Новая рассрочка</div>
-    <input type="text" id="dbt-name" placeholder="Название">
+    <label class="fld-label" for="dbt-name">Название</label>
+    <input type="text" id="dbt-name" placeholder="Например, телефон">
+    <label class="fld-label" for="dbt-bank">Банк</label>
     <select id="dbt-bank" class="currency-select">${['Kaspi','Halyk','Forte','Freedom','Другой'].map(b=>`<option>${b}</option>`).join('')}</select>
-    <input type="number" id="dbt-total" placeholder="Общая сумма" inputmode="decimal">
-    <input type="number" id="dbt-remaining" placeholder="Остаток" inputmode="decimal">
-    <input type="number" id="dbt-monthly" placeholder="Платёж в месяц" inputmode="decimal">
-    <input type="number" id="dbt-day" placeholder="День платежа (1–31)" inputmode="numeric" min="1" max="31">
-    <button class="save-btn primary" onclick="saveDebt()">Сохранить</button></div>`
-    +(active.length?active.map(card).join(''):'<div class="empty-state">Рассрочек нет</div>')
+    <label class="fld-label" for="dbt-total">Общая сумма</label>
+    <input type="number" id="dbt-total" inputmode="decimal">
+    <label class="fld-label" for="dbt-remaining">Осталось заплатить</label>
+    <input type="number" id="dbt-remaining" inputmode="decimal">
+    <label class="fld-label" for="dbt-monthly">Платёж в месяц</label>
+    <input type="number" id="dbt-monthly" inputmode="decimal">
+    <label class="fld-label" for="dbt-day">День платежа (1–31)</label>
+    <input type="number" id="dbt-day" inputmode="numeric" min="1" max="31">
+    <button type="button" class="save-btn primary" onclick="saveDebt()">Сохранить</button></div>`
+    +(active.length?active.map(card).join(''):'<div class="empty-state">Рассрочек нет — добавь кнопкой «+» вверху</div>')
     +(closed.length?`<div class="task-section-title">Закрыто</div>`+closed.map(d=>`<div class="recent-item"><div class="recent-info"><div class="recent-desc">${escapeHtml(d.name)}</div><div class="recent-cat">${fmtCur(d.total)}</div></div></div>`).join(''):'');
 }
 async function saveDebt(){
   const g=id=>document.getElementById(id).value;
   const name=g('dbt-name').trim(),total=parseFloat(g('dbt-total')),remaining=parseFloat(g('dbt-remaining')),monthly=parseFloat(g('dbt-monthly')),payDay=parseInt(g('dbt-day'),10);
-  if(!name||!(total>0)||!(remaining>=0)||!(monthly>0)||!(payDay>=1&&payDay<=31))return toast('Заполните все поля корректно');
+  if(!name||!(total>0)||!(remaining>=0)||!(monthly>0)||!(payDay>=1&&payDay<=31))return toast('Заполни все поля: название, суммы и день платежа (1–31)');
   const d={id:uid(),name,bank:g('dbt-bank'),total,remaining,remaining0:remaining,monthly,payDay,createdAt:Date.now(),closed:false};
   await colPut('debts',d);
   const t={id:uid(),title:'Платёж: '+name,list:'money',due:nextPayDate(payDay),time:'10:00',repeat:{type:'monthly',day:payDay},done:false,doneAt:null,createdAt:Date.now(),source:'debt',debtId:d.id};
@@ -4317,22 +4386,23 @@ function renderAlloc(){
   const el=document.getElementById('alloc-body');if(!el||!allocScheme)return;
   const sc=allocScheme,goals=sc.goals||[];
   const rows=sc.chain.map((c,i)=>`<div class="al-row">
-    <select class="currency-select" data-i="${i}" onchange="allocSet(this.dataset.i,'goalId',this.value)">${goals.map(g=>`<option value="${escapeHtml(g.id)}"${g.id===c.goalId?' selected':''}>${escapeHtml(g.name)}</option>`).join('')}</select>
-    <select class="currency-select" data-i="${i}" onchange="allocSet(this.dataset.i,'mode',this.value)"><option value="fill"${c.mode==='fill'?' selected':''}>до цели</option><option value="fixed"${c.mode==='fixed'?' selected':''}>фиксировано</option></select>
-    ${c.mode==='fixed'?`<input type="number" inputmode="decimal" value="${escapeHtml(c.amount||0)}" data-i="${i}" onchange="allocSet(this.dataset.i,'amount',this.value)">`:''}
-    <button class="del-btn" data-i="${i}" onclick="allocMove(this.dataset.i,-1)" aria-label="Выше">${ico('chevUp',14)}</button>
-    <button class="del-btn" data-i="${i}" onclick="allocMove(this.dataset.i,1)" aria-label="Ниже">${ico('chevDown',14)}</button>
-    <button class="del-btn" data-i="${i}" onclick="allocDel(this.dataset.i)" aria-label="Убрать">${ico('close',14)}</button></div>`).join('');
+    <select class="currency-select" data-i="${i}" onchange="allocSet(this.dataset.i,'goalId',this.value)" aria-label="Копилка, шаг ${i+1}">${goals.map(g=>`<option value="${escapeHtml(g.id)}"${g.id===c.goalId?' selected':''}>${escapeHtml(g.name)}</option>`).join('')}</select>
+    <select class="currency-select" data-i="${i}" onchange="allocSet(this.dataset.i,'mode',this.value)" aria-label="Сколько класть, шаг ${i+1}"><option value="fill"${c.mode==='fill'?' selected':''}>до заполнения</option><option value="fixed"${c.mode==='fixed'?' selected':''}>фиксировано</option></select>
+    ${c.mode==='fixed'?`<input type="number" inputmode="decimal" value="${escapeHtml(c.amount||0)}" data-i="${i}" onchange="allocSet(this.dataset.i,'amount',this.value)" aria-label="Сумма, шаг ${i+1}">`:''}
+    <button type="button" class="del-btn" data-i="${i}" onclick="allocMove(this.dataset.i,-1)" aria-label="Шаг ${i+1} выше">${ico('chevUp',14)}</button>
+    <button type="button" class="del-btn" data-i="${i}" onclick="allocMove(this.dataset.i,1)" aria-label="Шаг ${i+1} ниже">${ico('chevDown',14)}</button>
+    <button type="button" class="del-btn" data-i="${i}" onclick="allocDel(this.dataset.i)" aria-label="Убрать шаг ${i+1} из цепочки">${ico('close',14)}</button></div>`).join('');
   const hist=((colCache.allocations&&colCache.allocations.data)||[]).slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
   el.innerHTML=`<div class="card"><div class="card-title">Схема</div>
-    <label class="al-label">Жизнь — остаётся на карте и становится бюджетом месяца</label>
+    <label class="al-label" for="al-life">Жизнь — остаётся на карте и становится бюджетом месяца</label>
     <input type="number" inputmode="decimal" id="al-life" value="${escapeHtml(sc.life||0)}" onchange="allocSetLife(this.value)">
     <div class="al-chain">${rows||'<div class="empty-state" style="padding:12px 0">Копилок в цепочке нет</div>'}</div>
-    ${goals.length?'<button class="settings-btn" onclick="allocAdd()">+ Копилка в цепочку</button>':'<div class="cmd-hint">Сначала создай копилку в «Планы → Копилки»</div>'}</div>
+    ${goals.length?'<button type="button" class="settings-btn" onclick="allocAdd()">+ Копилка в цепочку</button>':'<div class="cmd-hint">Сначала создай копилку в «Планы → Копилки»</div>'}</div>
     <div class="card"><div class="card-title">Распределить зарплату</div>
-    <div class="al-row"><input type="number" inputmode="decimal" id="al-salary" placeholder="Получено, ₸"><button class="settings-btn" onclick="allocPreview()">Показать</button></div>
+    <label class="al-label" for="al-salary">Сколько пришло</label>
+    <div class="al-row"><input type="number" inputmode="decimal" id="al-salary" placeholder="Например, 500000"><button type="button" class="settings-btn" onclick="allocPreview()">Показать</button></div>
     <div id="al-preview"></div></div>`
-    +(hist.length?`<div class="card"><div class="card-title">Прошлые распределения</div>${hist.map(a=>`<div class="recent-item"><div class="recent-info"><div class="recent-desc">${escapeHtml(a.date)}</div><div class="recent-cat">${a.parts.map(p=>escapeHtml(p.label)+' '+fmtCur(p.amount)).join(' · ')}</div></div><div class="recent-amount">${fmtCur(a.salary)}</div></div>`).join('')}</div>`:'');
+    +(hist.length?`<div class="card"><div class="card-title">Прошлые распределения</div>${hist.map(a=>`<div class="recent-item"><div class="recent-info"><div class="recent-desc">${escapeHtml(dayMonthShort(a.date))}</div><div class="recent-cat">${a.parts.map(p=>escapeHtml(p.label)+' '+fmtCur(p.amount)).join(' · ')}</div></div><div class="recent-amount">${fmtCur(a.salary)}</div></div>`).join('')}</div>`:'');
 }
 async function allocSave(){const s={life:allocScheme.life,chain:allocScheme.chain};await saveSetting('allocScheme',s)}
 function allocSetLife(v){allocScheme.life=Math.max(0,parseFloat(v)||0);allocSave()}
@@ -4368,7 +4438,7 @@ async function allocPreview(){
     +`<label class="al-income"><input type="checkbox" id="al-income"${allocIncome.on?' checked':''} onchange="allocIncome.on=this.checked"><span>Записать доход «Зарплата» ${fmtCur(S)}</span></label>`
     +(dup?`<div class="cmd-hint al-dup">Похоже, этот доход уже записан: ${escapeHtml(dup.date.slice(8,10)+'.'+dup.date.slice(5,7))}${dup.bank?' · '+escapeHtml(bn(dup.bank)):''} — галочка снята</div>`:'')
     +`<label class="al-label" for="al-bank">Куда пришла зарплата</label><select class="currency-select al-bank" id="al-bank" onchange="allocIncome.bank=this.value">${banks}</select>`
-    +`<button class="save-btn primary" onclick="allocConfirm()">Подтвердить</button>`;
+    +`<button type="button" class="save-btn primary" onclick="allocConfirm()">Подтвердить</button>`;
 }
 async function allocConfirm(){
   const p=allocPlanState;if(!p)return;allocPlanState=null;
@@ -4381,7 +4451,7 @@ async function allocConfirm(){
   if(setBudget){
     const old=(await dbAll('budgets')).find(x=>x.key==='general');
     const q=allocBudgetQuestion(old?+old.limit:0,life.amount,fmtCur);
-    if(q&&!confirm(q))setBudget=false;
+    if(q&&!await sheetConfirm({title:'Заменить бюджет месяца?',text:q,ok:'Заменить',cancel:'Оставить'}))setBudget=false;
   }
   const b=fsDb.batch();
   for(const x of p.parts)if(x.kind==='goal'&&x.amount>0)batchGoalInc(b,x.goalId,x.amount);
@@ -4476,7 +4546,7 @@ function pendingWorkoutTask(){
   return ts.find(t=>t.due===t0)||ts.find(t=>t.due<t0)||ts.find(t=>t.due>t0)||null;
 }
 async function startWorkout(planId,taskId){
-  const plan=planById(planId);if(!plan)return toast('План не найден');
+  const plan=planById(planId);if(!plan)return toast('План тренировки не найден');
   wk={id:uid(),planId,taskId:taskId||null,date:today(),at:Date.now(),done:false,
     entries:plan.exercises.map(ex=>({exId:ex.id,weight:suggestWeight(ex),reps:Array(ex.sets).fill(null)}))};
   wkCur=0;wkSummary=null;await colPut('workouts',wk);renderBody();
@@ -4531,11 +4601,11 @@ function wkHint(msg){
 }
 function wkCaption(ex,en){
   const last=lastWeightedEntry(ex.id),d=(isKg(en.weight)&&last)?+(en.weight-last.weight).toFixed(2):null;
-  const cap=ex.step===0?'своим весом':d==null?(last?'в прошлый раз '+fmtNum(last.weight)+' кг':'первая запись — введите вес'):(d>0?`сегодня +${fmtNum(d)} кг`:d<0?`сегодня ${fmtNum(d)} кг`:'как в прошлый раз');
+  const cap=ex.step===0?'своим весом':d==null?(last?'в прошлый раз '+fmtNum(last.weight)+' кг':'первая запись — введи вес'):(d>0?`сегодня +${fmtNum(d)} кг`:d<0?`сегодня ${fmtNum(d)} кг`:'как в прошлый раз');
   return String(ex.name).toLowerCase()+', '+cap;
 }
 function wkListHtml(plan){
-  return plan.exercises.map((e,i)=>{const en=wk.entries[i]||{reps:[]},done=wkAllSets(en);return `<div class="habit-row ex-row${i===wkCur?' cur':''}" onclick="pickExercise(${i})"><div class="habit-check${done?' done':''}">${done?ico('check',14):''}</div><div class="habit-name">${escapeHtml(e.name)}</div><div class="cmd-hint">${isKg(en.weight)?fmtNum(en.weight)+' кг':''}</div></div>`}).join('');
+  return plan.exercises.map((e,i)=>{const en=wk.entries[i]||{reps:[]},done=wkAllSets(en);return `<button type="button" class="habit-row ex-row${i===wkCur?' cur':''}"${i===wkCur?' aria-current="step"':''} onclick="pickExercise(${i})"><span class="habit-check${done?' done':''}" aria-hidden="true">${done?ico('check',14):''}</span><span class="habit-name">${escapeHtml(e.name)}${done?' · готово':''}</span><span class="cmd-hint">${isKg(en.weight)?fmtNum(en.weight)+' кг':''}</span></button>`}).join('');
 }
 // Repaint what depends on the current exercise's values: caption and the exercise list
 function wkPaint(){
@@ -4548,7 +4618,7 @@ function pickExercise(i){wkCur=Math.max(0,+i||0);renderBody()}
 async function finishWorkout(){
   if(!wk)return;
   const s=workoutSummary(wk);
-  if(!s.sets&&!confirm('Ни один подход не заполнен. Всё равно завершить тренировку?'))return;
+  if(!s.sets&&(!await sheetConfirm({title:'Завершить без подходов?',text:'Ни один подход не заполнен. Тренировка всё равно засчитается.',ok:'Завершить',cancel:'Продолжить'})||!wk))return;
   const w=wk;wk=null;
   w.done=true;w.at=Date.now();await colPut('workouts',w);
   if(w.taskId){await getTasks();if(tasksCache.some(t=>t.id===w.taskId&&!t.done))await completeTask(w.taskId,{noXp:true})}
@@ -4565,7 +4635,7 @@ async function cancelWorkout(){
 }
 async function saveBodyWeight(){
   const kg=parseFloat(String(document.getElementById('bw-input').value).replace(',','.'));
-  if(!(kg>20&&kg<400))return toast('Введите вес в кг');
+  if(!(kg>20&&kg<400))return toast('Введи вес в кг — от 20 до 400');
   await colPut('bodyWeights',{key:today(),date:today(),kg});
   toast('Вес записан: '+fmtNum(kg)+' кг');renderBody();
 }
@@ -4581,7 +4651,7 @@ function wkSummaryHtml(s){
   return `<div class="card hud wo-sum"><div class="card-title">Тренировка завершена${s.plan?' · '+escapeHtml(s.plan):''}</div>
     <div class="wo-sum-grid">${cell(s.exercises+'/'+s.total,'упражнений')}${cell(s.volume>0?escapeHtml(fmt(s.volume)):'—','объём, кг × повт.')}${cell('+'+s.xp,'XP · Тело')}</div>
     <div class="cmd-hint">подходов: ${s.sets} · повторов: ${s.reps}</div>
-    <button class="settings-btn wo-sum-ok" onclick="closeWorkoutSummary()">Готово</button></div>`;
+    <button type="button" class="settings-btn wo-sum-ok" onclick="closeWorkoutSummary()">Готово</button></div>`;
 }
 function wkStaleHtml(w){
   const plan=planById(w.planId),d=escapeHtml(wkDate(w.date)),s=workoutSummary(w),id=escapeHtml(w.id);
@@ -4623,7 +4693,7 @@ function renderBody(keepFocus){
   }
   const lastW=lastBw?lastBw.kg:null;
   html+=`<div class="card"><div class="card-title">Вес тела${lastW?' · '+fmtNum(lastW)+' кг':''}</div>
-    <div class="al-row"><input type="number" step="0.1" inputmode="decimal" id="bw-input" placeholder="кг" value=""><button class="settings-btn" onclick="saveBodyWeight()">Записать</button></div>
+    <div class="al-row"><input type="number" step="0.1" inputmode="decimal" id="bw-input" placeholder="кг" aria-label="Вес тела, кг" value=""><button type="button" class="settings-btn" onclick="saveBodyWeight()">Записать</button></div>
     ${sparkline(bw.slice(-12),75)}<div class="cmd-hint">цель 75 кг</div></div>`;
   root.innerHTML=html;
   const sp=document.getElementById('spark-path');if(sp&&!bodyDrawn){fxDraw(sp,1100);bodyDrawn=true}
@@ -4689,12 +4759,13 @@ function buildMoneyTabs(){
     const el=document.querySelector('#view-'+v+' .container');
     if(!el||el.querySelector('.money-tabs'))return;
     const bar=document.createElement('div');bar.className='money-tabs';
-    bar.innerHTML=MONEY_VIEWS.filter(x=>document.getElementById('view-'+x)).map(x=>'<button class="money-tab" data-m="'+x+'" onclick="switchView(this.dataset.m)">'+MONEY_LABELS[x]+'</button>').join('');
+    bar.setAttribute('role','navigation');bar.setAttribute('aria-label','Разделы «Денег»');
+    bar.innerHTML=MONEY_VIEWS.filter(x=>document.getElementById('view-'+x)).map(x=>'<button type="button" class="money-tab" data-m="'+x+'" onclick="switchView(this.dataset.m)">'+MONEY_LABELS[x]+'</button>').join('');
     el.prepend(bar);
   });
   labelPeriodTabs();
 }
-function updateMoneyTabs(name){document.querySelectorAll('.money-tab').forEach(b=>b.classList.toggle('active',b.dataset.m===name))}
+function updateMoneyTabs(name){document.querySelectorAll('.money-tab').forEach(b=>{const on=b.dataset.m===name;b.classList.toggle('active',on);if(on)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')})}
 let questTab='today';
 function setQuestTab(t){
   questTab=t||questTab||'today';t=questTab;
@@ -4744,7 +4815,7 @@ function renderStatus(){
   const bestStreak=habits.reduce((m,h)=>Math.max(m,habitStreak(h.id,checks)),0);
   const dfirWeek=(tasksCache||[]).filter(t=>!t.done&&/^DFIR неделя \d+/.test(t.title)).sort((a,b)=>(a.due||'').localeCompare(b.due||''))[0];
   const sal=(tasksCache||[]).filter(t=>!t.done&&(t.kind==='salary'||t.title==='Распределить зарплату')&&t.due).sort((a,b)=>a.due.localeCompare(b.due))[0];
-  const mq=[`${sm.done}/${sm.total} квестов`,`серия ${bestStreak}`];
+  const mq=[`квест дня ${sm.done}/${sm.total}`,`серия ${bestStreak}`];
   if(dfirWeek)mq.push((dfirWeek.title.match(/^DFIR неделя \d+/)||['DFIR'])[0]);
   if(sal){const n=daysBetween(t0,sal.due);mq.push(n<0?'зарплата не распределена':n===0?'сегодня распределить зарплату':`до зарплаты ${n} ${dayWord(n)}`)}
   // F6.2: cooling and reminders are static plaques under the tiles, not marquee items
@@ -4761,13 +4832,13 @@ function renderStatus(){
   };
   // action tasks (workout / salary) open their screen; XP shown is what the action really gives
   const xpOf=t=>{const k=taskActionKind(t);return k==='workout'?60:k==='salary'?30:t.source==='debt'?30:(t.xp!=null?t.xp:20)};
-  const taskRows=sm.openT.slice(0,5).map(t=>{const k=taskActionKind(t),id=escapeHtml(t.id);return `<div class="qrow${k?' act':''}" data-id="${id}"${k?` onclick="taskTap(this.dataset.id,'row')"`:''}><button class="task-check" aria-label="${k==='workout'?'Открыть тренировку':k==='salary'?'Открыть распределение зарплаты':'Выполнить'}" data-id="${id}" onclick="event.stopPropagation();taskTap(this.dataset.id,'check',this)"></button><span class="qt">${escapeHtml(t.title)}</span>${k?`<span class="qgo">${k==='workout'?'тренировка':'распределить'} →</span>`:''}<span class="qxp">+${xpOf(t)}</span></div>`}).join('');
-  const habRows=sm.openH.map(h=>`<div class="qrow" data-id="${escapeHtml(h.id)}" onclick="toggleHabit(this.dataset.id,this.querySelector('.habit-check'))"><div class="habit-check"></div><span class="qt">${escapeHtml(h.name)}</span><span class="qxp">+20</span></div>`).join('');
+  const taskRows=sm.openT.slice(0,5).map(t=>{const k=taskActionKind(t),id=escapeHtml(t.id);return `<div class="qrow${k?' act':''}" data-id="${id}"${k?` role="button" tabindex="0" onclick="taskTap(this.dataset.id,'row')"`:''}><button type="button" class="task-check" aria-label="${k==='workout'?'Открыть тренировку':k==='salary'?'Открыть распределение зарплаты':'Выполнить'}" data-id="${id}" onclick="event.stopPropagation();taskTap(this.dataset.id,'check',this)"></button><span class="qt">${escapeHtml(t.title)}</span>${k?`<span class="qgo">${k==='workout'?'тренировка':'распределить'} →</span>`:''}<span class="qxp">+${xpOf(t)}</span></div>`}).join('');
+  const habRows=sm.openH.map(h=>`<button type="button" class="qrow" data-id="${escapeHtml(h.id)}" aria-label="Отметить привычку «${escapeHtml(h.name)}», +20 XP" onclick="toggleHabit(this.dataset.id,this.querySelector('.habit-check'))"><span class="habit-check" aria-hidden="true"></span><span class="qt">${escapeHtml(h.name)}</span><span class="qxp">+20</span></button>`).join('');
   const risk=habits.filter(h=>habitStreak(h.id,checks)>0&&!checks.some(c=>c.key===`${h.id}_${t0}`));
   const foot=risk.length?`серия «${escapeHtml(risk[0].name)}» (${habitStreak(risk[0].id,checks)}) оборвётся`:Object.keys(warn).length?(warn[Object.keys(warn)[0]].cooled?`${SPHERES[Object.keys(warn)[0]]} остаётся в остывании`:`${SPHERES[Object.keys(warn)[0]]} остынет через ${warn[Object.keys(warn)[0]].left} ${dayWord(warn[Object.keys(warn)[0]].left)}`):'ничего не потеряется';
   const seenEv=new Set(),ev=upcomingEvents(tasksCache||[],t0,6).filter(e=>{const k=e.title+'|'+e.list;if(seenEv.has(k))return false;seenEv.add(k);return true}).slice(0,3);
   const prevXp=heroPrev?heroPrev.into:hero.into,prevPct=heroPrev?heroPrev.pct:hero.pct;
-  root.innerHTML=`<div class="st-head"><div class="st-title">▸ СИСТЕМА</div><div class="st-date">${dateStr}<span class="st-sync" id="st-sync"></span></div><button class="header-btn" data-v="settings" onclick="switchView(this.dataset.v)" aria-label="Настройки">${ico('settings',20)}</button></div>
+  root.innerHTML=`<div class="st-head"><div class="st-title">▸ СИСТЕМА</div><div class="st-date">${dateStr}<span class="st-sync" id="st-sync" role="status"></span></div><button type="button" class="header-btn" data-v="settings" onclick="switchView(this.dataset.v)" aria-label="Настройки">${ico('settings',20)}</button></div>
   <div class="marquee" id="st-marquee" aria-label="Сводка дня"></div>
   <div class="hero hud${introPending?' hero-intro':''}" id="hero">
     <div class="hero-plate">УРОВЕНЬ</div>
@@ -4817,9 +4888,9 @@ async function setAvatar(ev){
     c.getContext('2d').drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,560,560);
     let q=.9,url=c.toDataURL('image/jpeg',q);
     while(url.length*0.75>300*1024&&q>.4){q-=.1;url=c.toDataURL('image/jpeg',q)}
-    if(url.length*0.75>300*1024)return toast('Фото слишком большое');
+    if(url.length*0.75>300*1024)return toast('Фото слишком большое — выбери другое');
     await saveSetting('avatar',url);statusAvatar=url;toast('Фото героя обновлено');
-  }catch(e){toast('Не удалось прочитать изображение')}
+  }catch(e){toast('Изображение не прочитано — выбери JPG или PNG')}
   ev.target.value='';
 }
 async function resetAvatar(){await saveSetting('avatar',null);statusAvatar=null;toast('Возвращено стандартное фото')}
@@ -4836,12 +4907,12 @@ async function renderSeason(){
   if(monthIdx<0)monthIdx=Math.max(0,Math.min(s.phases.length-1,Math.floor((daysBetween(s.start,t0)/Math.max(1,total))*s.phases.length)));
   const endD=parseLocalDate(s.end);
   el.innerHTML=`<div class="season"><div class="season-word disp outline-dim" aria-hidden="true">${escapeHtml(s.name.toUpperCase())}</div>
-    <div class="season-top"><div class="card-title">Сезон ${s.id} · ${escapeHtml(s.name)}</div><div class="cmd-hint">${escapeHtml(s.start)} — ${escapeHtml(s.end)} · осталось ${left} ${dayWord(left)}</div><div class="bar" style="--c:var(--bone)"><i style="transform:scaleX(${(el_/total).toFixed(3)})"></i></div></div>
+    <div class="season-top"><div class="card-title">Сезон ${s.id} · ${escapeHtml(s.name)}</div><div class="cmd-hint">${escapeHtml(dayMonthShort(s.start))} — ${escapeHtml(dayMonthShort(s.end))} · осталось ${left} ${dayWord(left)}</div><div class="bar" style="--c:var(--bone)"><i style="transform:scaleX(${(el_/total).toFixed(3)})"></i></div></div>
     <div class="roadmap"><svg class="rm-svg" viewBox="0 0 24 100" preserveAspectRatio="none" aria-hidden="true"><path id="rm-line" d="M12 0V100" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="1"/></svg>
       ${s.phases.map((p,i)=>`<div class="rm-phase${i===monthIdx?' hud now':''}"><div class="rm-dot"></div><div class="rm-month">${escapeHtml(p.month)}</div><div class="rm-name">${escapeHtml(p.name)}</div><div class="rm-text">${escapeHtml(p.text)}</div></div>`).join('')}
       ${s.reward?`<div class="rm-phase final"><div class="rm-dot"></div><div class="rm-month">${endD.getDate()} ${MONTHS_GEN[endD.getMonth()]} · финал</div><div class="rm-text">${escapeHtml(s.reward)}</div></div>`:''}</div>
     <div class="card-title" style="margin-top:20px">Достижения</div>
-    <div class="ach-grid">${ACHIEVEMENTS.map(a=>{const got=have[a.id];return `<div class="ach tilt${got?' got':''}" title="${escapeHtml(a.desc)}"><div class="ach-ic">${ico(ACH_ICON[a.id]||'check',26)}</div><div class="ach-name">${escapeHtml(a.name)}</div><div class="ach-date">${got?escapeHtml(got):escapeHtml(a.desc)}</div></div>`}).join('')}</div></div>`;
+    <div class="ach-grid" role="list">${ACHIEVEMENTS.map(a=>{const got=have[a.id];return `<div class="ach tilt${got?' got':''}" role="listitem" title="${escapeHtml(a.desc)}"><div class="ach-ic" aria-hidden="true">${ico(ACH_ICON[a.id]||'check',26,got?null:'var(--dim)')}</div><div class="ach-name">${escapeHtml(a.name)}<span class="sr-only">${got?' — получено':' — пока не получено'}</span></div><div class="ach-date">${got?escapeHtml(dayMonthShort(got)):escapeHtml(a.desc)}</div></div>`}).join('')}</div></div>`;
   const p=document.getElementById('rm-line');if(p)fxDraw(p,1100);
 }
 
@@ -4886,20 +4957,20 @@ async function renderWeek(){
   weekText=lines.join('\n');
   const big=(n,l)=>`<div class="wk-stat spot"><div class="wk-num disp" data-n="${n}">${n}</div><div class="wk-lbl">${l}</div></div>`;
   let lastDay='';
-  el.innerHTML=`<div class="wk-nav"><button class="header-btn" onclick="weekShift(-1)" aria-label="Предыдущая неделя">${ico('chevLeft',18)}</button><div class="wk-range">${fmtD(ws)}–${fmtD(we)}${weekOffset===0?' · эта неделя':''}</div><button class="header-btn" onclick="weekShift(1)" aria-label="Следующая неделя"${weekOffset===0?' disabled style="opacity:.3"':''}>${ico('chevRight',18)}</button></div>
+  el.innerHTML=`<div class="wk-nav"><button type="button" class="header-btn" onclick="weekShift(-1)" aria-label="Предыдущая неделя">${ico('chevLeft',18)}</button><div class="wk-range" aria-live="polite">${fmtD(ws)}–${fmtD(we)}${weekOffset===0?' · эта неделя':''}</div><button type="button" class="header-btn" onclick="weekShift(1)" aria-label="Следующая неделя"${weekOffset===0?' disabled style="opacity:.3"':''}>${ico('chevRight',18)}</button></div>
     <div class="wk-grid">${big(tasksDone+'/'+tasksPlanned,'задачи')}${big(hPct+'%','привычки')}${big(wo.length+'/'+woPlanned,'тренировки')}${big(fmt(Math.round(spentSum/1000))+'к','траты, ₸')}</div>
     <div class="card"><div class="card-title">Опыт за неделю</div><div class="wk-xp">${Object.keys(SPHERES).map(s=>`<span style="--c:var(--${s})"><i></i>${SPHERES[s]} ${xp[s]>=0?'+':''}${xp[s]}</span>`).join('')}</div></div>
     <div class="card"><div class="card-title">Таймлайн</div>${tl.length?tl.map(e=>{const h=e.date!==lastDay?`<div class="tl-day">${WD_SHORT[isoWeekday(e.date)-1]}, ${e.date.slice(8,10)}.${e.date.slice(5,7)}</div>`:'';lastDay=e.date;return h+`<div class="jr-row"><span class="jr-time">${e.journal||e.at>0&&!String(e.text).startsWith('Достижение')?hhmm(e.at):''}</span><span class="jr-dot" style="--c:${sphereColor(e.sphere)}"></span><span class="jr-text">${escapeHtml(e.text)}</span></div>`}).join(''):'<div class="cmd-hint">На этой неделе событий нет</div>'}</div>
-    <button class="save-btn primary" onclick="copyWeek()">Копировать для Claude</button><pre id="week-fallback" class="wk-fallback" hidden></pre>`;
+    <button type="button" class="save-btn primary" onclick="copyWeek()">Копировать для Claude</button><pre id="week-fallback" class="wk-fallback" hidden></pre>`;
 }
 async function copyWeek(){
   try{await navigator.clipboard.writeText(weekText);toast('Скопировано')}
-  catch(e){const p=document.getElementById('week-fallback');p.textContent=weekText;p.hidden=false;const r=document.createRange();r.selectNodeContents(p);const s=getSelection();s.removeAllRanges();s.addRange(r);toast('Выделено — скопируйте вручную')}
+  catch(e){const p=document.getElementById('week-fallback');p.textContent=weekText;p.hidden=false;const r=document.createRange();r.selectNodeContents(p);const s=getSelection();s.removeAllRanges();s.addRange(r);toast('Текст выделен — скопируй вручную')}
 }
 
 
 // ── F3.3 Data integrity check: pure part (tests/integrity.cjs loads it from here up to the UI marker) ──
-const INTEGRITY_CLASSES={goal:'Цели',debt:'Рассрочки',xp:'Опыт (XP)',task:'Задачи и привычки',tx:'Операции',bank:'Балансы банков'};
+const INTEGRITY_CLASSES={goal:'Копилки',debt:'Рассрочки',xp:'Опыт (XP)',task:'Задачи и привычки',tx:'Операции',bank:'Балансы банков'};
 const XP_KNOWN_PREFIXES=['task_','habit_','journal_','workout_','debt_','alloc_','cool_'];
 function isYmd(s){
   if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s))return false;
@@ -4924,6 +4995,8 @@ function checkInvariants(data){
   const S=v=>String(v);
   const noonAt=d=>isYmd(d)?new Date(+d.slice(0,4),+d.slice(5,7)-1,+d.slice(8,10),12).getTime():Date.now();
   const sphereOfList=typeof SPHERE_OF_LIST!=='undefined'?SPHERE_OF_LIST:{dfir:'dfir',gym:'body',money:'money'};
+  // «1 операция / 2 операции / 5 операций» (nWord lives in the i18n block; this part also runs alone in tests)
+  const nw=(n,f)=>typeof nWord==='function'?nWord(n,f):n+' '+f[2];
 
   // ── Goals: currentAmount = Σ tx 'goal_<id>' + Σ allocation parts of that goal (+ untracked manual «Пополнить»)
   const goalIds=new Set(goals.map(g=>S(g.id)));
@@ -4941,19 +5014,19 @@ function checkInvariants(data){
     else{const g=goalByName.get(p.label);if(g){id=S(g.id);partsByName++}}
     if(id!=null)gAl[id]=(gAl[id]||0)+p.amount;
   }));
-  if(partsByName)notes.push(`Цели: ${partsByName} част. распределений без goalId сопоставлены с целями по названию (эвристика).`);
+  if(partsByName)notes.push(`Копилки: ${nw(partsByName,['часть','части','частей'])} распределений без goalId сопоставлены с копилками по названию (эвристика).`);
   goals.forEach(g=>{
-    const id=S(g.id),tx=r2(gTx[id]||0),al=r2(gAl[id]||0),calc=r2(tx+al),cur=g.currentAmount,nm=`Цель «${g.name||id}»`;
+    const id=S(g.id),tx=r2(gTx[id]||0),al=r2(gAl[id]||0),calc=r2(tx+al),cur=g.currentAmount,nm=`Копилка «${g.name||id}»`;
     const how=`по операциям ${fm(tx)} + по распределениям ${fm(al)} = ${fm(calc)}`;
     const fix={kind:'goalSet',goalId:id,amount:calc};
     if(!num(cur))return add('goal','error',`${nm}: накоплено не число`,`currentAmount = ${S(cur)}; ${how}.`,[id],fix);
     if(eq(cur,calc))return;
     const d=r2(cur-calc);
-    if(d>0)add('goal','info',`${nm}: накоплено больше на ${fm(d)}`,`В цели ${fm(cur)}, ${how}. Расхождение, возможно ручные пополнения («Пополнить» не записывается) — исправление их обнулит.`,[id],fix);
-    else add('goal','warn',`${nm}: накоплено меньше на ${fm(-d)}`,`В цели ${fm(cur)}, ${how}.`,[id],fix);
+    if(d>0)add('goal','info',`${nm}: накоплено больше на ${fm(d)}`,`В копилке ${fm(cur)}, ${how}. Расхождение, возможно ручные пополнения («Пополнить» не записывается) — исправление их обнулит.`,[id],fix);
+    else add('goal','warn',`${nm}: накоплено меньше на ${fm(-d)}`,`В копилке ${fm(cur)}, ${how}.`,[id],fix);
   });
   Object.keys(gTx).filter(id=>!goalIds.has(id)).forEach(id=>
-    add('goal','info',`Операции на удалённую цель ${id}`,`${gTxIds[id].length} опер. на ${fm(gTx[id])} в категории goal_${id}, цели нет.`,gTxIds[id],null));
+    add('goal','info',`Операции на удалённую копилку ${id}`,`${nw(gTxIds[id].length,['операция','операции','операций'])} на ${fm(gTx[id])} в категории goal_${id}, копилки нет.`,gTxIds[id],null));
 
   // ── Debts
   const debtById=new Map(debts.map(d=>[S(d.id),d]));
@@ -5010,7 +5083,7 @@ function checkInvariants(data){
   const habitById=new Map(habits.map(h=>[S(h.id),h]));
   const xpById=new Map(),xpCount={};
   xp.forEach(e=>{const id=S(e.id);xpCount[id]=(xpCount[id]||0)+1;if(!xpById.has(id))xpById.set(id,e)});
-  Object.keys(xpCount).filter(id=>xpCount[id]>1).forEach(id=>add('xp','warn',`Дубль записи опыта ${id}`,`Запись встречается ${xpCount[id]} раза.`,[id],null));
+  Object.keys(xpCount).filter(id=>xpCount[id]>1).forEach(id=>add('xp','warn',`Дубль записи опыта ${id}`,`Запись встречается ${nw(xpCount[id],['раз','раза','раз'])}.`,[id],null));
   const xpDel=id=>({kind:'xpDel',xpId:id});
   const orphan=(id,e,why)=>add('xp','warn',`Опыт без действия: ${id}`,`${fm(e.amount)} XP от ${e.date||'—'}: ${why}. Удаление снизит опыт.`,[id],xpDel(id));
   xpById.forEach((e,id)=>{
@@ -5091,7 +5164,7 @@ function checkInvariants(data){
       const a=g[i-1],b=g[i];
       if(!num(a.createdAt)||!num(b.createdAt)||b.createdAt-a.createdAt>2000)continue;
       const st=a.source==='statement'&&b.source==='statement';
-      add('tx',st?'info':'warn',`Возможный дубль: «${b.description||b.id}» ${fm(b.amount)}`,`${b.date}, банк ${b.bank||'—'}: две одинаковые операции созданы с разницей ${b.createdAt-a.createdAt} мс.${st?' Обе из выписки — одинаковые строки выписки бывают законными.':''} Лишнюю можно удалить в «Истории».`,[a.id,b.id],null);
+      add('tx',st?'info':'warn',`Возможный дубль: «${b.description||b.id}» ${fm(b.amount)}`,`${b.date}, банк ${b.bank||'—'}: две одинаковые операции созданы с разницей ${b.createdAt-a.createdAt} мс.${st?' Обе из выписки — одинаковые строки выписки бывают законными.':''} Лишнюю можно удалить в «Деньги → Операции».`,[a.id,b.id],null);
     }
   });
 
@@ -5101,7 +5174,7 @@ function checkInvariants(data){
   sk.forEach(k=>{const m=/^bal(At)?_(.+)$/.exec(k);if(m)bankNames.add(m[2])});
   bankNames.forEach(b=>{
     const has=sk.has('bal_'+b),hasAt=sk.has('balAt_'+b);
-    if(has!==hasAt)add('bank','warn',`Баланс ${b}: ${has?'нет времени снимка':'нет суммы снимка'}`,has?`Есть bal_${b}, нет balAt_${b} — непонятно, какие операции прибавлять. Обновите баланс вручную.`:`Есть balAt_${b}, нет bal_${b}. Обновите баланс вручную.`,[has?'bal_'+b:'balAt_'+b],null);
+    if(has!==hasAt)add('bank','warn',`Баланс ${b}: ${has?'нет времени снимка':'нет суммы снимка'}`,has?`Есть bal_${b}, нет balAt_${b} — непонятно, какие операции прибавлять. Обнови баланс вручную.`:`Есть balAt_${b}, нет bal_${b}. Обнови баланс вручную.`,[has?'bal_'+b:'balAt_'+b],null);
   });
   return out;
 }
@@ -5120,7 +5193,7 @@ async function runIntegrityCheck(){
   const btn=document.getElementById('integrity-btn');
   if(btn){btn.disabled=true;btn.textContent='Проверка…'}
   try{integrityIssues=checkInvariants(await integrityLoad());renderIntegrity()}
-  catch(e){toast('Проверка не удалась: '+e.message)}
+  catch(e){toast('Проверка не удалась. '+errText(e,'read'))}
   finally{integrityBusy=false;if(btn){btn.disabled=false;btn.textContent='Проверить данные'}}
 }
 function renderIntegrity(){
@@ -5130,24 +5203,24 @@ function renderIntegrity(){
   const notesHtml=notes.length?`<div class="settings-desc" style="padding:8px 0">${notes.map(n=>'· '+escapeHtml(n)).join('<br>')}</div>`:'';
   if(!list.length){box.innerHTML=`<div class="empty-state" style="padding:16px 0">Нарушений не найдено</div>`+notesHtml;return}
   const cnt=s=>list.filter(x=>x.severity===s).length;
-  const head=`<div class="settings-desc" style="padding:8px 0">Найдено: ${list.length} · ошибок ${cnt('error')} · внимание ${cnt('warn')} · справка ${cnt('info')}</div>`;
+  const head=`<div class="settings-desc" style="padding:8px 0">Найдено: ${list.length} · ошибки: ${cnt('error')} · внимание: ${cnt('warn')} · справка: ${cnt('info')}</div>`;
   const groups=Object.keys(INTEGRITY_CLASSES).filter(c=>list.some(x=>x.cls===c)).map(c=>{
     const items=list.map((x,i)=>[x,i]).filter(([x])=>x.cls===c),nFix=items.filter(([x])=>x.fix).length;
-    return `<div class="task-section-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${escapeHtml(INTEGRITY_CLASSES[c])} · ${items.length}</span>${nFix>1?`<button class="settings-btn" data-cls="${escapeHtml(c)}" onclick="integrityFixClass(this.dataset.cls)">Исправить все (${nFix})</button>`:''}</div>`
-      +items.map(([x,i])=>`<div class="settings-item" style="align-items:flex-start;gap:10px"><div style="min-width:0;overflow-wrap:anywhere"><div class="settings-label">${escapeHtml(x.title)}</div><div class="settings-desc"><span${x.severity==='error'?' style="color:var(--red)"':''}>${escapeHtml(INTEGRITY_SEV[x.severity]||x.severity)}</span> · ${escapeHtml(x.detail)}</div></div>${x.fix?`<button class="settings-btn" data-i="${i}" onclick="integrityFix(+this.dataset.i)">Исправить</button>`:''}</div>`).join('');
+    return `<div class="task-section-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${escapeHtml(INTEGRITY_CLASSES[c])} · ${items.length}</span>${nFix>1?`<button type="button" class="settings-btn" data-cls="${escapeHtml(c)}" onclick="integrityFixClass(this.dataset.cls)">Исправить все (${nFix})</button>`:''}</div>`
+      +items.map(([x,i])=>`<div class="settings-item" style="align-items:flex-start;gap:10px"><div style="min-width:0;overflow-wrap:anywhere"><div class="settings-label">${escapeHtml(x.title)}</div><div class="settings-desc"><span${x.severity==='error'?' style="color:var(--red)"':''}>${escapeHtml(INTEGRITY_SEV[x.severity]||x.severity)}</span> · ${escapeHtml(x.detail)}</div></div>${x.fix?`<button type="button" class="settings-btn" data-i="${i}" onclick="integrityFix(+this.dataset.i)">Исправить</button>`:''}</div>`).join('');
   }).join('');
   box.innerHTML=head+groups+notesHtml;
 }
 function integrityFixText(f){
   switch(f.kind){
-    case'goalSet':return`Установить накопленное в цели = ${fmtCur(f.amount)}. Ручные пополнения, если были, пропадут.`;
+    case'goalSet':return`Установить накопленное в копилке = ${fmtCur(f.amount)}. Ручные пополнения, если были, пропадут.`;
     case'xpDel':return`Удалить запись опыта ${f.xpId}. Уровень может снизиться.`;
     case'xpAdd':return`Начислить ${f.amount} XP (${f.xpId}) датой ${f.date||today()}.`;
     case'xpSet':return`Исправить запись ${f.xpId} на ${f.amount} XP.`;
     case'checkDel':return`Удалить отметку привычки ${f.key}.`;
     case'debtSet':return f.close?'Закрыть рассрочку с остатком 0 и удалить её задачу-платёж.':`Установить остаток рассрочки = ${fmtCur(f.remaining)}.`;
     case'debtTask':return'Создать задачу-платёж для рассрочки.';
-    case'taskDel':return`Удалить задачи: ${f.taskIds.length}.`;
+    case'taskDel':return`Удалить ${nWord(f.taskIds.length,W_TASKS)}.`;
   }
   return'';
 }
@@ -5156,7 +5229,7 @@ async function integrityBeforeFix(){
   if(integritySnapshotDone)return true;
   if(typeof window.makeSnapshot==='function'){
     try{await window.makeSnapshot('before-repair')}
-    catch(e){toast('Снимок не создан ('+e.message+'), исправление отменено');return false}
+    catch(e){toast('Снимок не создан — исправление отменено. '+errText(e));return false}
   }
   integritySnapshotDone=true;return true;
 }
@@ -5166,7 +5239,7 @@ async function integrityDelTasks(ids){
 }
 async function integrityApply(f){
   if(f.kind==='goalSet'){
-    const g=(await dbAll('goals')).find(x=>String(x.id)===f.goalId);if(!g)throw new Error('цель не найдена');
+    const g=(await dbAll('goals')).find(x=>String(x.id)===f.goalId);if(!g)throw new Error('копилка не найдена');
     await dbPut('goals',{...g,currentAmount:f.amount});
   }else if(f.kind==='xpDel')await colDel('xpLog',f.xpId);
   // written directly (not awardXp) so the entry keeps the date of the action: today() would skew the week report and cooling
@@ -5193,14 +5266,14 @@ async function integrityFix(i){
   try{
     if(!await integrityBeforeFix())return;
     await integrityApply(x.fix);toast('Исправлено');
-  }catch(e){toast('Не удалось: '+e.message)}
+  }catch(e){toast('Не исправлено. '+errText(e))}
   finally{integrityBusy=false}
   refreshStatusIfVisible();await runIntegrityCheck();
 }
 async function integrityFixClass(cls){
   const xs=integrityIssues.filter(x=>x.cls===cls&&x.fix);if(!xs.length||integrityBusy)return;
   const kinds=[...new Set(xs.map(x=>integrityFixText(x.fix)))];
-  if(!await sheetConfirm({title:`Исправить ${xs.length} в группе «${INTEGRITY_CLASSES[cls]}»?`,text:kinds.slice(0,6).join('\n')+(kinds.length>6?'\n…':''),ok:'Исправить'})||integrityBusy)return;
+  if(!await sheetConfirm({title:`Исправить всё в группе «${INTEGRITY_CLASSES[cls]}» (${xs.length})?`,text:kinds.slice(0,6).join('\n')+(kinds.length>6?'\n…':''),ok:'Исправить'})||integrityBusy)return;
   integrityBusy=true;let ok=0,fail=0;
   try{
     if(!await integrityBeforeFix())return;
@@ -5209,6 +5282,25 @@ async function integrityFixClass(cls){
   }finally{integrityBusy=false}
   refreshStatusIfVisible();await runIntegrityCheck();
 }
+
+// ── F6.8 keyboard: [role=button] rows (task rows, the statement drop zone, …) answer Enter / Space like buttons;
+// the [+] layer is a modal dialog: Esc closes it, Tab stays inside. An open bottom sheet handles its own keys.
+document.addEventListener('keydown',e=>{
+  const t=e.target;
+  if((e.key==='Enter'||e.key===' ')&&t&&t.nodeType===1&&t.getAttribute('role')==='button'&&t.tagName!=='BUTTON'){
+    e.preventDefault();if(!e.repeat)t.click();return;
+  }
+  const L=document.getElementById('cmd-layer');
+  if(!L||L.hidden||document.querySelector('.sheet-layer'))return;
+  if(e.key==='Escape'){e.preventDefault();closeCmd();return}
+  if(e.key==='Tab'){
+    const f=[...L.querySelectorAll('button,input,select,textarea,[tabindex="0"]')].filter(x=>!x.disabled&&!x.closest('[hidden]')&&x.getClientRects().length&&getComputedStyle(x).visibility!=='hidden');
+    if(!f.length)return;
+    e.preventDefault();
+    const i=f.indexOf(document.activeElement);
+    f[sheetNextFocus(i<0?(e.shiftKey?0:f.length-1):i,f.length,e.shiftKey)].focus();
+  }
+});
 
 // ── Init ──
 async function startApp(){
@@ -5253,7 +5345,7 @@ async function init(){
     }catch(err){
       document.getElementById('setup-emoji').classList.remove('spin');
       document.getElementById('setup-title').textContent='Не удалось загрузить';
-      document.getElementById('setup-subtitle').textContent=err.message+'. Проверь интернет и обнови страницу.';
+      document.getElementById('setup-subtitle').textContent=errText(err,'read');
     }
   }
 }

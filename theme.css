@@ -11,6 +11,8 @@
   --void:#000000;--ink-1:#0E0E0F;--ink-2:#1A1A1C;
   --line:rgba(255,255,255,.08);--line-2:rgba(255,255,255,.18);
   --fog:#8A8A90;--bone:#F2F2EF;--glow:rgba(242,242,239,.55);
+  /* F6.8: неактивные иконки и закрытые достижения — не ниже 3:1 к фону (tests/a11y_texts.cjs считает контраст) */
+  --dim:#6A6A72;
   --money:#E9C46A;--dfir:#6FE3F2;--body:#FF5A5F;
   --t-fast:140ms;--t-base:260ms;--t-slow:520ms;--t-epic:1100ms;
   --ease-out:cubic-bezier(.16,1,.3,1);--ease-in-out:cubic-bezier(.65,0,.35,1);
@@ -19,7 +21,7 @@
 
   /* старые переменные → монохром, чтобы весь существующий интерфейс перекрасился */
   --bg:#000;--bg2:#0E0E0F;--bg3:#1A1A1C;
-  --text:#F2F2EF;--text2:#8A8A90;--text3:#6A6A72;
+  --text:#F2F2EF;--text2:#8A8A90;--text3:#84848B;
   --primary:#F2F2EF;--primary-light:#1A1A1C;--on-primary:#000;
   --gradient:linear-gradient(#F2F2EF,#F2F2EF);
   --green:#F2F2EF;--green-light:#1A1A1C;
@@ -158,7 +160,7 @@ body.fx-paused *,body.fx-paused::after{animation-play-state:paused!important}
 /* ── Нижняя навигация-капсула с «лампой» ── */
 .bottom-nav{background:#141416!important;border:1px solid var(--line)!important;border-radius:999px!important;height:64px;left:16px;right:16px;max-width:448px;padding:0 6px;justify-content:space-between!important;z-index:100;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 14px 34px rgba(0,0,0,.75)!important;overflow:visible}
-.nav-btn{flex:1;height:100%;color:#5C5C63!important;font-size:0!important;padding:0!important;gap:0!important;justify-content:center;background:none;border-radius:999px;position:relative;min-width:44px}
+.nav-btn{flex:1;height:100%;color:var(--dim)!important;font-size:0!important;padding:0!important;gap:0!important;justify-content:center;background:none;border-radius:999px;position:relative;min-width:44px}
 .nav-btn.active{color:#fff!important}
 .nav-btn .icon{display:flex;align-items:center;justify-content:center}
 .nav-btn .icon svg{fill:currentColor;stroke:none}
@@ -246,7 +248,7 @@ body.fx-paused *,body.fx-paused::after{animation-play-state:paused!important}
 .cmd-seg button.on{background:var(--bone);color:#000}
 .cmd-field{position:relative}
 .cmd-input{width:100%;background:transparent!important;border:none!important;border-bottom:1px solid var(--line-2)!important;border-radius:0!important;color:var(--bone);font:700 30px var(--font-display);letter-spacing:-.02em;padding:10px 0;outline:none}
-.cmd-input::placeholder{color:#3a3a3f}
+.cmd-input::placeholder{color:var(--dim)}
 .cmd-chips{min-height:40px}
 .cmd-chip{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;padding:9px 14px;border:1px solid var(--line-2);border-radius:999px;font-size:14px;color:var(--bone)}
 .cmd-chip b{font-weight:600}
@@ -274,7 +276,7 @@ body.fx-paused *,body.fx-paused::after{animation-play-state:paused!important}
 .al-chain{margin:10px 0}
 .kg-input{display:block;width:100%;text-align:center;background:transparent!important;border:none!important;color:var(--bone)!important;font-size:120px;line-height:1;padding:6px 0;outline:none;letter-spacing:-.04em}
 .kg-input.kg-static{height:auto}
-.kg-input::placeholder{color:#2c2c30}
+.kg-input::placeholder{color:var(--dim)}
 .kg-cap{text-align:center;color:var(--fog);font-size:14px;margin-bottom:14px}
 .sets{display:flex;gap:8px;margin-bottom:10px}
 .sets .set-input{flex:1;min-width:0;height:56px;text-align:center;font-size:28px;padding:0;background:var(--ink-2)!important;border:1px solid var(--line-2)!important;border-radius:var(--radius-sm);color:var(--bone)!important}
@@ -361,7 +363,9 @@ body.fx-paused *,body.fx-paused::after{animation-play-state:paused!important}
 .rm-text{font-size:13px;color:var(--fog)}
 .rm-phase.final .rm-text{color:var(--money)}
 .ach-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.ach{padding:12px 6px;text-align:center;border:1px solid var(--line);opacity:.4}
+.ach{padding:12px 6px;text-align:center;border:1px solid var(--line)}
+.ach:not(.got) .ach-ic svg{color:var(--dim)!important;filter:none!important}
+.ach:not(.got) .ach-name{color:var(--fog)}
 .ach.got{opacity:1;border-color:var(--line-2);background:var(--ink-1)}
 .ach-ic{display:flex;justify-content:center;margin-bottom:6px}
 .ach-name{font-size:11px;line-height:1.2;color:var(--bone)}
@@ -493,3 +497,36 @@ body.fx-paused *,body.fx-paused::after{animation-play-state:paused!important}
 
 /* навигация скрыта до входа */
 .bottom-nav[hidden]{display:none!important}
+
+/* ── F6.7 подписи полей (не только placeholder) ── */
+.fld-label{display:block;font-size:13px;color:var(--fog);margin:6px 0 4px}
+.task-edit .fld-label{margin:0 0 -4px}
+.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ── F6.8 доступность ── */
+/* тосты и плашка лимита — поверх [+] и нижнего листа */
+.toast{z-index:1100}
+.warning-banner{z-index:1090}
+/* поля ≥ 16 px: iOS не приближает страницу при фокусе (масштаб теперь разрешён) */
+input,select,textarea{font-size:16px}
+.settings-input,.search-input,.currency-select,.add-form input,.add-form select,.bank-edit-row input,.stmt-cat,.habit-row .currency-select,
+#debt-form input,#debt-form select,#alloc-body input,#alloc-body select,.al-row input,.al-row select,.cmd-date-pick input,.sheet .sheet-input{font-size:16px}
+/* цели касания ≥ 44×44: видимый размер прежний, невидимая зона нажатия вокруг маленьких кнопок */
+.task-check,.del-btn,.header-btn,.calendar-nav-btn,.cmd-part,.link-btn,.settings-btn,.goal-action-btn,.sphere-legend-item,.stmt-batch-bar button,.toast-undo{position:relative}
+.task-check::after,.del-btn::after,.header-btn::after,.calendar-nav-btn::after,.cmd-part::after,.link-btn::after,.settings-btn::after,.goal-action-btn::after,.sphere-legend-item::after,.stmt-batch-bar button::after,.toast-undo::after{
+  content:'';position:absolute;left:50%;top:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%)}
+.period-tab,.cmd-bank,.cmd-date,.cmd-flip,.stmt-cat,.stmt-matched summary,.header-action{min-height:44px}
+.tmpl-chip{min-height:44px;display:inline-flex;align-items:center}
+/* кликабельные строки и плитки стали кнопками: сброс оформления кнопки */
+button.habit-row,button.qrow{width:100%;background:none;border-top:0;border-left:0;border-right:0;color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-appearance:none;appearance:none}
+button.habit-row{border-bottom:1px solid var(--bg3)}
+button.habit-row:last-child{border-bottom:0}
+button.qrow{border-bottom:0;border-top:1px solid var(--line);padding:10px 0}
+button.qrow .qt,button.habit-row .habit-name{min-width:0;overflow-wrap:anywhere}
+button.cat-btn{font-family:inherit;width:100%;line-height:1.2}
+button.tmpl-chip,button.sphere-legend-item{font-family:inherit}
+button.task-section-title{width:100%;background:none;border:0;font-family:inherit;text-align:left;cursor:pointer;min-height:44px;padding:14px 0 2px}
+button.calendar-day{border:0;background:none;font:inherit;font-size:13px;color:var(--text2);padding:0;width:100%;-webkit-appearance:none;appearance:none}
+button.calendar-day::before{content:'';position:absolute;inset:-2px}
+.stmt-upload:focus-visible,[role=button]:focus-visible{outline:1px solid var(--bone);outline-offset:3px}
+.task-row[role=button]{border-radius:var(--radius-sm)}

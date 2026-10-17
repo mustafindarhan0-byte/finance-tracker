@@ -41,6 +41,8 @@ const ctx={
   BANK_KEYS:['kaspi','freedom','halyk','forte'],BANK_NAMES:{kaspi:'Kaspi Bank',forte:'Forte Bank',halyk:'Halyk Bank',freedom:'Freedom Bank',cash:'Наличные'},
   budgets:[],dbAll:async s=>s==='budgets'?ctx.budgets:[],
   confirmAnswer:true,questions:[],confirm:q=>{ctx.questions.push(q);return ctx.confirmAnswer},
+  // F6.7: allocConfirm asks through sheetConfirm; with window.confirm replaced it answers via confirm (as in index.html)
+  sheetConfirm:o=>Promise.resolve(!!ctx.confirm([o&&o.title,o&&o.text].filter(Boolean).join('\n\n'))),
   xp:[],batchXp:async(b,id,sphere,amount)=>{ctx.xp.push([id,sphere,amount])},
   cols:{allocations:[]},getCol:async n=>ctx.cols[n]||(ctx.cols[n]=[]),
   tasksCache:[],getTasks:async()=>ctx.tasksCache,

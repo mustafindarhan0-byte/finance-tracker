@@ -46,6 +46,7 @@ const code=[
   slice('function localDate(','\n'),
   slice('const EXTRA_STORES=','function docId('),
   slice('function escapeHtml(','\n'),
+  slice('// i18n:pure-begin','// i18n:pure-end'),
   slice('const pad2=','// Completed early'),
   slice('function daysBetween(','\n'),
   slice('// firstrun:pure-begin','// firstrun:pure-end'),
@@ -95,8 +96,8 @@ const F=ctx.F;
 
   // ── import toast ──
   const n=k=>Array.from({length:k},(_,i)=>({id:'x'+i}));
-  check('import toast: per collection, seed file',F.importSummary({tasks:n(22),habits:n(2),workoutPlans:n(3)})==='Импортировано: задач 22, привычек 2, планов 3',F.importSummary({tasks:n(22),habits:n(2),workoutPlans:n(3)}));
-  check('import toast: operations first, zeros left out',F.importSummary({transactions:n(5),goals:[],tasks:n(1)})==='Импортировано: операций 5, задач 1');
+  check('import toast: per collection, seed file',F.importSummary({tasks:n(22),habits:n(2),workoutPlans:n(3)})==='Импортировано: 22 задачи, 2 привычки, 3 плана тренировок',F.importSummary({tasks:n(22),habits:n(2),workoutPlans:n(3)}));
+  check('import toast: operations first, zeros left out',F.importSummary({transactions:n(5),goals:[],tasks:n(1)})==='Импортировано: 5 операций, 1 задача');
   check('import toast: empty file',F.importSummary({})==='В файле нет записей'&&F.importSummary(null)==='В файле нет записей');
 
   // ── launch shortcuts ──

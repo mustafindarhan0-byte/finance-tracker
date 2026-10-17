@@ -111,7 +111,7 @@ t('guess columns: signed amount layout',()=>eq(F.guessCsvColumns(['Дата','С
   t('analyze: statement text escaped',()=>assert.ok(html.includes('ТОО &quot;Тест&quot;; ТЦ')&&!html.includes('ТОО "Тест"')));
   t('analyze: summary counts the bad date',()=>assert.ok(/Дата не распознана: <b>1<\/b>/.test(el('stmt-summary').innerHTML)&&el('stmt-summary').innerHTML.includes('Freedom Bank')));
   el('map-date').value='';await F.analyzeStatement();
-  t('analyze: no date column → toast, nothing done',()=>assert.strictEqual(ctx.lastToast,'Выберите столбец даты'));
+  t('analyze: no date column → toast, nothing done',()=>assert.strictEqual(ctx.lastToast,'Выбери столбец даты'));
   console.log(`csv.cjs: ${pass} passed, ${fail} failed`);
   process.exitCode=fail?1:0;
 })();

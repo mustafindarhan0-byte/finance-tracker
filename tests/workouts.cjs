@@ -28,6 +28,8 @@ const ctx={
   colDel:async(n,id)=>{dels.push([n,id]);const a=await ctx.getCol(n),i=a.findIndex(y=>y.id===id);if(i>=0)a.splice(i,1)},
   awardXp:async(id,sphere,amount)=>({id,sphere,amount}),completeTask:async()=>{},checkAchievements:()=>{},
   confirm:()=>{confirms++;return confirmAnswer},
+  // F6.7: call sites ask through sheetConfirm; with window.confirm replaced it answers via confirm (as in index.html)
+  sheetConfirm:o=>Promise.resolve(!!ctx.confirm([o&&o.title,o&&o.text].filter(Boolean).join('\n\n'))),
 };
 vm.createContext(ctx);
 vm.runInContext(code+`
