@@ -588,6 +588,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     </div>
   </div>
   <div class="card" style="margin-top:12px">
+    <div class="settings-item" style="border:none">
+      <div><div class="settings-label">Проверка данных</div><div class="settings-desc">Цели, рассрочки, опыт, задачи, операции, балансы</div></div>
+      <button class="settings-btn" id="integrity-btn" onclick="runIntegrityCheck()">Проверить данные</button>
+    </div>
+    <div id="integrity-results" hidden></div>
+  </div>
+  <div class="card" style="margin-top:12px">
     <div class="settings-item">
       <div><div class="settings-label">Валюта</div></div>
       <select class="currency-select" id="currency-sel" onchange="setCurrency(this.value)">
@@ -3603,6 +3610,317 @@ async function copyWeek(){
   catch(e){const p=document.getElementById('week-fallback');p.textContent=weekText;p.hidden=false;const r=document.createRange();r.selectNodeContents(p);const s=getSelection();s.removeAllRanges();s.addRange(r);toast('Выделено — скопируйте вручную')}
 }
 
+
+// ── F3.3 Data integrity check: pure part (tests/integrity.cjs loads it from here up to the UI marker) ──
+const INTEGRITY_CLASSES={goal:'Цели',debt:'Рассрочки',xp:'Опыт (XP)',task:'Задачи и привычки',tx:'Операции',bank:'Балансы банков'};
+const XP_KNOWN_PREFIXES=['task_','habit_','journal_','workout_','debt_','alloc_','cool_'];
+function isYmd(s){
+  if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s))return false;
+  const y=+s.slice(0,4),m=+s.slice(5,7),d=+s.slice(8,10);
+  return m>=1&&m<=12&&d>=1&&d<=new Date(y,m,0).getDate();
+}
+// data = {transactions, goals, budgets, debts, tasks, taskLog, habits, habitChecks, journal, workouts, allocations, xpLog, settings}
+// → array of {cls, severity('error'|'warn'|'info'), title, detail, ids, fix:{kind,...}|null}; array.notes = skipped/heuristic checks.
+// Works with and without the optional fields tx.debtId/logId, allocation part goalId, debt remaining0, taskLog xp/noXp.
+function checkInvariants(data){
+  data=data||{};
+  const A=k=>Array.isArray(data[k])?data[k].filter(x=>x&&typeof x==='object'):[];
+  const txs=A('transactions'),goals=A('goals'),debts=A('debts'),tasks=A('tasks'),logs=A('taskLog'),habits=A('habits'),
+    checks=A('habitChecks'),journal=A('journal'),workouts=A('workouts'),allocs=A('allocations'),xp=A('xpLog'),settings=A('settings');
+  const out=[],notes=[];out.notes=notes;
+  const add=(cls,severity,title,detail,ids,fix)=>out.push({cls,severity,title,detail:detail||'',ids:(ids||[]).map(String),fix:fix||null});
+  const num=v=>typeof v==='number'&&isFinite(v);
+  const r2=n=>Math.round(n*100)/100;
+  const eq=(a,b)=>Math.abs(a-b)<0.005;
+  const fm=n=>num(n)?r2(n).toLocaleString('ru-RU'):String(n);
+  const sum=arr=>r2(arr.reduce((s,t)=>s+(num(t.amount)?t.amount:0),0));
+  const S=v=>String(v);
+  const noonAt=d=>isYmd(d)?new Date(+d.slice(0,4),+d.slice(5,7)-1,+d.slice(8,10),12).getTime():Date.now();
+  const sphereOfList=typeof SPHERE_OF_LIST!=='undefined'?SPHERE_OF_LIST:{dfir:'dfir',gym:'body',money:'money'};
+
+  // ── Goals: currentAmount = Σ tx 'goal_<id>' + Σ allocation parts of that goal (+ untracked manual «Пополнить»)
+  const goalIds=new Set(goals.map(g=>S(g.id)));
+  const goalByName=new Map();goals.forEach(g=>{if(g.name&&!goalByName.has(g.name))goalByName.set(g.name,g)});
+  const gTx={},gAl={},gTxIds={};
+  txs.forEach(t=>{
+    if(typeof t.category!=='string'||!t.category.startsWith('goal_')||!num(t.amount))return;
+    const id=t.category.slice(5);gTx[id]=(gTx[id]||0)+t.amount;(gTxIds[id]=gTxIds[id]||[]).push(S(t.id));
+  });
+  let partsByName=0;
+  allocs.forEach(a=>(Array.isArray(a.parts)?a.parts:[]).forEach(p=>{
+    if(!p||!num(p.amount)||p.amount<=0)return;
+    let id=null;
+    if(p.goalId!=null)id=S(p.goalId);
+    else{const g=goalByName.get(p.label);if(g){id=S(g.id);partsByName++}}
+    if(id!=null)gAl[id]=(gAl[id]||0)+p.amount;
+  }));
+  if(partsByName)notes.push(`Цели: ${partsByName} част. распределений без goalId сопоставлены с целями по названию (эвристика).`);
+  goals.forEach(g=>{
+    const id=S(g.id),tx=r2(gTx[id]||0),al=r2(gAl[id]||0),calc=r2(tx+al),cur=g.currentAmount,nm=`Цель «${g.name||id}»`;
+    const how=`по операциям ${fm(tx)} + по распределениям ${fm(al)} = ${fm(calc)}`;
+    const fix={kind:'goalSet',goalId:id,amount:calc};
+    if(!num(cur))return add('goal','error',`${nm}: накоплено не число`,`currentAmount = ${S(cur)}; ${how}.`,[id],fix);
+    if(eq(cur,calc))return;
+    const d=r2(cur-calc);
+    if(d>0)add('goal','info',`${nm}: накоплено больше на ${fm(d)}`,`В цели ${fm(cur)}, ${how}. Расхождение, возможно ручные пополнения («Пополнить» не записывается) — исправление их обнулит.`,[id],fix);
+    else add('goal','warn',`${nm}: накоплено меньше на ${fm(-d)}`,`В цели ${fm(cur)}, ${how}.`,[id],fix);
+  });
+  Object.keys(gTx).filter(id=>!goalIds.has(id)).forEach(id=>
+    add('goal','info',`Операции на удалённую цель ${id}`,`${gTxIds[id].length} опер. на ${fm(gTx[id])} в категории goal_${id}, цели нет.`,gTxIds[id],null));
+
+  // ── Debts
+  const debtById=new Map(debts.map(d=>[S(d.id),d]));
+  const openTasksBy={};
+  tasks.forEach(t=>{if(t.debtId!=null&&!t.done)(openTasksBy[S(t.debtId)]=openTasksBy[S(t.debtId)]||[]).push(t)});
+  let noR0=0;
+  debts.forEach(d=>{
+    const id=S(d.id),nm=`Рассрочка «${d.name||id}»`,rem=d.remaining;
+    if(!num(rem)){add('debt','error',`${nm}: остаток не число`,`remaining = ${S(rem)}.`,[id],null);return}
+    const paidTx=txs.filter(t=>t.debtId!=null&&S(t.debtId)===id&&num(t.amount)),paid=sum(paidTx);
+    let eff=rem,mismatch=false;
+    if(num(d.remaining0)){
+      const exp=r2(Math.max(0,d.remaining0-paid));eff=exp;
+      if(!eq(rem,exp)){
+        mismatch=true;
+        add('debt','warn',`${nm}: остаток не сходится с платежами`,`Остаток ${fm(rem)}, ожидается ${fm(d.remaining0)} − ${fm(paid)} (платежей: ${paidTx.length}) = ${fm(exp)}.`,[id,...paidTx.map(t=>S(t.id))],{kind:'debtSet',debtId:id,remaining:exp,close:exp<=0});
+      }
+    }else{
+      noR0++;
+      // weaker: remaining can only shrink from what was entered (≤ total), so remaining ≤ total − tracked payments
+      const byDesc=txs.filter(t=>t.debtId==null&&t.category==='debts'&&t.description==='Рассрочка: '+d.name&&num(t.amount));
+      const paid2=r2(paid+sum(byDesc));
+      if(num(d.total)&&rem>d.total-paid2+0.005)add('debt','warn',`${nm}: остаток больше возможного`,`Остаток ${fm(rem)} > сумма ${fm(d.total)} − платежи ${fm(paid2)}. Поля remaining0 нет — проверена только верхняя граница (платежи найдены по debtId/описанию).`,[id],null);
+    }
+    if(!mismatch){
+      if(d.closed&&rem>0.005)add('debt','warn',`${nm}: закрыта, но остаток ${fm(rem)}`,'Закрытая рассрочка должна иметь остаток 0.',[id],{kind:'debtSet',debtId:id,remaining:0,close:true});
+      if(!d.closed&&rem<=0.005)add('debt','warn',`${nm}: остаток 0, но не закрыта`,'Исправление закроет её и удалит задачу-платёж.',[id],{kind:'debtSet',debtId:id,remaining:0,close:true});
+    }
+    if(!d.closed&&eff>0.005){
+      const ot=openTasksBy[id]||[];
+      if(!ot.length)add('debt','warn',`${nm}: нет задачи-платежа`,'У открытой рассрочки должна быть ровно одна открытая задача с debtId.',[id],{kind:'debtTask',debtId:id});
+      else if(ot.length>1){
+        const keep=ot.slice().sort((a,b)=>S(a.due||'9999').localeCompare(S(b.due||'9999'))||(a.createdAt||0)-(b.createdAt||0))[0];
+        const extra=ot.filter(t=>t!==keep).map(t=>S(t.id));
+        add('debt','warn',`${nm}: задач-платежей ${ot.length}`,`Должна быть одна. Исправление оставит задачу со сроком ${keep.due||'—'} и удалит остальные (${extra.length}).`,[id,...ot.map(t=>S(t.id))],{kind:'taskDel',taskIds:extra});
+      }
+    }
+  });
+  if(noR0)notes.push(`Рассрочки: у ${noR0} нет поля remaining0 — точная сверка «остаток = remaining0 − платежи» пропущена, проверена только верхняя граница.`);
+  tasks.forEach(t=>{
+    if(t.debtId==null)return;
+    const d=debtById.get(S(t.debtId)),ti=`Задача «${t.title||t.id}»`;
+    if(!d)add('debt','warn',`${ti}: рассрочка удалена`,`debtId ${S(t.debtId)} не найден.`,[t.id],{kind:'taskDel',taskIds:[S(t.id)]});
+    else if(d.closed)add('debt','warn',`${ti}: рассрочка уже закрыта`,`«${d.name}» закрыта, задача-платёж должна была удалиться.`,[t.id,d.id],{kind:'taskDel',taskIds:[S(t.id)]});
+  });
+
+  // ── XP ⇔ actions
+  const logById=new Map(logs.map(l=>[S(l.id),l]));
+  const taskById=new Map(tasks.map(t=>[S(t.id),t]));
+  const checkKeys=new Set(checks.map(c=>S(c.key)));
+  const jIds=new Set(journal.map(j=>S(j.id)));
+  const wById=new Map(workouts.map(w=>[S(w.id),w]));
+  const alIds=new Set(allocs.map(a=>S(a.id)));
+  const habitById=new Map(habits.map(h=>[S(h.id),h]));
+  const xpById=new Map(),xpCount={};
+  xp.forEach(e=>{const id=S(e.id);xpCount[id]=(xpCount[id]||0)+1;if(!xpById.has(id))xpById.set(id,e)});
+  Object.keys(xpCount).filter(id=>xpCount[id]>1).forEach(id=>add('xp','warn',`Дубль записи опыта ${id}`,`Запись встречается ${xpCount[id]} раза.`,[id],null));
+  const xpDel=id=>({kind:'xpDel',xpId:id});
+  const orphan=(id,e,why)=>add('xp','warn',`Опыт без действия: ${id}`,`${fm(e.amount)} XP от ${e.date||'—'}: ${why}. Удаление снизит опыт.`,[id],xpDel(id));
+  xpById.forEach((e,id)=>{
+    if(!num(e.amount))return add('xp','error',`Опыт ${id}: сумма не число`,`amount = ${S(e.amount)}.`,[id],xpDel(id));
+    if(id.startsWith('task_')){if(!logById.has(id.slice(5)))orphan(id,e,'нет записи выполнения задачи')}
+    else if(id.startsWith('habit_')){if(!checkKeys.has(id.slice(6)))orphan(id,e,'нет отметки привычки')}
+    else if(id.startsWith('journal_')){if(!jIds.has(id.slice(8)))orphan(id,e,'нет записи журнала')}
+    else if(id.startsWith('workout_')){const w=wById.get(id.slice(8));if(!w)orphan(id,e,'нет тренировки');else if(!w.done)orphan(id,e,'тренировка не завершена')}
+    else if(id.startsWith('debt_')){if(!logById.has(id.slice(5)))orphan(id,e,'нет записи выполнения платежа')}
+    else if(id.startsWith('alloc_')){if(!alIds.has(id.slice(6)))orphan(id,e,'нет распределения')}
+    else if(!id.startsWith('cool_'))add('xp','info',`Неизвестный тип записи опыта: ${id}`,`${fm(e.amount)} XP от ${e.date||'—'}; известные префиксы: ${XP_KNOWN_PREFIXES.join(', ')}.`,[id],null);
+  });
+  const want=(id,amount,sphere,source,date,at,title,ids,how)=>{
+    const e=xpById.get(id);
+    if(!e){if(amount)add('xp','warn',`Нет опыта: ${title}`,`${date||'—'}: ожидается ${amount} XP (${id})${how?'; '+how:''}.`,ids,{kind:'xpAdd',xpId:id,sphere:sphere||null,amount,source,date:isYmd(date)?date:null,at:num(at)?at:noonAt(date)})}
+    else if(num(e.amount)&&!eq(e.amount,amount))add('xp','info',`Опыт ${id}: ${fm(e.amount)} вместо ${amount}`,`${title}, ${date||'—'}${how?'; '+how:''}.`,[id],{kind:'xpSet',xpId:id,amount});
+  };
+  let noXpHeur=0,noXpField=0;
+  logs.forEach(l=>{
+    const id='task_'+l.id,e=xpById.get(id),t=taskById.get(S(l.taskId)),ti=`задача «${l.title||l.taskId}»`;
+    if(l.noXp===true){if(e)add('xp','warn',`Опыт при выполнении без опыта: ${id}`,`${ti}, ${l.date}: taskLog.noXp = true, но ${fm(e.amount)} XP начислено.`,[id,l.id],xpDel(id));return}
+    if(!('noXp' in l)){
+      noXpField++;
+      const viaWorkout=workouts.some(w=>w.done&&w.taskId!=null&&S(w.taskId)===S(l.taskId)&&w.date===l.date);
+      if(viaWorkout||l.title==='Распределить зарплату'||(t&&t.workoutPlan)){
+        if(!e){noXpHeur++;return}
+        if(viaWorkout)add('xp','info',`Возможно двойной опыт: ${id}`,`${ti}, ${l.date}: задача закрыта тренировкой (за неё отдельно workout_), а опыт за задачу тоже есть. Поля noXp нет — эвристика.`,[id,l.id],xpDel(id));
+        return;
+      }
+    }
+    if(l.xp!=null)return want(id,num(l.xp)?l.xp:20,sphereOfList[l.list],'task',l.date,l.at,ti,[l.id],'из taskLog.xp');
+    if(!e)return want(id,t&&t.xp!=null?t.xp:20,sphereOfList[l.list],'task',l.date,l.at,ti,[l.id],t&&t.xp!=null?'по task.xp':'по умолчанию 20');
+    if(t)want(id,t.xp!=null?t.xp:20,sphereOfList[l.list],'task',l.date,l.at,ti,[l.id],'taskLog.xp нет — сверено с текущим task.xp');
+  });
+  if(noXpHeur)notes.push(`Опыт: ${noXpHeur} выполн. задач без опыта не считаются нарушением — поля noXp нет, по эвристике это тренировка или распределение зарплаты.`);
+  if(noXpField&&!logs.some(l=>'xp' in l))notes.push('Опыт: у записей taskLog нет поля xp — ожидаемый опыт за задачу взят из текущей задачи (или 20).');
+  checks.forEach(c=>{if(habitById.has(S(c.habitId))){const h=habitById.get(S(c.habitId));want('habit_'+c.key,20,h.sphere,'habit',c.date,null,`привычка «${h.name||h.id}»`,[c.key])}});
+  journal.forEach(j=>want('journal_'+j.id,5,j.sphere,'journal',j.date,j.at,'запись журнала',[j.id]));
+  workouts.forEach(w=>{if(w.done)want('workout_'+w.id,60,'body','workout',w.date,w.at,'тренировка',[w.id])});
+  allocs.forEach(a=>want('alloc_'+a.id,30,'money','allocation',a.date,null,'распределение зарплаты',[a.id]));
+  txs.filter(t=>t.debtId!=null&&t.logId!=null).forEach(t=>{
+    if(!logById.has(S(t.logId)))add('xp','info','Платёж без выполнения задачи',`Операция «${t.description||t.id}» ${t.date}: logId ${S(t.logId)} не найден в taskLog.`,[t.id],null);
+    else want('debt_'+t.logId,30,'money','debt',t.date,t.createdAt,`платёж «${t.description||t.id}»`,[t.id,t.logId]);
+  });
+  if(txs.some(t=>t.category==='debts'&&t.logId==null))notes.push('Опыт: у операций «Рассрочки» нет logId — проверка «платёж ⇔ debt_-опыт» для них пропущена.');
+
+  // ── Tasks and habit checks
+  tasks.forEach(t=>{
+    const ti=`Задача «${t.title||t.id}»`;
+    if(t.repeat&&t.done)add('task','warn',`${ti}: выполнена, но с повтором`,'Повторяющаяся задача не должна закрываться — она пропала из списков.',[t.id],null);
+    else if(t.repeat&&!t.due)add('task','warn',`${ti}: повтор без даты`,'У повторяющейся задачи должен быть срок.',[t.id],null);
+  });
+  checks.forEach(c=>{
+    if(!habitById.has(S(c.habitId)))add('task','warn',`Отметка привычки без привычки: ${c.key}`,`${c.date||'—'}: привычка ${S(c.habitId)} не найдена.${xpById.has('habit_'+c.key)?' Опыт за отметку останется (снимается отдельно после удаления).':''}`,[c.key],{kind:'checkDel',key:S(c.key)});
+    else if(S(c.key)!==c.habitId+'_'+c.date)add('task','info',`Отметка ${c.key}: ключ не совпадает с привычкой и датой`,`Ожидалось ${c.habitId}_${c.date}.`,[c.key],null);
+  });
+
+  // ── Transactions
+  const catIds=new Set(typeof CATS!=='undefined'?Object.values(CATS).flat().map(c=>c.id):[]);
+  const banks=new Set([...(typeof BANK_KEYS!=='undefined'?BANK_KEYS:[]),'cash']);
+  txs.forEach(t=>{
+    const bad=[],soft=[];
+    if(t.type!=='expense'&&t.type!=='income')bad.push(`тип «${S(t.type)}»`);
+    if(!num(t.amount)||t.amount<=0)bad.push(`сумма ${S(t.amount)}`);
+    if(!isYmd(t.date))bad.push(`дата «${S(t.date)}»`);
+    if(typeof t.category!=='string'||!t.category)bad.push('нет категории');
+    else if(!t.category.startsWith('goal_')&&!catIds.has(t.category))soft.push(`неизвестная категория «${t.category}»`);
+    if(t.bank!=null&&t.bank!==''&&!banks.has(t.bank))soft.push(`неизвестный банк «${S(t.bank)}»`);
+    if(bad.length||soft.length)add('tx',bad.length?'error':'warn',`Операция «${t.description||t.id}» ${isYmd(t.date)?t.date:''}`.trim(),bad.concat(soft).join(', ')+'.',[t.id],null);
+  });
+  const grp={};
+  txs.forEach(t=>{const k=[t.type,t.date,t.amount,t.description,t.bank||''].join('|');(grp[k]=grp[k]||[]).push(t)});
+  Object.values(grp).forEach(g=>{
+    if(g.length<2)return;
+    g.sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+    for(let i=1;i<g.length;i++){
+      const a=g[i-1],b=g[i];
+      if(!num(a.createdAt)||!num(b.createdAt)||b.createdAt-a.createdAt>2000)continue;
+      const st=a.source==='statement'&&b.source==='statement';
+      add('tx',st?'info':'warn',`Возможный дубль: «${b.description||b.id}» ${fm(b.amount)}`,`${b.date}, банк ${b.bank||'—'}: две одинаковые операции созданы с разницей ${b.createdAt-a.createdAt} мс.${st?' Обе из выписки — одинаковые строки выписки бывают законными.':''} Лишнюю можно удалить в «Истории».`,[a.id,b.id],null);
+    }
+  });
+
+  // ── Bank balance snapshots: bal_<bank> and balAt_<bank> go in pairs
+  const sk=new Set(settings.filter(s=>s.value!=null).map(s=>S(s.key)));
+  const bankNames=new Set();
+  sk.forEach(k=>{const m=/^bal(At)?_(.+)$/.exec(k);if(m)bankNames.add(m[2])});
+  bankNames.forEach(b=>{
+    const has=sk.has('bal_'+b),hasAt=sk.has('balAt_'+b);
+    if(has!==hasAt)add('bank','warn',`Баланс ${b}: ${has?'нет времени снимка':'нет суммы снимка'}`,has?`Есть bal_${b}, нет balAt_${b} — непонятно, какие операции прибавлять. Обновите баланс вручную.`:`Есть balAt_${b}, нет bal_${b}. Обновите баланс вручную.`,[has?'bal_'+b:'balAt_'+b],null);
+  });
+  return out;
+}
+// ── F3.3 Data integrity check: UI ──
+let integrityIssues=[],integritySnapshotDone=false,integrityBusy=false;
+const INTEGRITY_SEV={error:'ошибка',warn:'внимание',info:'справка'};
+async function integrityLoad(){
+  const [transactions,goals,budgets,debts,tasks,taskLog,habits,habitChecks,journal,workouts,allocations,xpLog,settings]=await Promise.all([
+    getTxs(),dbAll('goals'),dbAll('budgets'),getCol('debts'),getTasks(),getTaskLog(),getHabits(),getChecks(),
+    getCol('journal'),getCol('workouts'),getCol('allocations'),getCol('xpLog'),dbAll('settings')]);
+  return{transactions,goals,budgets,debts,tasks,taskLog,habits,habitChecks,journal,workouts,allocations,xpLog,settings};
+}
+async function runIntegrityCheck(){
+  if(integrityBusy)return;
+  integrityBusy=true;
+  const btn=document.getElementById('integrity-btn');
+  if(btn){btn.disabled=true;btn.textContent='Проверка…'}
+  try{integrityIssues=checkInvariants(await integrityLoad());renderIntegrity()}
+  catch(e){toast('Проверка не удалась: '+e.message)}
+  finally{integrityBusy=false;if(btn){btn.disabled=false;btn.textContent='Проверить данные'}}
+}
+function renderIntegrity(){
+  const box=document.getElementById('integrity-results');if(!box)return;
+  const list=integrityIssues,notes=list.notes||[];
+  box.hidden=false;
+  const notesHtml=notes.length?`<div class="settings-desc" style="padding:8px 0">${notes.map(n=>'· '+escapeHtml(n)).join('<br>')}</div>`:'';
+  if(!list.length){box.innerHTML=`<div class="empty-state" style="padding:16px 0">Нарушений не найдено</div>`+notesHtml;return}
+  const cnt=s=>list.filter(x=>x.severity===s).length;
+  const head=`<div class="settings-desc" style="padding:8px 0">Найдено: ${list.length} · ошибок ${cnt('error')} · внимание ${cnt('warn')} · справка ${cnt('info')}</div>`;
+  const groups=Object.keys(INTEGRITY_CLASSES).filter(c=>list.some(x=>x.cls===c)).map(c=>{
+    const items=list.map((x,i)=>[x,i]).filter(([x])=>x.cls===c),nFix=items.filter(([x])=>x.fix).length;
+    return `<div class="task-section-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${escapeHtml(INTEGRITY_CLASSES[c])} · ${items.length}</span>${nFix>1?`<button class="settings-btn" data-cls="${escapeHtml(c)}" onclick="integrityFixClass(this.dataset.cls)">Исправить все (${nFix})</button>`:''}</div>`
+      +items.map(([x,i])=>`<div class="settings-item" style="align-items:flex-start;gap:10px"><div style="min-width:0;overflow-wrap:anywhere"><div class="settings-label">${escapeHtml(x.title)}</div><div class="settings-desc"><span${x.severity==='error'?' style="color:var(--red)"':''}>${escapeHtml(INTEGRITY_SEV[x.severity]||x.severity)}</span> · ${escapeHtml(x.detail)}</div></div>${x.fix?`<button class="settings-btn" data-i="${i}" onclick="integrityFix(+this.dataset.i)">Исправить</button>`:''}</div>`).join('');
+  }).join('');
+  box.innerHTML=head+groups+notesHtml;
+}
+function integrityFixText(f){
+  switch(f.kind){
+    case'goalSet':return`Установить накопленное в цели = ${fmtCur(f.amount)}. Ручные пополнения, если были, пропадут.`;
+    case'xpDel':return`Удалить запись опыта ${f.xpId}. Уровень может снизиться.`;
+    case'xpAdd':return`Начислить ${f.amount} XP (${f.xpId}) датой ${f.date||today()}.`;
+    case'xpSet':return`Исправить запись ${f.xpId} на ${f.amount} XP.`;
+    case'checkDel':return`Удалить отметку привычки ${f.key}.`;
+    case'debtSet':return f.close?'Закрыть рассрочку с остатком 0 и удалить её задачу-платёж.':`Установить остаток рассрочки = ${fmtCur(f.remaining)}.`;
+    case'debtTask':return'Создать задачу-платёж для рассрочки.';
+    case'taskDel':return`Удалить задачи: ${f.taskIds.length}.`;
+  }
+  return'';
+}
+// Before the first repair of the session: a snapshot, if the snapshot module is present
+async function integrityBeforeFix(){
+  if(integritySnapshotDone)return true;
+  if(typeof window.makeSnapshot==='function'){
+    try{await window.makeSnapshot('before-repair')}
+    catch(e){toast('Снимок не создан ('+e.message+'), исправление отменено');return false}
+  }
+  integritySnapshotDone=true;return true;
+}
+async function integrityDelTasks(ids){
+  await getTasks();
+  for(const id of ids){await dbDel('tasks',id);const i=tasksCache.findIndex(t=>String(t.id)===String(id));if(i>=0)tasksCache.splice(i,1)}
+}
+async function integrityApply(f){
+  if(f.kind==='goalSet'){
+    const g=(await dbAll('goals')).find(x=>String(x.id)===f.goalId);if(!g)throw new Error('цель не найдена');
+    await dbPut('goals',{...g,currentAmount:f.amount});
+  }else if(f.kind==='xpDel')await colDel('xpLog',f.xpId);
+  // written directly (not awardXp) so the entry keeps the date of the action: today() would skew the week report and cooling
+  else if(f.kind==='xpAdd')await colPut('xpLog',{id:f.xpId,date:f.date||today(),at:f.at||Date.now(),sphere:f.sphere||null,amount:f.amount,source:f.source});
+  else if(f.kind==='xpSet'){const e=(await getCol('xpLog')).find(x=>String(x.id)===f.xpId);if(e)await colPut('xpLog',{...e,amount:f.amount})}
+  else if(f.kind==='checkDel'){await dbDel('habitChecks',f.key);if(checksCache)checksCache=checksCache.filter(c=>String(c.key)!==f.key)}
+  else if(f.kind==='debtSet'){
+    const d=(await getCol('debts')).find(x=>String(x.id)===f.debtId);if(!d)throw new Error('рассрочка не найдена');
+    await colPut('debts',{...d,remaining:f.remaining,closed:!!f.close});
+    if(f.close)await integrityDelTasks((await getTasks()).filter(t=>t.debtId!=null&&String(t.debtId)===f.debtId).map(t=>t.id));
+  }else if(f.kind==='debtTask'){
+    const d=(await getCol('debts')).find(x=>String(x.id)===f.debtId);if(!d||d.closed)return;
+    await getTasks();
+    if(tasksCache.some(t=>!t.done&&t.debtId!=null&&String(t.debtId)===f.debtId))return;
+    const t={id:uid(),title:'Платёж: '+d.name,list:'money',due:nextPayDate(d.payDay),time:'10:00',repeat:{type:'monthly',day:d.payDay},done:false,doneAt:null,createdAt:Date.now(),source:'debt',debtId:d.id};
+    cachePut(tasksCache,t);await dbPut('tasks',t);
+  }else if(f.kind==='taskDel')await integrityDelTasks(f.taskIds);
+  else throw new Error('неизвестное исправление');
+}
+async function integrityFix(i){
+  const x=integrityIssues[i];if(!x||!x.fix||integrityBusy)return;
+  if(!confirm(x.title+'\n\n'+integrityFixText(x.fix)))return;
+  integrityBusy=true;
+  try{
+    if(!await integrityBeforeFix())return;
+    await integrityApply(x.fix);toast('Исправлено');
+  }catch(e){toast('Не удалось: '+e.message)}
+  finally{integrityBusy=false}
+  refreshStatusIfVisible();await runIntegrityCheck();
+}
+async function integrityFixClass(cls){
+  const xs=integrityIssues.filter(x=>x.cls===cls&&x.fix);if(!xs.length||integrityBusy)return;
+  const kinds=[...new Set(xs.map(x=>integrityFixText(x.fix)))];
+  if(!confirm(`Исправить ${xs.length} в группе «${INTEGRITY_CLASSES[cls]}»?\n\n`+kinds.slice(0,6).join('\n')+(kinds.length>6?'\n…':'')))return;
+  integrityBusy=true;let ok=0,fail=0;
+  try{
+    if(!await integrityBeforeFix())return;
+    for(const x of xs){try{await integrityApply(x.fix);ok++}catch(e){fail++;console.warn('integrity fix',x,e)}}
+    toast(`Исправлено: ${ok}`+(fail?`, не удалось: ${fail}`:''));
+  }finally{integrityBusy=false}
+  refreshStatusIfVisible();await runIntegrityCheck();
+}
 
 // ── Init ──
 async function startApp(){
