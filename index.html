@@ -859,6 +859,29 @@ function trackWrite(p){
   return p;
 }
 function commitBatch(b){trackWrite(b.commit())}
+const docRef=(s,id)=>spaceRef.collection(s).doc(encodeURIComponent(String(id)));
+function batchPut(b,s,d){b.set(spaceRef.collection(s).doc(docId(s,d)),stamped(d))}
+function batchDel(b,s,id){b.set(docRef(s,id),tombstone(s,id))}
+// goal increment only for a goal that exists (a batch update on a missing doc would fail the whole batch)
+function batchGoalInc(b,goalId,amount){
+  if(!CAT_MAP.has('goal_'+goalId))return false;
+  b.update(docRef('goals',goalId),{currentAmount:firebase.firestore.FieldValue.increment(amount),updatedAt:serverTs()});
+  return true;
+}
+function batchSetting(b,key,value){
+  batchPut(b,'settings',{key,value});
+  if(settingsCache){const i=settingsCache.findIndex(x=>x.key===key);if(i>=0)settingsCache[i]={key,value};else settingsCache.push({key,value})}
+}
+// XP entry written inside a batch; local caches + level-up notice updated right away
+async function batchXp(b,id,sphere,amount,source){
+  if(!amount)return null;
+  const before=await levelsNow(),e={id,date:today(),at:Date.now(),sphere:sphere||null,amount,source};
+  batchPut(b,'xpLog',e);
+  const arr=await getCol('xpLog'),i=arr.findIndex(x=>x.id===id);if(i>=0)arr[i]=e;else arr.push(e);
+  notifyLevelChange(before,await levelsNow());
+  return e;
+}
+function colCacheDel(name,id){const c=colCache[name];if(c&&c.data){const f=STORE_KEY_FIELD[name]||'id';c.data=c.data.filter(x=>String(x[f])!==String(id))}}
 async function dbPut(s,d){trackWrite(spaceRef.collection(s).doc(docId(s,d)).set(stamped(d)))}
 async function dbDel(s,id){trackWrite(spaceRef.collection(s).doc(encodeURIComponent(String(id))).set(tombstone(s,id)))}
 function countRead(s,n){readStats[s]=(readStats[s]||0)+n;readStats.total+=n}
@@ -1287,10 +1310,13 @@ function renderCmdBanks(){
   const el=document.getElementById('cmd-banks');if(!el)return;
   el.innerHTML=[...BANK_KEYS,'cash'].map(k=>'<button class="cmd-bank'+(k===currentBank?' on':'')+'" data-b="'+k+'" onclick="setCurrentBank(this.dataset.b)">'+escapeHtml(BANK_NAMES[k].replace(' Bank',''))+'</button>').join('');
 }
-async function saveTx(desc,amount,catId,bank){
-  const tx={id:uid(),type:currentType,amount,category:catId,description:desc,date:today(),createdAt:Date.now(),source:'manual',bank:bank||currentBank||'cash'};
-  await dbPut('transactions',tx);if(txCache)txCache.push(tx);
-  if(catId&&catId.startsWith('goal_'))await contributeToGoal(catId.slice(5),amount);
+async function saveTx(desc,amount,catId,bank,extra,batch){
+  const tx={id:uid(),type:currentType,amount,category:catId,description:desc,date:today(),createdAt:Date.now(),source:'manual',bank:bank||currentBank||'cash',...(extra||{})};
+  const b=batch||fsDb.batch();
+  batchPut(b,'transactions',tx);
+  if(catId&&catId.startsWith('goal_'))batchGoalInc(b,catId.slice(5),amount);
+  if(!batch)commitBatch(b);
+  if(txCache)txCache.push(tx);
   return tx;
 }
 
@@ -2365,7 +2391,7 @@ async function addSelectedStmt(){
   isAddingStmt=true;
   toast(`Добавляем ${toAdd.length}...`);
   try{
-    const goalAdds={};
+    const goalAdds={},seenRow={};
     for(let i=0;i<toAdd.length;i+=450){
       const chunk=toAdd.slice(i,i+450);
       const batch=fsDb.batch();
@@ -2373,7 +2399,9 @@ async function addSelectedStmt(){
         const type=item.type||'expense';
         const catId=item.cat||await classify(item.descFull||item.desc,type)||(type==='income'?'other_inc':'other_exp');
         if(item.catTouched)learnCategory(item.descFull||item.desc,catId);
-        const tx={id:uid(),type,amount:item.amount,category:catId,description:item.desc,date:item.date,createdAt:Date.now(),source:'statement'};
+        const base=(stmtBank||'csv')+'|'+item.date+'|'+type+'|'+Math.round(item.amount*100)+'|'+(item.descFull||item.desc);
+        const n=(seenRow[base]=(seenRow[base]||0)+1);
+        const tx={id:'st_'+(await sha256Hex(base+'|'+n)).slice(0,24),type,amount:item.amount,category:catId,description:item.desc,date:item.date,createdAt:Date.now(),source:'statement'};
         if(stmtBank)tx.bank=stmtBank;
         lastImport.ids.push(tx.id);
         if(catId.startsWith('goal_'))goalAdds[catId.slice(5)]=(goalAdds[catId.slice(5)]||0)+item.amount;
@@ -2424,7 +2452,12 @@ async function bankBalance(k,txs){
   const d=txs.filter(t=>t.bank===k&&t.source!=='statement'&&(byDate?t.date>sinceDay:(t.createdAt||0)>since)).reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
   return Math.round((base+d)*100)/100;
 }
-async function setBankBalance(k,v,at){await saveSetting('bal_'+k,v);await saveSetting('balAt_'+k,Math.min(at||Date.now(),Date.now()));await saveSetting('balMode_'+k,at?'date':'time')}
+async function setBankBalance(k,v,at){
+  if(!settingsCache)await getSetting('currency');
+  const b=fsDb.batch();
+  batchSetting(b,'bal_'+k,v);batchSetting(b,'balAt_'+k,Math.min(at||Date.now(),Date.now()));batchSetting(b,'balMode_'+k,at?'date':'time');
+  commitBatch(b);
+}
 // "… по 08.10.2026" / "с 10.10.2026 по 17.10.2026" / "по 15.10.25" → end of that day (ms); manual entries made later are added on top
 function statementPeriodEnd(text){
   const m=String(text||'').match(/по\s+(\d{2})\.(\d{2})\.(\d{2,4})/i);
@@ -2576,7 +2609,7 @@ async function completeTask(id,opts){
 async function completeTaskInner(id,opts){
   await Promise.all([getTasks(),getTaskLog()]);
   const t=tasksCache.find(x=>x.id===id);if(!t||t.done)return;
-  const log={id:uid(),taskId:t.id,title:t.title,list:t.list,date:today(),at:Date.now()};
+  const log={id:uid(),taskId:t.id,title:t.title,list:t.list,date:today(),at:Date.now(),xp:opts&&opts.noXp?0:(t.xp!=null?t.xp:20),noXp:!!(opts&&opts.noXp)};
   const nd=t.repeat?nextDue(t):null;
   const upd={...t};
   if(nd)upd.due=nd;else{upd.done=true;upd.doneAt=Date.now()}
@@ -3156,7 +3189,7 @@ async function saveDebt(){
   const g=id=>document.getElementById(id).value;
   const name=g('dbt-name').trim(),total=parseFloat(g('dbt-total')),remaining=parseFloat(g('dbt-remaining')),monthly=parseFloat(g('dbt-monthly')),payDay=parseInt(g('dbt-day'),10);
   if(!name||!(total>0)||!(remaining>=0)||!(monthly>0)||!(payDay>=1&&payDay<=31))return toast('Заполните все поля корректно');
-  const d={id:uid(),name,bank:g('dbt-bank'),total,remaining,monthly,payDay,createdAt:Date.now(),closed:false};
+  const d={id:uid(),name,bank:g('dbt-bank'),total,remaining,remaining0:remaining,monthly,payDay,createdAt:Date.now(),closed:false};
   await colPut('debts',d);
   const t={id:uid(),title:'Платёж: '+name,list:'money',due:nextPayDate(payDay),time:'10:00',repeat:{type:'monthly',day:payDay},done:false,doneAt:null,createdAt:Date.now(),source:'debt',debtId:d.id};
   await getTasks();cachePut(tasksCache,t);await dbPut('tasks',t);
@@ -3178,23 +3211,28 @@ taskCompleteHooks.push(async(t,log)=>{
   const pay=Math.min(d.monthly,d.remaining),prev={...d};
   currentType='expense';
   const dbank=({kaspi:'kaspi',halyk:'halyk',forte:'forte',freedom:'freedom'})[String(d.bank||'').toLowerCase()]||currentBank;
-  const tx=await saveTx('Рассрочка: '+d.name,pay,'debts',dbank);
-  const upd={...d,remaining:d.remaining-pay};
-  const closing=upd.remaining<=0;
-  if(closing){upd.remaining=0;upd.closed=true}
-  await colPut('debts',upd);
-  await awardXp('debt_'+log.id,'money',30,'debt');
+  const b=fsDb.batch();
+  const tx=await saveTx('Рассрочка: '+d.name,pay,'debts',dbank,{debtId:d.id,logId:log.id},b);
+  const closing=d.remaining-pay<=0;
+  // remaining0 = остаток на момент начала учёта платежей с debtId (для проверки данных)
+  const upd={...d,remaining:closing?0:d.remaining-pay,closed:closing||d.closed,remaining0:d.remaining0!=null?d.remaining0:d.remaining};
+  b.set(docRef('debts',d.id),{remaining:closing?0:firebase.firestore.FieldValue.increment(-pay),closed:upd.closed,remaining0:upd.remaining0,updatedAt:serverTs()},{merge:true});
+  await batchXp(b,'debt_'+log.id,'money',30,'debt');
   let removed=null;
-  if(closing){
-    removed=tasksCache.find(x=>x.id===t.id)||null;
-    await dbDel('tasks',t.id);
-    const i=tasksCache.findIndex(x=>x.id===t.id);if(i>=0)tasksCache.splice(i,1);
-    renderTasks();
-  }
+  if(closing){removed=tasksCache.find(x=>x.id===t.id)||null;batchDel(b,'tasks',t.id)}
+  commitBatch(b);
+  const arr=await getCol('debts'),k=arr.findIndex(x=>x.id===d.id);if(k>=0)arr[k]=upd;
+  if(closing){const i=tasksCache.findIndex(x=>x.id===t.id);if(i>=0)tasksCache.splice(i,1);renderTasks()}
+  refreshStatusIfVisible();
   return async()=>{
-    await dbDel('transactions',tx.id);dirtyTx();
-    await colPut('debts',prev);await revokeXp('debt_'+log.id);
-    if(removed){cachePut(tasksCache,removed);await dbPut('tasks',removed)}
+    const u=fsDb.batch();
+    batchDel(u,'transactions',tx.id);txCacheRemove(tx.id);
+    u.set(docRef('debts',d.id),{remaining:closing?prev.remaining:firebase.firestore.FieldValue.increment(pay),closed:prev.closed,remaining0:upd.remaining0,updatedAt:serverTs()},{merge:true});
+    batchDel(u,'xpLog','debt_'+log.id);colCacheDel('xpLog','debt_'+log.id);
+    if(removed){cachePut(tasksCache,removed);batchPut(u,'tasks',removed)}
+    commitBatch(u);
+    const a2=await getCol('debts'),k2=a2.findIndex(x=>x.id===d.id);if(k2>=0)a2[k2]={...prev,remaining0:upd.remaining0};
+    refreshStatusIfVisible();
   };
 });
 
@@ -3260,12 +3298,15 @@ async function allocPreview(){
 }
 async function allocConfirm(){
   const p=allocPlanState;if(!p)return;allocPlanState=null;
-  const a={id:uid(),date:today(),salary:p.S,parts:p.parts.map(x=>({label:x.label,amount:x.amount}))};
-  for(const x of p.parts)if(x.kind==='goal'&&x.amount>0)await contributeToGoal(x.goalId,x.amount);
+  const a={id:uid(),date:today(),salary:p.S,parts:p.parts.map(x=>({label:x.label,amount:x.amount,kind:x.kind||null,goalId:x.goalId||null}))};
+  const b=fsDb.batch();
+  for(const x of p.parts)if(x.kind==='goal'&&x.amount>0)batchGoalInc(b,x.goalId,x.amount);
   const life=p.parts.find(x=>x.kind==='life');
-  if(life&&life.amount>0)await dbPut('budgets',{key:'general',limit:life.amount});
-  await colPut('allocations',a);
-  await awardXp('alloc_'+a.id,'money',30,'allocation');
+  if(life&&life.amount>0)batchPut(b,'budgets',{key:'general',limit:life.amount});
+  batchPut(b,'allocations',a);
+  await batchXp(b,'alloc_'+a.id,'money',30,'allocation');
+  commitBatch(b);
+  const al=await getCol('allocations');al.push(a);
   await getTasks();
   const st=tasksCache.find(t=>!t.done&&t.title==='Распределить зарплату');
   if(st)await completeTask(st.id,{noXp:true});
