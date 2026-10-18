@@ -119,7 +119,7 @@ ok(tx.date==='2026-10-16'&&tx.bank==='freedom'&&tx.type==='expense'&&tx.createdA
 const tx2=await M.saveTx('кофе',300,'food');
 ok(tx2.date===T0,'27 no extra → today');
 // manual snapshot (time mode) taken today: an entry dated before the snapshot day was already inside the real balance — only today's 300 counts
-ctx.settings={bal_freedom:10000,balAt_freedom:before-1000};
+ctx.settings={bal_freedom:10000,balAt_freedom:new Date(T0+'T00:00:01').getTime()}; // snapshot on the test's own «today», independent of the real clock
 ok(await M.bankBalance('freedom',[tx,tx2])===9700,'28 time-mode snapshot: entry dated before the snapshot day is not subtracted again',await M.bankBalance('freedom',[tx,tx2]));
 // statement snapshot (date mode) up to 16.10: the back-dated 16.10 entry is already inside the statement
 ctx.settings={bal_freedom:10000,balAt_freedom:new Date(2026,9,16,23,59,59).getTime(),balMode_freedom:'date'};
