@@ -530,3 +530,33 @@ button.calendar-day{border:0;background:none;font:inherit;font-size:13px;color:v
 button.calendar-day::before{content:'';position:absolute;inset:-2px}
 .stmt-upload:focus-visible,[role=button]:focus-visible{outline:1px solid var(--bone);outline-offset:3px}
 .task-row[role=button]{border-radius:var(--radius-sm)}
+
+/* Тело · карта мышц (B1) */
+.body-seg{display:flex;border:1px solid var(--line-2);border-radius:999px;overflow:hidden;margin:0 0 14px}
+.body-seg button{flex:1;background:none;border:none;color:var(--fog);font:500 14px var(--font-text);min-height:44px;cursor:pointer}
+.body-seg button.on{background:var(--bone);color:#000}
+.body-map-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--fog)}
+.body-map-head .cmd-hint{letter-spacing:0;text-transform:none}
+.body-figs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 6px}
+.body-fig{width:100%;height:auto;max-height:340px;display:block}
+.body-fig .head{fill:none;stroke:var(--line-2);stroke-width:1}
+.mus{fill:var(--body);fill-opacity:var(--a,0);stroke:var(--line-2);stroke-width:.8;cursor:pointer;transition:fill-opacity var(--t-base) var(--ease-out),stroke var(--t-fast)}
+.mus:hover,.mus:focus{stroke:var(--bone);outline:none}
+.mus.sel{stroke:var(--bone);stroke-width:1.6}
+.mus.rest{stroke:var(--body);stroke-width:1.4;animation:mus-pulse 1.8s ease-in-out infinite}
+.mus.stale{stroke-dasharray:3 3}
+@keyframes mus-pulse{50%{stroke-opacity:.35}}
+.body-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--fog)}
+.body-legend span{display:flex;align-items:center;gap:6px}
+.body-legend i{display:inline-block;width:12px;height:12px;border:1px solid var(--line-2)}
+.body-legend .lg-load{background:var(--body);opacity:.7}
+.body-legend .lg-rest{border-color:var(--body)}
+.body-legend .lg-stale{border-style:dashed}
+.mus-detail .mus-row{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--line);font-size:14px}
+.mus-detail .mus-row span{color:var(--fog)}
+.mus-ex{margin-top:8px;font-size:13px;color:var(--bone)}
+.mus-ex div{padding:4px 0}
+.mus-ex span{color:var(--fog)}
+.mus-line{display:flex;justify-content:space-between;width:100%;background:none;border:none;border-top:1px solid var(--line);color:var(--bone);font:14px var(--font-text);padding:10px 0;min-height:44px;cursor:pointer;text-align:left}
+.mus-line b{color:var(--fog);font-weight:500}
+@media (prefers-reduced-motion:reduce){.mus.rest{animation:none}}

@@ -4661,12 +4661,160 @@ function wkStaleHtml(w){
     <button class="save-btn neutral" data-w="${id}" onclick="dropWorkout(this.dataset.w)">Отменить её</button></div>`;
 }
 let bodyDrawn=false;
+// ── Body 2.0 · B1: muscle map ──
+// Muscles worked per exercise: primary counts 1 set, secondary 0.5 (SPEC_body §2)
+const MUSCLES={
+  neck:{name:'Шея',side:'both'},traps:{name:'Трапеции',side:'both'},shoulders:{name:'Плечи',side:'front'},rearDelts:{name:'Задняя дельта',side:'back'},
+  chest:{name:'Грудь',side:'front'},lats:{name:'Широчайшие',side:'back'},midBack:{name:'Середина спины',side:'back'},lowerBack:{name:'Поясница',side:'back'},
+  biceps:{name:'Бицепс',side:'front'},triceps:{name:'Трицепс',side:'back'},forearms:{name:'Предплечья',side:'both'},
+  abs:{name:'Пресс',side:'front'},obliques:{name:'Косые',side:'front'},glutes:{name:'Ягодицы',side:'back'},
+  quads:{name:'Квадрицепсы',side:'front'},hamstrings:{name:'Бицепс бедра',side:'back'},calves:{name:'Икры',side:'both'}
+};
+const EXERCISE_MUSCLES={
+  squat:{p:['quads','glutes'],s:['hamstrings','lowerBack','abs']},
+  bench:{p:['chest'],s:['triceps','shoulders']},
+  bbrow:{p:['lats','midBack'],s:['biceps','rearDelts','lowerBack']},
+  dbpress:{p:['shoulders'],s:['triceps']},
+  abs:{p:['abs'],s:[]},
+  rdl:{p:['hamstrings','glutes'],s:['lowerBack','forearms']},
+  incline:{p:['chest'],s:['shoulders','triceps']},
+  pullup:{p:['lats'],s:['biceps','forearms']},
+  lunge:{p:['quads','glutes'],s:['hamstrings']},
+  arms:{p:['biceps','triceps'],s:['forearms']},
+  legpress:{p:['quads'],s:['glutes']},
+  ohp:{p:['shoulders'],s:['triceps','abs','traps']},
+  dbrow:{p:['lats'],s:['biceps','midBack']},
+  dips:{p:['triceps','chest'],s:['shoulders']},
+  plank:{p:['abs'],s:['lowerBack','obliques']}
+};
+// unknown exercise (custom plan): guess by name, else the plan may carry ex.muscles = {p:[…], s:[…]}
+const MUSCLE_WORDS=[[/присед|squat/i,'squat'],[/жим.*лёж|жим.*леж|bench/i,'bench'],[/наклон/i,'incline'],[/тяга.*наклон|row/i,'bbrow'],[/румын|становая|rdl|deadlift/i,'rdl'],[/подтяг|блок|pull/i,'pullup'],[/выпад|lunge/i,'lunge'],[/жим ног|leg press/i,'legpress'],[/жим.*сто|армейск|ohp/i,'ohp'],[/брус|dips/i,'dips'],[/планк|plank/i,'plank'],[/пресс|скручив/i,'abs'],[/бицепс|трицепс/i,'arms'],[/гантел.*сид/i,'dbpress']];
+const CALF_NECK_WORDS=[[/икр|носк|calf/i,{p:['calves'],s:[]}],[/шея|шеи|neck/i,{p:['neck'],s:['traps']}],[/шраг|трапец|shrug/i,{p:['traps'],s:['forearms']}],[/косы|русск|скруч.*бок/i,{p:['obliques'],s:['abs']}]];
+function exerciseMuscles(ex){
+  if(!ex)return{p:[],s:[]};
+  if(ex.muscles&&(ex.muscles.p||ex.muscles.s))return{p:ex.muscles.p||[],s:ex.muscles.s||[]};
+  if(EXERCISE_MUSCLES[ex.id])return EXERCISE_MUSCLES[ex.id];
+  for(const[re,m]of CALF_NECK_WORDS)if(re.test(ex.name||''))return m;
+  for(const[re,id]of MUSCLE_WORDS)if(re.test(ex.name||''))return EXERCISE_MUSCLES[id];
+  return{p:[],s:[]};
+}
+// working sets per muscle between two dates (inclusive), done workouts only; a set counts if it has reps > 0
+function muscleLoad(workouts,plans,from,to){
+  const load={};Object.keys(MUSCLES).forEach(m=>load[m]=0);
+  for(const w of workouts||[]){
+    if(!w.done||w.kind==='combat'||w.date<from||w.date>to)continue;
+    const plan=(plans||[]).find(p=>p.id===w.planId);
+    for(const en of w.entries||[]){
+      const ex=plan&&plan.exercises.find(x=>x.id===en.exId)||{id:en.exId,name:''};
+      const sets=(en.reps||[]).filter(r=>r!=null&&r>0).length;if(!sets)continue;
+      const mm=exerciseMuscles(ex);
+      mm.p.forEach(m=>{if(m in load)load[m]+=sets});mm.s.forEach(m=>{if(m in load)load[m]+=sets*0.5});
+    }
+  }
+  return load;
+}
+// last time each muscle worked (ms) → state: rest (<48 h), ready (48 h … 7 d), stale (> 7 d), none
+function muscleRecovery(workouts,plans,now){
+  const last={};
+  for(const w of workouts||[]){
+    if(!w.done||w.kind==='combat')continue;
+    const plan=(plans||[]).find(p=>p.id===w.planId),at=w.at||parseLocalDate(w.date).getTime();
+    for(const en of w.entries||[]){
+      if(!(en.reps||[]).some(r=>r!=null&&r>0))continue;
+      const ex=plan&&plan.exercises.find(x=>x.id===en.exId)||{id:en.exId,name:''},mm=exerciseMuscles(ex);
+      mm.p.concat(mm.s).forEach(m=>{if(!last[m]||at>last[m])last[m]=at});
+    }
+  }
+  const out={};
+  Object.keys(MUSCLES).forEach(m=>{
+    const t=last[m];if(!t){out[m]={state:'none',last:null};return}
+    const hrs=(now-t)/3600000;
+    out[m]={state:hrs<48?'rest':hrs<=168?'ready':'stale',last:t,hours:hrs};
+  });
+  return out;
+}
+const WEEKLY_SETS_TARGET=[10,20];
+function muscleVerdict(sets){return sets<WEEKLY_SETS_TARGET[0]?'low':sets<=WEEKLY_SETS_TARGET[1]?'ok':'high'}
+
+// Faceted silhouette (own drawing, HUD style). Left-side polygons; the right side is mirrored around x=100.
+const BODY_SHAPES={
+  front:{
+    neck:[[92,44,108,44,110,56,90,56]],traps:[[90,56,110,56,124,63,76,63]],
+    shoulders:[[74,64,58,70,52,92,64,96,70,78]],chest:[[70,78,100,74,100,108,74,106,64,96]],
+    biceps:[[52,95,64,99,62,140,48,136]],forearms:[[48,140,62,144,58,192,44,188]],
+    abs:[[88,110,100,110,100,176,86,176]],obliques:[[74,108,88,110,86,176,77,168,70,132]],
+    quads:[[78,184,99,186,97,282,81,282,72,232]],calves:[[81,292,96,292,94,370,85,370]]
+  },
+  back:{
+    neck:[[92,44,108,44,110,56,90,56]],traps:[[90,56,110,56,132,66,112,96,100,104,88,96,68,66]],
+    rearDelts:[[68,66,55,72,51,92,64,95]],triceps:[[51,95,64,98,62,140,48,136]],forearms:[[48,140,62,144,58,192,44,188]],
+    lats:[[66,96,88,98,96,152,80,160,70,130]],midBack:[[88,98,100,106,100,148,96,152]],lowerBack:[[82,160,100,160,100,184,84,184]],
+    glutes:[[80,186,100,188,100,226,78,224]],hamstrings:[[78,228,99,230,97,284,80,284]],calves:[[80,292,96,292,98,340,92,372,84,372,78,336]]
+  }
+};
+const MIRROR_SKIP=new Set(['neck','traps']); // shapes already drawn across the midline
+function bodyPolys(side){
+  const out=[];
+  for(const[m,polys]of Object.entries(BODY_SHAPES[side]))for(const pts of polys){
+    out.push({m,pts});
+    if(!MIRROR_SKIP.has(m))out.push({m,pts:pts.map((v,i)=>i%2===0?200-v:v)});
+  }
+  return out;
+}
+let bodySeg='workout',bodyMuscleSel=null;
+function setBodySeg(s){bodySeg=s==='map'?'map':'workout';renderBody()}
+function bodySegHtml(){
+  return `<div class="seg body-seg" role="tablist" aria-label="Раздел">${[['workout','Тренировка'],['map','Карта']].map(([k,l])=>`<button type="button" role="tab" aria-selected="${bodySeg===k}" class="${bodySeg===k?'on':''}" data-s="${k}" onclick="setBodySeg(this.dataset.s)">${l}</button>`).join('')}</div>`;
+}
+function bodyFigureSvg(side,load,rec){
+  const polys=bodyPolys(side).map(({m,pts})=>{
+    const sets=load[m]||0,a=sets>0?Math.min(1,sets/WEEKLY_SETS_TARGET[1]):0,st=rec[m]?rec[m].state:'none';
+    return `<polygon data-m="${m}" points="${pts.join(' ')}" class="mus ${st}${bodyMuscleSel===m?' sel':''}" style="--a:${(a*0.85+(sets>0?0.12:0)).toFixed(2)}" tabindex="0" role="button" aria-label="${escapeHtml(MUSCLES[m].name)}: ${fmtNum(Math.round(sets*10)/10)} подходов за неделю"></polygon>`;
+  }).join('');
+  return `<svg class="body-fig" viewBox="40 16 120 364" aria-label="${side==='front'?'Спереди':'Сзади'}"><circle cx="100" cy="28" r="14" class="head"/>${polys}</svg>`;
+}
+function renderBodyMap(){
+  const root=document.getElementById('body-root');if(!root)return;
+  const t=today(),from=addDays(t,-6),plans=wcol('workoutPlans'),wos=wcol('workouts');
+  const load=muscleLoad(wos,plans,from,t),rec=muscleRecovery(wos,plans,Date.now());
+  const anyData=wos.some(w=>w.done);
+  const lagging=Object.keys(MUSCLES).filter(m=>load[m]<WEEKLY_SETS_TARGET[0]).sort((a,b)=>load[a]-load[b]);
+  const resting=Object.keys(MUSCLES).filter(m=>rec[m].state==='rest');
+  const fmtSets=n=>fmtNum(Math.round(n*10)/10);
+  let detail='';
+  if(bodyMuscleSel&&MUSCLES[bodyMuscleSel]){
+    const m=bodyMuscleSel,r=rec[m],sets=load[m],v=muscleVerdict(sets);
+    const exs=plans.flatMap(p=>p.exercises.map(ex=>({p,ex,mm:exerciseMuscles(ex)}))).filter(x=>x.mm.p.includes(m)||x.mm.s.includes(m));
+    const ago=r.last?(r.hours<24?'сегодня':nWord(Math.floor(r.hours/24),['день','дня','дней'])+' назад'):'ещё не работала';
+    detail=`<div class="card mus-detail"><div class="card-title">${escapeHtml(MUSCLES[m].name)}</div>
+      <div class="mus-row"><span>За 7 дней</span><b>${fmtSets(sets)} / ${WEEKLY_SETS_TARGET[0]}–${WEEKLY_SETS_TARGET[1]} подходов</b></div>
+      <div class="mus-row"><span>Оценка</span><b>${v==='low'?'мало':v==='ok'?'в норме':'много'}</b></div>
+      <div class="mus-row"><span>Последний раз</span><b>${escapeHtml(ago)}${r.state==='rest'?' · восстанавливается':''}</b></div>
+      <div class="mus-ex">${exs.length?exs.map(x=>`<div>${escapeHtml(x.ex.name)} <span>· ${escapeHtml(x.p.name)}${x.mm.p.includes(m)?'':' · вспомогательная'}</span></div>`).join(''):'<div>В планах нет упражнений на эту мышцу</div>'}</div></div>`;
+  }
+  root.innerHTML=`<div class="header"><h1>Тело</h1></div>${bodySegHtml()}
+    <div class="card body-map-card"><div class="body-map-head"><span>Нагрузка за 7 дней</span><span class="cmd-hint">цель ${WEEKLY_SETS_TARGET[0]}–${WEEKLY_SETS_TARGET[1]} подходов на мышцу</span></div>
+      <div class="body-figs">${bodyFigureSvg('front',load,rec)}${bodyFigureSvg('back',load,rec)}</div>
+      <div class="body-legend"><span><i class="lg-load"></i>подходы</span><span><i class="lg-rest"></i>восстанавливается</span><span><i class="lg-stale"></i>давно не работала</span></div>
+      ${anyData?'':'<div class="cmd-hint" style="margin-top:8px">Заверши первую тренировку — карта заполнится.</div>'}
+    </div>
+    ${detail}
+    <div class="card"><div class="card-title">Отстают</div>${lagging.length?lagging.map(m=>`<button type="button" class="mus-line" data-m="${m}" onclick="selectMuscle(this.dataset.m)"><span>${escapeHtml(MUSCLES[m].name)}</span><b>${fmtSets(load[m])} / ${WEEKLY_SETS_TARGET[0]}</b></button>`).join(''):'<div class="cmd-hint">Все мышцы в норме за неделю</div>'}</div>
+    ${resting.length?`<div class="card"><div class="card-title">Восстанавливаются</div><div class="cmd-hint">${resting.map(m=>escapeHtml(MUSCLES[m].name)).join(', ')} — лучше дать им 48 ч</div></div>`:''}`;
+  root.querySelectorAll('polygon.mus').forEach(p=>{
+    p.addEventListener('click',()=>selectMuscle(p.dataset.m));
+    p.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();selectMuscle(p.dataset.m)}});
+  });
+}
+function selectMuscle(m){bodyMuscleSel=bodyMuscleSel===m?null:m;renderBodyMap();const d=document.querySelector('.mus-detail');if(d&&d.scrollIntoView)d.scrollIntoView({block:'nearest',behavior:fxRM()?'auto':'smooth'})}
+
 function renderBody(keepFocus){
+  if(bodySeg==='map'){renderBodyMap();return}
   const root=document.getElementById('body-root');if(!root)return;
   const act=document.activeElement&&document.activeElement.dataset&&document.activeElement.dataset.k,
         selS=document.activeElement&&document.activeElement.selectionStart;
   const bw=wcol('bodyWeights').slice().sort((a,b)=>a.date.localeCompare(b.date)),lastBw=bw[bw.length-1];
-  let html='<div class="header"><h1>Тело</h1></div>';
+  let html='<div class="header"><h1>Тело</h1></div>'+bodySegHtml();
   const plan=wk&&planById(wk.planId);
   if(wk&&!(plan&&plan.exercises&&plan.exercises.length)){
     html+=`<div class="card"><div class="card-title">Тренировка</div><div class="cmd-hint">План этой тренировки не найден</div></div>
