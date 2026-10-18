@@ -768,6 +768,7 @@ const ICON_PATHS={
   calendar:'<rect x="3" y="4.5" width="18" height="17" rx="2"/><path d="M16 2.5v4M8 2.5v4M3 10h18"/>',
   doc:'<path d="M14 2.5H7a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 2.5V8h5"/>',
   card:'<rect x="2" y="5" width="20" height="14" rx="2.2"/><path d="M2 10h20"/>',
+  lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   bank:'<path d="M3 10 12 3.5 21 10"/><path d="M5 10v9M10 10v9M14 10v9M19 10v9"/><path d="M3 21h18"/>',
   wallet:'<path d="M20 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/><path d="M20 7V5.5A1.5 1.5 0 0 0 18.5 4H6"/><circle cx="17" cy="13.5" r="1.3" fill="currentColor" stroke="none"/>',
   bars:'<path d="M4 20V10M12 20V4M20 20v-7"/>',
@@ -3593,7 +3594,7 @@ async function toggleHabitInner(hid,el){
       await awardXp('habit_'+key,hab&&hab.sphere,20,'habit');
       // unchecked again while the XP was being written → take the XP back
       if(!checksCache.some(x=>x.key===key))await revokeXp('habit_'+key);
-      checkAchievements();
+      checkAchievements();checkSkills();
     }
   }catch(err){toast('Не сохранилось. '+errText(err));dirtyTasks();refreshTasks()}
 }
@@ -4623,6 +4624,7 @@ async function finishWorkout(){
   w.done=true;w.at=Date.now();await colPut('workouts',w);
   if(w.taskId){await getTasks();if(tasksCache.some(t=>t.id===w.taskId&&!t.done))await completeTask(w.taskId,{noXp:true})}
   const xe=await awardXp('workout_'+w.id,'body',60,'workout');
+  checkSkills();
   checkAchievements();
   const plan=planById(w.planId);
   wkSummary={...s,plan:plan?plan.name:'',xp:xe&&typeof xe.amount==='number'?xe.amount:60};
@@ -4637,7 +4639,7 @@ async function saveBodyWeight(){
   const kg=parseFloat(String(document.getElementById('bw-input').value).replace(',','.'));
   if(!(kg>20&&kg<400))return toast('Введи вес в кг — от 20 до 400');
   await colPut('bodyWeights',{key:today(),date:today(),kg});
-  toast('Вес записан: '+fmtNum(kg)+' кг');renderBody();
+  toast('Вес записан: '+fmtNum(kg)+' кг');renderBody();checkSkills();
 }
 function sparkline(points,goal){
   if(points.length<1)return '<div class="cmd-hint">Записей веса пока нет</div>';
@@ -4761,10 +4763,142 @@ function bodyPolys(side){
   }
   return out;
 }
+// ── Body 2.0 · B2: skill tree («Путь») ──
+// Generic: nodes with prerequisites and a data-driven criterion; reused later for DFIR (N12).
+// A node is locked (parents not done) → open → done (date saved in settings/skillProgress, XP skill_<id>).
+const MAJOR_MUSCLES=['chest','lats','quads','hamstrings','glutes','shoulders'];
+const SKILL_TREES={body:[
+  // Сила — relative to body weight (average of the last 7 weigh-ins)
+  {id:'s_sq1',branch:'Сила',title:'Присед 1× вес тела',c:{type:'lift',ex:'squat',ratio:1,reps:5},xp:50,hint:'Рабочий вес в приседе на 5 повторов, равный твоему весу.'},
+  {id:'s_sq2',branch:'Сила',title:'Присед 1,25×',requires:['s_sq1'],c:{type:'lift',ex:'squat',ratio:1.25,reps:5},xp:100},
+  {id:'s_sq3',branch:'Сила',title:'Присед 1,5×',requires:['s_sq2'],c:{type:'lift',ex:'squat',ratio:1.5,reps:5},xp:150},
+  {id:'s_bp1',branch:'Сила',title:'Жим лёжа 0,75×',c:{type:'lift',ex:'bench',ratio:0.75,reps:5},xp:50},
+  {id:'s_bp2',branch:'Сила',title:'Жим лёжа 1×',requires:['s_bp1'],c:{type:'lift',ex:'bench',ratio:1,reps:5},xp:100},
+  {id:'s_pu1',branch:'Сила',title:'Подтягивания 5',c:{type:'reps',ex:'pullup',reps:5},xp:50,hint:'Пять чистых подтягиваний в одном подходе (без верхнего блока).'},
+  {id:'s_pu2',branch:'Сила',title:'Подтягивания 10',requires:['s_pu1'],c:{type:'reps',ex:'pullup',reps:10},xp:100},
+  {id:'s_rdl1',branch:'Сила',title:'Румынская тяга 1×',c:{type:'lift',ex:'rdl',ratio:1,reps:5},xp:50},
+  {id:'s_rdl2',branch:'Сила',title:'Румынская тяга 1,25×',requires:['s_rdl1'],c:{type:'lift',ex:'rdl',ratio:1.25,reps:5},xp:100},
+  {id:'s_ohp1',branch:'Сила',title:'Жим стоя 0,5×',c:{type:'lift',ex:'ohp',ratio:0.5,reps:5},xp:50},
+  {id:'s_ohp2',branch:'Сила',title:'Жим стоя 0,65×',requires:['s_ohp1'],c:{type:'lift',ex:'ohp',ratio:0.65,reps:5},xp:100},
+  // Масса
+  {id:'m_w12',branch:'Масса',title:'12 тренировок',c:{type:'workouts',n:12},xp:50,hint:'Месяц по 3 тренировки — привычка закреплена.'},
+  {id:'m_w36',branch:'Масса',title:'36 тренировок',requires:['m_w12'],c:{type:'workouts',n:36},xp:150},
+  {id:'m_kg2',branch:'Масса',title:'+2 кг',c:{type:'gain',kg:2},xp:50,hint:'Средний вес за 7 взвешиваний выше стартового на 2 кг.'},
+  {id:'m_kg4',branch:'Масса',title:'+4 кг',requires:['m_kg2'],c:{type:'gain',kg:4},xp:100},
+  {id:'m_goal',branch:'Масса',title:'Цель по весу',requires:['m_kg4'],c:{type:'goalWeight'},xp:200,hint:'Средний вес достиг цели фазы «Масса».'},
+  {id:'m_pr30',branch:'Масса',title:'Белок 30 дней подряд',c:{type:'habitStreak',habit:/белок/i,days:30},xp:50},
+  {id:'m_pr60',branch:'Масса',title:'Белок 60 дней подряд',requires:['m_pr30'],c:{type:'habitStreak',habit:/белок/i,days:60},xp:100},
+  {id:'m_vol',branch:'Масса',title:'Объём 4 недели',c:{type:'volume',sets:10,weeks:4},xp:150,hint:'4 недели подряд каждая крупная мышца (грудь, широчайшие, квадрицепсы, бицепс бедра, ягодицы, плечи) получает ≥ 10 подходов.'},
+  // Единоборства — gate only (opens in the «Подготовка» phase, B4/B5)
+  {id:'c_gate',branch:'Единоборства',title:'Ворота готовности',requires:['s_sq1','s_bp1','s_pu1','m_goal'],c:{type:'later'},xp:0,hint:'База силы и цель по весу — затем фаза «Подготовка»: бег, интервалы, мобильность.'}
+]};
+const BODY_GOAL_KG=75;
+function avgBodyWeight(bodyWeights,n){
+  const bw=(bodyWeights||[]).filter(x=>x.kg>0).slice().sort((a,b)=>a.date.localeCompare(b.date)).slice(-(n||7));
+  return bw.length?bw.reduce((s,x)=>s+x.kg,0)/bw.length:null;
+}
+function bestStreak(dates){
+  const ds=[...new Set(dates)].sort();let best=0,cur=0,prev=null;
+  for(const d of ds){cur=prev&&daysBetween(prev,d)===1?cur+1:1;best=Math.max(best,cur);prev=d}
+  return best;
+}
+// best weight lifted for at least `reps` reps in one set / best reps in one set
+function liftBest(workouts,exId,reps){
+  let w=0;for(const wo of workouts||[]){if(!wo.done)continue;for(const en of wo.entries||[])if(en.exId===exId&&en.weight>0&&(en.reps||[]).some(r=>r>=reps))w=Math.max(w,en.weight)}
+  return w;
+}
+function repsBest(workouts,exId){
+  let r=0;for(const wo of workouts||[]){if(!wo.done)continue;for(const en of wo.entries||[])if(en.exId===exId)(en.reps||[]).forEach(x=>{if(x>r)r=x})}
+  return r;
+}
+function volumeWeeks(workouts,plans,sets,today_){
+  // consecutive full weeks (Mon–Sun) ending with the last completed week (or the current one if it already passes)
+  let streak=0,ws=weekStart(today_);
+  const pass=(from,to)=>{const L=muscleLoad(workouts,plans,from,to);return MAJOR_MUSCLES.every(m=>L[m]>=sets)};
+  if(pass(ws,addDays(ws,6)))streak++;
+  for(let i=1;i<=60;i++){const s=addDays(ws,-7*i);if(pass(s,addDays(s,6)))streak++;else break}
+  return streak;
+}
+// data: {workouts, plans, bodyWeights, habits, checks, profile:{startKg,goalKg}, done:{id:date}, today}
+// → {id:{state:'locked'|'open'|'done', value, target, label, pct, met}}
+function evaluateSkillTree(tree,data){
+  const out={},bw=avgBodyWeight(data.bodyWeights,7),prof=data.profile||{};
+  const firstKg=prof.startKg||((data.bodyWeights||[]).slice().sort((a,b)=>a.date.localeCompare(b.date))[0]||{}).kg||null;
+  const goal=prof.goalKg||BODY_GOAL_KG,fmt1=v=>fmtNum(Math.round(v*10)/10);
+  for(const n of tree){
+    const c=n.c;let value=null,target=null,label='',met=false;
+    if(c.type==='lift'){
+      const best=liftBest(data.workouts,c.ex,c.reps);
+      if(bw){target=Math.round(bw*c.ratio*2)/2;value=best;met=best>=target;label=`${fmt1(best)} / ${fmt1(target)} кг × ${c.reps}`}
+      else label='нужен вес тела — взвесься';
+    }else if(c.type==='reps'){value=repsBest(data.workouts,c.ex);target=c.reps;met=value>=target;label=`${value} / ${target} повторов`}
+    else if(c.type==='workouts'){value=(data.workouts||[]).filter(w=>w.done&&w.kind!=='combat').length;target=c.n;met=value>=target;label=`${value} / ${target}`}
+    else if(c.type==='gain'){
+      if(bw&&firstKg){value=bw-firstKg;target=c.kg;met=value>=target;label=`${value>=0?'+':''}${fmt1(value)} / +${c.kg} кг`}else label='нужны взвешивания';
+    }else if(c.type==='goalWeight'){if(bw){value=bw;target=goal;met=bw>=goal;label=`${fmt1(bw)} / ${goal} кг`}else label='нужны взвешивания'}
+    else if(c.type==='habitStreak'){
+      const hab=(data.habits||[]).find(x=>c.habit.test(x.name||''));
+      value=hab?bestStreak((data.checks||[]).filter(k=>k.habitId===hab.id).map(k=>k.date)):0;target=c.days;met=value>=target;
+      label=hab?`${value} / ${target} дней`:'нет привычки «Белок»';
+    }else if(c.type==='volume'){value=volumeWeeks(data.workouts,data.plans,c.sets,data.today);target=c.weeks;met=value>=target;label=`${value} / ${target} недель`}
+    else if(c.type==='later'){label='откроется в фазе «Подготовка»'}
+    const reqOk=(n.requires||[]).every(r=>data.done[r]||(out[r]&&out[r].state==='done'));
+    const state=data.done[n.id]?'done':(!reqOk?'locked':(met&&c.type!=='later'?'done':'open'));
+    const pct=target?Math.max(0,Math.min(1,(value||0)/target)):0;
+    out[n.id]={state,value,target,label,pct,met,newly:state==='done'&&!data.done[n.id]};
+  }
+  return out;
+}
+let skillBusy=false;
+async function skillData(){
+  await Promise.all([getCol('workouts'),getCol('workoutPlans'),getCol('bodyWeights'),getHabits(),getChecks()]);
+  return{workouts:wcol('workouts'),plans:wcol('workoutPlans'),bodyWeights:wcol('bodyWeights'),habits:habitsCache||[],checks:checksCache||[],
+    profile:(await getSetting('bodyProfile'))||{},done:(await getSetting('skillProgress'))||{},today:today()};
+}
+// mark newly reached nodes (once), award XP, show a plaque
+async function checkSkills(){
+  if(skillBusy)return;skillBusy=true;
+  try{
+    const data=await skillData(),res=evaluateSkillTree(SKILL_TREES.body,data);
+    const fresh=SKILL_TREES.body.filter(n=>res[n.id].newly);
+    if(!fresh.length)return;
+    const upd={...data.done};fresh.forEach(n=>upd[n.id]=today());
+    await saveSetting('skillProgress',upd);
+    for(const n of fresh){if(n.xp)await awardXp('skill_'+n.id,'body',n.xp,'skill');showAchievementPlaque({name:'Путь: '+n.title})}
+    if(bodySeg==='path')renderSkillPath();
+  }catch(e){console.warn('skills',e)}
+  finally{skillBusy=false}
+}
+let skillSel=null;
+function selectSkill(id){skillSel=skillSel===id?null:id;renderSkillPath()}
+async function renderSkillPath(){
+  const root=document.getElementById('body-root');if(!root)return;
+  const data=await skillData(),res=evaluateSkillTree(SKILL_TREES.body,data);
+  const branches=[...new Set(SKILL_TREES.body.map(n=>n.branch))];
+  const doneN=SKILL_TREES.body.filter(n=>res[n.id].state==='done').length;
+  const node=n=>{
+    const r=res[n.id],ic=r.state==='done'?ico('check',16):r.state==='locked'?ico('lock',16):'';
+    return `<button type="button" class="sk-node ${r.state}${skillSel===n.id?' sel':''}" data-id="${n.id}" onclick="selectSkill(this.dataset.id)" aria-expanded="${skillSel===n.id}">
+      <span class="sk-dot" aria-hidden="true">${ic}</span>
+      <span class="sk-body"><span class="sk-title">${escapeHtml(n.title)}</span>
+        <span class="sk-meta">${r.state==='done'?'пройдено'+(data.done[n.id]?' · '+escapeHtml(formatDateShort(data.done[n.id])):''):escapeHtml(r.label)}${n.xp&&r.state!=='done'?' · +'+n.xp+' XP':''}</span>
+        ${r.state==='open'&&r.target?`<span class="bar sk-bar"><i style="transform:scaleX(${r.pct.toFixed(3)})"></i></span>`:''}
+        ${skillSel===n.id?`<span class="sk-hint">${escapeHtml(n.hint||'')}${(n.requires||[]).length?'<br>Сначала: '+n.requires.map(id=>escapeHtml((SKILL_TREES.body.find(x=>x.id===id)||{}).title||id)).join(', '):''}</span>`:''}
+      </span></button>`;
+  };
+  // chains: a node is drawn under its first prerequisite of the same branch
+  const chainsOf=b=>{
+    const ns=SKILL_TREES.body.filter(n=>n.branch===b),roots=ns.filter(n=>!(n.requires||[]).some(r=>ns.find(x=>x.id===r)));
+    return roots.map(rt=>{const ch=[rt];let cur=rt;for(;;){const nx=ns.find(n=>(n.requires||[])[0]===cur.id);if(!nx)break;ch.push(nx);cur=nx}return ch});
+  };
+  root.innerHTML=`<div class="header"><h1>Тело</h1></div>${bodySegHtml()}
+    <div class="sk-head"><span>Путь</span><b>${doneN} / ${SKILL_TREES.body.length}</b></div>
+    ${branches.map(b=>`<div class="card sk-branch"><div class="card-title">${escapeHtml(b)}</div>${chainsOf(b).map(ch=>`<div class="sk-chain">${ch.map(node).join('')}</div>`).join('')}</div>`).join('')}`;
+}
 let bodySeg='workout',bodyMuscleSel=null;
-function setBodySeg(s){bodySeg=s==='map'?'map':'workout';renderBody()}
+function setBodySeg(s){bodySeg=['map','path'].includes(s)?s:'workout';renderBody()}
 function bodySegHtml(){
-  return `<div class="seg body-seg" role="tablist" aria-label="Раздел">${[['workout','Тренировка'],['map','Карта']].map(([k,l])=>`<button type="button" role="tab" aria-selected="${bodySeg===k}" class="${bodySeg===k?'on':''}" data-s="${k}" onclick="setBodySeg(this.dataset.s)">${l}</button>`).join('')}</div>`;
+  return `<div class="seg body-seg" role="tablist" aria-label="Раздел">${[['workout','Тренировка'],['map','Карта'],['path','Путь']].map(([k,l])=>`<button type="button" role="tab" aria-selected="${bodySeg===k}" class="${bodySeg===k?'on':''}" data-s="${k}" onclick="setBodySeg(this.dataset.s)">${l}</button>`).join('')}</div>`;
 }
 function bodyFigureSvg(side,load,rec){
   const polys=bodyPolys(side).map(({m,pts})=>{
@@ -4810,6 +4944,7 @@ function selectMuscle(m){bodyMuscleSel=bodyMuscleSel===m?null:m;renderBodyMap();
 
 function renderBody(keepFocus){
   if(bodySeg==='map'){renderBodyMap();return}
+  if(bodySeg==='path'){renderSkillPath();return}
   const root=document.getElementById('body-root');if(!root)return;
   const act=document.activeElement&&document.activeElement.dataset&&document.activeElement.dataset.k,
         selS=document.activeElement&&document.activeElement.selectionStart;
@@ -5119,7 +5254,7 @@ async function copyWeek(){
 
 // ── F3.3 Data integrity check: pure part (tests/integrity.cjs loads it from here up to the UI marker) ──
 const INTEGRITY_CLASSES={goal:'Копилки',debt:'Рассрочки',xp:'Опыт (XP)',task:'Задачи и привычки',tx:'Операции',bank:'Балансы банков'};
-const XP_KNOWN_PREFIXES=['task_','habit_','journal_','workout_','debt_','alloc_','cool_'];
+const XP_KNOWN_PREFIXES=['task_','habit_','journal_','workout_','debt_','alloc_','cool_','skill_'];
 function isYmd(s){
   if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s))return false;
   const y=+s.slice(0,4),m=+s.slice(5,7),d=+s.slice(8,10);

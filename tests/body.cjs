@@ -5,7 +5,13 @@ const i=src.indexOf('// ── Body 2.0 · B1: muscle map ──'),j=src.indexOf
 if(i<0||j<0)throw new Error('body block not found');
 const ctx={console};vm.createContext(ctx);
 vm.runInContext(`function parseLocalDate(s){const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)}
-${src.slice(i,j)};this.B={MUSCLES,EXERCISE_MUSCLES,exerciseMuscles,muscleLoad,muscleRecovery,muscleVerdict,bodyPolys,BODY_SHAPES};`,ctx);
+function localDate(d){const z=d.getTimezoneOffset()*60000;return new Date(d-z).toISOString().slice(0,10)}
+function addDays(s,n){const d=parseLocalDate(s);d.setDate(d.getDate()+n);return localDate(d)}
+function daysBetween(a,b){return Math.round((parseLocalDate(b)-parseLocalDate(a))/86400000)}
+function isoWeekday(s){const w=parseLocalDate(s).getDay();return w===0?7:w}
+function weekStart(d){return addDays(d,-(isoWeekday(d)-1))}
+const fmtNum=n=>String(n).replace('.',',');
+${src.slice(i,j)};this.B={MUSCLES,EXERCISE_MUSCLES,exerciseMuscles,muscleLoad,muscleRecovery,muscleVerdict,bodyPolys,BODY_SHAPES,SKILL_TREES,evaluateSkillTree,bestStreak,avgBodyWeight,volumeWeeks};`,ctx);
 const B=ctx.B;let pass=0,fail=0;
 const ok=(c,n)=>{if(c)pass++;else{fail++;console.log('FAIL',n)}};
 
@@ -56,5 +62,42 @@ const ids=['squat','bench','bbrow','dbpress','abs','rdl','incline','pullup','lun
 ok(ids.every(id=>B.EXERCISE_MUSCLES[id]&&B.EXERCISE_MUSCLES[id].p.length),'all 15 plan exercises mapped');
 const allMus=new Set(Object.keys(B.MUSCLES));
 ok(Object.values(B.EXERCISE_MUSCLES).every(e=>e.p.concat(e.s).every(m=>allMus.has(m))),'catalog uses only known muscle ids');
+// ── B2 skill tree
+const T=B.SKILL_TREES.body,find=id=>T.find(n=>n.id===id);
+ok(T.every(n=>(n.requires||[]).every(r=>find(r))),'every prerequisite exists');
+ok(new Set(T.map(n=>n.id)).size===T.length,'node ids unique');
+const bwts=[...Array(7)].map((_,k)=>({date:'2026-10-0'+(k+1),kg:70}));
+const base={plans,bodyWeights:bwts,habits:[{id:'hp',name:'Белок 120 г+'}],checks:[],profile:{startKg:67},done:{},today:'2026-10-18'};
+let r=B.evaluateSkillTree(T,{...base,workouts:[]});
+ok(r.s_sq1.state==='open'&&r.s_sq2.state==='locked','squat chain: first open, next locked');
+ok(r.s_sq1.target===70&&r.s_sq1.label.includes('0 / 70'),'lift target = 1× avg body weight (70) — '+r.s_sq1.label);
+const sq=w=>({id:'q'+w,planId:'A',date:'2026-10-10',at:1,done:true,entries:[{exId:'squat',weight:w,reps:[5,5,5]}]});
+r=B.evaluateSkillTree(T,{...base,workouts:[sq(70)]});
+ok(r.s_sq1.state==='done'&&r.s_sq1.newly,'squat 70×5 at 70 kg body weight → done (newly)');
+ok(r.s_sq2.state==='open','next squat node opens after the first');
+r=B.evaluateSkillTree(T,{...base,workouts:[{...sq(80),entries:[{exId:'squat',weight:80,reps:[4,4]}]}]});
+ok(r.s_sq1.state==='open','80 kg but only 4 reps → not counted for ×5');
+r=B.evaluateSkillTree(T,{...base,workouts:[],done:{s_sq1:'2026-10-01'}});
+ok(r.s_sq1.state==='done'&&!r.s_sq1.newly&&r.s_sq2.state==='open','done stays done (history) even without data; children open');
+r=B.evaluateSkillTree(T,{...base,bodyWeights:[],workouts:[sq(70)]});
+ok(r.s_sq1.state==='open'&&/взвесь/.test(r.s_sq1.label),'no body weight → lift node cannot pass, asks to weigh in');
+r=B.evaluateSkillTree(T,{...base,workouts:[{id:'p',planId:'B',date:'2026-10-10',done:true,entries:[{exId:'pullup',weight:null,reps:[6,5,4]}]}]});
+ok(r.s_pu1.state==='done'&&r.s_pu2.state==='open'&&r.s_pu2.value===6,'pull-ups best set 6 → 5 done, 10 open (6/10)');
+r=B.evaluateSkillTree(T,{...base,workouts:Array.from({length:12},(_,k)=>({...sq(10),id:'w'+k}))});
+ok(r.m_w12.state==='done'&&r.m_w36.state==='open','12 done workouts → node done');
+ok(B.evaluateSkillTree(T,{...base,workouts:[{...sq(10),kind:'combat'}]}).m_w12.value===0,'combat sessions do not count as lifting workouts');
+r=B.evaluateSkillTree(T,{...base,workouts:[]});
+ok(r.m_kg2.state==='done'&&r.m_kg4.state==='open','start 67, avg 70 → +3: +2 done, +4 open — '+r.m_kg4.state);
+ok(r.m_goal.state==='locked','goal locked until +4 is done');
+r=B.evaluateSkillTree(T,{...base,workouts:[],done:{m_kg2:'x',m_kg4:'x'},bodyWeights:bwts.map(x=>({...x,kg:75.2}))});
+ok(r.m_goal.state==='done','avg 75.2 ≥ 75 → goal done');
+ok(B.avgBodyWeight([{date:'2026-10-01',kg:60},...bwts],7)===70,'average uses the last 7 weigh-ins');
+ok(B.bestStreak(['2026-10-01','2026-10-02','2026-10-04','2026-10-05','2026-10-06'])===3,'best streak 3');
+const checks=Array.from({length:30},(_,k)=>({habitId:'hp',date:B.SKILL_TREES&&('2026-09-'+String(k+1).padStart(2,'0'))})).filter(c=>c.date<='2026-09-30');
+r=B.evaluateSkillTree(T,{...base,workouts:[],checks});
+ok(r.m_pr30.state==='done','protein habit 30 days in a row → done');
+r=B.evaluateSkillTree(T,{...base,workouts:[],habits:[]});
+ok(r.m_pr30.state==='open'&&/нет привычки/.test(r.m_pr30.label),'no protein habit → explains');
+ok(r.c_gate.state==='locked'&&B.evaluateSkillTree(T,{...base,workouts:[],done:{s_sq1:1,s_bp1:1,s_pu1:1,m_goal:1}}).c_gate.state==='open','combat gate: locked until strength base + weight goal, then open (not auto-done)');
 console.log(`body: ${pass} passed, ${fail} failed`);
 process.exitCode=fail?1:0;

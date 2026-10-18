@@ -560,3 +560,22 @@ button.calendar-day::before{content:'';position:absolute;inset:-2px}
 .mus-line{display:flex;justify-content:space-between;width:100%;background:none;border:none;border-top:1px solid var(--line);color:var(--bone);font:14px var(--font-text);padding:10px 0;min-height:44px;cursor:pointer;text-align:left}
 .mus-line b{color:var(--fog);font-weight:500}
 @media (prefers-reduced-motion:reduce){.mus.rest{animation:none}}
+
+/* Тело · Путь (B2) */
+.sk-head{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--fog);margin:0 0 10px}
+.sk-head b{color:var(--bone);font-weight:600;letter-spacing:0}
+.sk-chain{position:relative;margin:6px 0 14px;padding-left:2px}
+.sk-chain::before{content:'';position:absolute;left:15px;top:18px;bottom:18px;width:1px;background:var(--line-2)}
+.sk-node{position:relative;display:flex;gap:12px;align-items:flex-start;width:100%;background:none;border:none;color:var(--bone);text-align:left;padding:8px 0;min-height:44px;cursor:pointer;font:inherit}
+.sk-dot{flex:0 0 28px;height:28px;border-radius:50%;border:1px solid var(--line-2);background:var(--void);display:flex;align-items:center;justify-content:center;z-index:1}
+.sk-node.done .sk-dot{background:var(--body);border-color:var(--body);color:#000}
+.sk-node.open .sk-dot{border-color:var(--bone)}
+.sk-node.locked{color:var(--fog)}
+.sk-node.locked .sk-dot{opacity:.7}
+.sk-body{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
+.sk-title{font-size:15px;font-weight:500}
+.sk-meta{font-size:12px;color:var(--fog)}
+.sk-node.done .sk-meta{color:var(--body)}
+.sk-bar{margin:4px 0 0;--c:var(--body)}
+.sk-hint{font-size:13px;color:var(--fog);margin-top:4px;line-height:1.4}
+.sk-node.sel .sk-title{text-decoration:underline;text-underline-offset:3px}
