@@ -184,7 +184,7 @@ const F=ctx.F;
     const store=new Map(),puts=[],listeners={},added=[];
     const keyOf=(r,o)=>{let u=typeof r==='string'?new URL(r,'https://x.test/finance-tracker/sw.js').href:r.url;if(o&&o.ignoreSearch)u=u.split('?')[0];return u};
     const cache={
-      addAll:async list=>{for(const u of list){if(opts.failLocal&&u===opts.failLocal)throw new Error('404 '+u);store.set(keyOf(u),{ok:true,body:'cached '+u})}},
+      addAll:async list=>{for(const u of list){if(opts.failLocal&&u.split('?')[0]===opts.failLocal)throw new Error('404 '+u);store.set(keyOf(u),{ok:true,body:'cached '+u})}},
       add:async u=>{if((opts.failCdn||[]).includes(u))throw new Error('cdn down');added.push(u);store.set(keyOf(u),{ok:true,body:'cached '+u})},
       put:async(r,res)=>{puts.push([keyOf(r),res]);store.set(keyOf(r),res)},
     };

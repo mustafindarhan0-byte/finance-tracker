@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-auth-compat.js" integrity="sha384-5I6kB//hXDU3+uF6P5whMNsiMpLfjPrRMnO628LkoLTV1F4roavOGYGkaES3TPAa" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-check-compat.js" integrity="sha384-B/AP4FGRp30uqxiGDJ1XO7TvHcPxaZEPR798W+ASc3xztnppTUQe2E0ThTTM2+FH" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore-compat.js" integrity="sha384-x/Sc6BbQTFJ8Xok/nKTwZ6hrjKCAPuoiUBD0gRRS0yNLtHZiq2MpDvGVEGBUQefs" crossorigin="anonymous"></script>
-<script src="fx.js"></script>
+<script src="fx.js?v=41"></script>
 <style>
 :root{
   --bg:#0a0a0f;--bg2:#161620;--bg3:#262436;
@@ -313,7 +313,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   .budget-ring{filter:drop-shadow(0 0 16px rgba(255,255,255,.4))}
 }
 </style>
-<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="theme.css?v=41">
 </head>
 <body>
 <div class="fx-grid" aria-hidden="true"></div>
@@ -4546,6 +4546,115 @@ function pendingWorkoutTask(){
   const t0=today(),ts=(tasksCache||[]).filter(t=>t.workoutPlan&&!t.done&&t.due).sort((a,b)=>a.due.localeCompare(b.due)||(a.time||'').localeCompare(b.time||''));
   return ts.find(t=>t.due===t0)||ts.find(t=>t.due<t0)||ts.find(t=>t.due>t0)||null;
 }
+// Exercise catalog for programs: the starter A/B/C exercises + the ones the muscle map shows as missing
+const EXTRA_EXERCISES=[
+  {id:'calf',name:'Подъём на носки',sets:3,repsMin:12,repsMax:15,step:2.5},
+  {id:'shrug',name:'Шраги',sets:3,repsMin:10,repsMax:12,step:2.5},
+  {id:'neck',name:'Шея: наклоны с весом',sets:2,repsMin:15,repsMax:20,step:1.25},
+  {id:'facepull',name:'Тяга к лицу',sets:3,repsMin:12,repsMax:15,step:2.5},
+  {id:'twist',name:'Русские скручивания',sets:3,repsMin:15,repsMax:20,step:0},
+  {id:'deadlift',name:'Становая тяга',sets:3,repsMin:5,repsMax:5,step:5},
+  {id:'hammer',name:'Молотки',sets:2,repsMin:10,repsMax:12,step:1}
+];
+function exerciseCatalog(){
+  const seen=new Set(),out=[];
+  for(const ex of [...STARTER_PACK.workoutPlans.flatMap(p=>p.exercises),...EXTRA_EXERCISES])if(!seen.has(ex.id)){seen.add(ex.id);out.push(ex)}
+  return out;
+}
+// one tap: programs A/B/C + their weekly training tasks (nothing else from the starter pack)
+async function installTrainingProgram(){
+  const{tasks,plans,docs}=await starterPackPending();
+  const ws=docs.workoutPlans,ts=docs.tasks.filter(t=>t.workoutPlan);
+  if(!ws.length&&!ts.length)return toast('Программа A/B/C уже есть');
+  const b=fsDb.batch();ws.forEach(p=>batchPut(b,'workoutPlans',p));ts.forEach(t=>batchPut(b,'tasks',t));commitBatch(b);
+  ws.forEach(p=>cachePut(plans,p));ts.forEach(t=>cachePut(tasks,t));
+  toast('Добавлено: программа A/B/C и '+nWord(ts.length,['задача','задачи','задач'])+' на неделю');
+  renderBody();
+}
+// program editor state: {id, name, exercises:[{id,name,sets,repsMin,repsMax,step}], isNew}
+let planEdit=null,exPicker=null; // exPicker: 'plan' | 'workout' | null
+function newPlan(){planEdit={id:'P'+uid().slice(0,6),name:'Своя тренировка',exercises:[],isNew:true};exPicker='plan';renderBody()}
+function editPlan(id){const p=planById(id);if(!p)return;planEdit={...p,exercises:p.exercises.map(e=>({...e})),isNew:false};exPicker=null;renderBody()}
+function closePlanEdit(){planEdit=null;exPicker=null;renderBody()}
+function planEditField(i,k,v){
+  const ex=planEdit&&planEdit.exercises[+i];if(!ex)return;
+  const n=k==='step'?parseFloat(String(v).replace(',','.')):parseInt(v,10);
+  if(!(n>=0&&n<=(k==='step'?50:100)))return renderBody();
+  ex[k]=n;if(k==='repsMin'&&ex.repsMax<n)ex.repsMax=n;if(k==='repsMax'&&ex.repsMin>n)ex.repsMin=n;
+}
+function planEditName(v){if(planEdit)planEdit.name=String(v).trim().slice(0,40)||planEdit.name}
+function planEditRemove(i){if(planEdit){planEdit.exercises.splice(+i,1);renderBody()}}
+function planEditMove(i,d){const a=planEdit&&planEdit.exercises,j=+i+d;if(!a||j<0||j>=a.length)return;[a[+i],a[j]]=[a[j],a[+i]];renderBody()}
+function openExPicker(mode){exPicker=exPicker===mode?null:mode;renderBody()}
+// add a catalog exercise (or a custom name) to the edited program or to the running workout
+async function pickCatalogExercise(id){
+  const cat=exerciseCatalog().find(x=>x.id===id);if(!cat)return;
+  await addExerciseTo({...cat});
+}
+async function pickCustomExercise(){
+  const el=document.getElementById('ex-custom'),name=el&&el.value.trim();
+  if(!name)return toast('Напиши название упражнения');
+  await addExerciseTo({id:'cx_'+uid().slice(0,6),name:name.slice(0,60),sets:3,repsMin:8,repsMax:12,step:2.5});
+}
+async function addExerciseTo(ex){
+  if(exPicker==='plan'&&planEdit){
+    if(planEdit.exercises.some(e=>e.id===ex.id))return toast('Уже в программе');
+    planEdit.exercises.push(ex);renderBody();return;
+  }
+  if(exPicker==='workout'&&wk){
+    const plan=planById(wk.planId);if(!plan)return;
+    if(plan.exercises.some(e=>e.id===ex.id))return toast('Уже в этой тренировке');
+    plan.exercises.push(ex);await colPut('workoutPlans',plan);
+    wk.entries.push({exId:ex.id,weight:suggestWeight(ex),reps:Array(ex.sets).fill(null)});
+    wkCur=plan.exercises.length-1;exPicker=null;await wkSave();renderBody();
+    toast(ex.name+' — добавлено в программу «'+plan.name+'»');
+  }
+}
+async function savePlanEdit(start){
+  const p=planEdit;if(!p)return;
+  if(!p.exercises.length)return toast('Добавь хотя бы одно упражнение');
+  const doc={id:p.id,name:p.name||'Своя тренировка',exercises:p.exercises.map(e=>({id:e.id,name:e.name,sets:e.sets,repsMin:e.repsMin,repsMax:e.repsMax,step:e.step}))};
+  await colPut('workoutPlans',doc);
+  planEdit=null;exPicker=null;
+  if(start)return startWorkout(doc.id,null);
+  toast('Программа сохранена');renderBody();
+}
+async function deletePlan(){
+  const p=planEdit;if(!p||p.isNew)return closePlanEdit();
+  const ok=await sheetConfirm({title:'Удалить программу',text:'Программа «'+p.name+'» удалится. История тренировок останется.',ok:'Удалить',danger:true});
+  if(!ok)return;
+  await colDel('workoutPlans',p.id);planEdit=null;exPicker=null;toast('Программа удалена');renderBody();
+}
+function exPickerHtml(mode){
+  if(exPicker!==mode)return '';
+  const taken=new Set(mode==='plan'&&planEdit?planEdit.exercises.map(e=>e.id):mode==='workout'&&wk?(planById(wk.planId)||{exercises:[]}).exercises.map(e=>e.id):[]);
+  const items=exerciseCatalog().filter(e=>!taken.has(e.id));
+  return `<div class="ex-picker"><div class="cmd-hint">Выбери упражнение</div><div class="ex-chips">${items.map(e=>`<button type="button" class="ex-chip" data-id="${escapeHtml(e.id)}" onclick="pickCatalogExercise(this.dataset.id)">${escapeHtml(e.name)}</button>`).join('')}</div>
+    <div class="al-row"><input id="ex-custom" type="text" placeholder="Своё упражнение" aria-label="Своё упражнение" maxlength="60"><button type="button" class="settings-btn" onclick="pickCustomExercise()">Добавить</button></div></div>`;
+}
+function planEditorHtml(){
+  const p=planEdit;
+  const rows=p.exercises.map((e,i)=>`<div class="pe-row">
+      <div class="pe-name">${escapeHtml(e.name)}</div>
+      <div class="pe-fields">
+        <label>подходы<input type="number" inputmode="numeric" min="1" max="10" value="${e.sets}" data-i="${i}" aria-label="Подходы" onchange="planEditField(this.dataset.i,'sets',this.value)"></label>
+        <label>повторы от<input type="number" inputmode="numeric" min="1" max="100" value="${e.repsMin}" data-i="${i}" aria-label="Повторы от" onchange="planEditField(this.dataset.i,'repsMin',this.value)"></label>
+        <label>до<input type="number" inputmode="numeric" min="1" max="100" value="${e.repsMax}" data-i="${i}" aria-label="Повторы до" onchange="planEditField(this.dataset.i,'repsMax',this.value)"></label>
+        <label>шаг, кг<input type="number" inputmode="decimal" step="0.25" min="0" max="50" value="${e.step}" data-i="${i}" aria-label="Шаг веса, кг" onchange="planEditField(this.dataset.i,'step',this.value)"></label>
+      </div>
+      <div class="pe-actions"><button type="button" class="settings-btn" data-i="${i}" onclick="planEditMove(this.dataset.i,-1)" aria-label="Выше">↑</button><button type="button" class="settings-btn" data-i="${i}" onclick="planEditMove(this.dataset.i,1)" aria-label="Ниже">↓</button><button type="button" class="settings-btn" data-i="${i}" onclick="planEditRemove(this.dataset.i)" aria-label="Убрать">Убрать</button></div>
+    </div>`).join('');
+  return `<div class="card hud plan-editor"><div class="card-title">${p.isNew?'Новая программа':'Изменить программу'}</div>
+    <label class="pe-label">Название<input type="text" value="${escapeHtml(p.name)}" maxlength="40" aria-label="Название программы" onchange="planEditName(this.value)"></label>
+    ${rows||'<div class="cmd-hint" style="padding:8px 0">Пока пусто — добавь упражнения</div>'}
+    <button type="button" class="settings-btn pe-add" onclick="openExPicker('plan')">+ Упражнение</button>
+    ${exPickerHtml('plan')}
+    <div class="pe-hint cmd-hint">Шаг 0 — упражнение без веса (считаются только повторы). Шаг — на сколько кг повысить вес, когда все подходы сделаны на верхний предел.</div>
+    <button type="button" class="save-btn primary" onclick="savePlanEdit(true)">Сохранить и начать</button>
+    <button type="button" class="save-btn neutral" onclick="savePlanEdit(false)">Сохранить</button>
+    <button type="button" class="save-btn neutral" onclick="${p.isNew?'closePlanEdit()':'deletePlan()'}">${p.isNew?'Отмена':'Удалить программу'}</button>
+    ${p.isNew?'':'<button type="button" class="save-btn neutral" onclick="closePlanEdit()">Закрыть</button>'}</div>`;
+}
 async function startWorkout(planId,taskId){
   const plan=planById(planId);if(!plan)return toast('План тренировки не найден');
   wk={id:uid(),planId,taskId:taskId||null,date:today(),at:Date.now(),done:false,
@@ -4687,7 +4796,10 @@ const EXERCISE_MUSCLES={
   ohp:{p:['shoulders'],s:['triceps','abs','traps']},
   dbrow:{p:['lats'],s:['biceps','midBack']},
   dips:{p:['triceps','chest'],s:['shoulders']},
-  plank:{p:['abs'],s:['lowerBack','obliques']}
+  plank:{p:['abs'],s:['lowerBack','obliques']},
+  calf:{p:['calves'],s:[]},shrug:{p:['traps'],s:['forearms']},neck:{p:['neck'],s:['traps']},
+  facepull:{p:['rearDelts'],s:['traps','midBack']},twist:{p:['obliques'],s:['abs']},
+  deadlift:{p:['hamstrings','glutes','lowerBack'],s:['traps','forearms','quads']},hammer:{p:['biceps'],s:['forearms']}
 };
 // unknown exercise (custom plan): guess by name, else the plan may carry ex.muscles = {p:[…], s:[…]}
 const MUSCLE_WORDS=[[/присед|squat/i,'squat'],[/жим.*лёж|жим.*леж|bench/i,'bench'],[/наклон/i,'incline'],[/тяга.*наклон|row/i,'bbrow'],[/румын|становая|rdl|deadlift/i,'rdl'],[/подтяг|блок|pull/i,'pullup'],[/выпад|lunge/i,'lunge'],[/жим ног|leg press/i,'legpress'],[/жим.*сто|армейск|ohp/i,'ohp'],[/брус|dips/i,'dips'],[/планк|plank/i,'plank'],[/пресс|скручив/i,'abs'],[/бицепс|трицепс/i,'arms'],[/гантел.*сид/i,'dbpress']];
@@ -4964,15 +5076,19 @@ function renderBody(keepFocus){
       <div class="sets" id="sets-wrap">${en.reps.map((r,i)=>`<input class="set-input disp" data-k="s${i}" data-x="${wkCur}" inputmode="numeric" autocomplete="off" value="${isRep(r)?r:''}" placeholder="${escapeHtml(ex.repsMax)}" onchange="setReps(${i},this.value,this)" aria-label="Подход ${i+1}">`).join('')}</div>
       <div class="cmd-hint wo-hint" id="wo-hint" data-base="${escapeHtml(base)}" aria-live="polite">${escapeHtml(base)}</div></div>
       <div class="card" id="wo-list">${wkListHtml(plan)}</div>
+      <button type="button" class="settings-btn wo-add" onclick="openExPicker('workout')">+ Упражнение</button>
+      ${exPickerHtml('workout')}
       <button class="save-btn primary" onclick="finishWorkout()">Завершить тренировку</button>
       <button class="save-btn neutral" onclick="cancelWorkout()">Отменить</button>`;
+  }else if(planEdit){
+    html+=planEditorHtml();
   }else{
     if(wkSummary)html+=wkSummaryHtml(wkSummary);
     const stale=staleWorkout();if(stale)html+=wkStaleHtml(stale);
     const tk=pendingWorkoutTask(),plans=wcol('workoutPlans').sort((a,b)=>a.id.localeCompare(b.id)),t0=today();
     html+=`<div class="card hud"><div class="card-title">Тренировка дня</div>`
-      +(tk?`<div class="kg-input disp kg-static" style="font-size:64px">${escapeHtml(tk.workoutPlan)}</div><div class="kg-cap">${escapeHtml(tk.title)} · ${escapeHtml(formatTaskDate(tk.due))}${tk.due<t0?' · просрочено':''}${tk.time?' · '+escapeHtml(tk.time):''}</div><button class="save-btn primary" data-p="${escapeHtml(tk.workoutPlan)}" data-t="${escapeHtml(tk.id)}" onclick="startWorkout(this.dataset.p,this.dataset.t)">${tk.due===t0?'Начать':'Начать сейчас'}</button>`:'<div class="empty-state" style="padding:14px 0">Тренировок в плане нет</div>')
-      +`<div class="body-plans">${plans.map(p=>`<button class="settings-btn" data-p="${escapeHtml(p.id)}" onclick="startWorkout(this.dataset.p,null)">${escapeHtml(p.name)}</button>`).join('')}</div></div>`;
+      +(tk?`<div class="kg-input disp kg-static" style="font-size:64px">${escapeHtml(tk.workoutPlan)}</div><div class="kg-cap">${escapeHtml(tk.title)} · ${escapeHtml(formatTaskDate(tk.due))}${tk.due<t0?' · просрочено':''}${tk.time?' · '+escapeHtml(tk.time):''}</div><button class="save-btn primary" data-p="${escapeHtml(tk.workoutPlan)}" data-t="${escapeHtml(tk.id)}" onclick="startWorkout(this.dataset.p,this.dataset.t)">${tk.due===t0?'Начать':'Начать сейчас'}</button>`:(plans.length?'<div class="cmd-hint" style="padding:10px 0">На сегодня тренировки нет — выбери программу ниже.</div>':'<div class="cmd-hint" style="padding:10px 0">Программ тренировок пока нет.</div><button type="button" class="save-btn primary" onclick="installTrainingProgram()">Добавить программу A/B/C</button><div class="cmd-hint" style="margin:-4px 0 10px">3 тренировки в неделю: вт, чт, вс · присед, жим, тяги, подтягивания</div>'))
+      +`<div class="plan-list">${plans.map(p=>`<div class="plan-line"><button type="button" class="plan-go" data-p="${escapeHtml(p.id)}" onclick="startWorkout(this.dataset.p,null)"><b>${escapeHtml(p.name)}</b><span>${p.exercises.length} упр. · ${escapeHtml(p.exercises.slice(0,3).map(e=>e.name.split(' ')[0].toLowerCase()).join(', '))}</span></button><button type="button" class="settings-btn" data-p="${escapeHtml(p.id)}" onclick="editPlan(this.dataset.p)" aria-label="Изменить программу ${escapeHtml(p.name)}">Изменить</button></div>`).join('')}</div>`+`<button type="button" class="settings-btn plan-new" onclick="newPlan()">+ Своя тренировка</button></div>`;
   }
   const lastW=lastBw?lastBw.kg:null;
   html+=`<div class="card"><div class="card-title">Вес тела${lastW?' · '+fmtNum(lastW)+' кг':''}</div>

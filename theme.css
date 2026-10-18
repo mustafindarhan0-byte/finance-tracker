@@ -579,3 +579,24 @@ button.calendar-day::before{content:'';position:absolute;inset:-2px}
 .sk-bar{margin:4px 0 0;--c:var(--body)}
 .sk-hint{font-size:13px;color:var(--fog);margin-top:4px;line-height:1.4}
 .sk-node.sel .sk-title{text-decoration:underline;text-underline-offset:3px}
+
+/* Тело · программы тренировок: список, редактор, выбор упражнения */
+.plan-list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.plan-line{display:flex;gap:8px;align-items:stretch}
+.plan-go{flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:2px;background:var(--ink-2);border:1px solid var(--line-2);border-radius:var(--radius-sm);color:var(--bone);padding:10px 12px;min-height:52px;text-align:left;cursor:pointer;font:inherit}
+.plan-go b{font-weight:600;font-size:15px}
+.plan-go span{font-size:12px;color:var(--fog)}
+.plan-new,.wo-add,.pe-add{width:100%;margin-top:10px;min-height:44px}
+.plan-editor .pe-label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--fog);margin:6px 0 12px}
+.plan-editor input{background:var(--ink-2);border:1px solid var(--line-2);border-radius:var(--radius-sm);color:var(--bone);font:16px var(--font-text);padding:8px 10px;min-height:40px;width:100%}
+.pe-row{border-top:1px solid var(--line);padding:10px 0}
+.pe-name{font-weight:500;margin-bottom:6px}
+.pe-fields{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.pe-fields label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--fog)}
+.pe-actions{display:flex;gap:6px;margin-top:8px}
+.pe-actions .settings-btn{min-width:44px;min-height:40px}
+.pe-hint{margin:10px 0}
+.ex-picker{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line-2)}
+.ex-chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 10px}
+.ex-chip{background:var(--ink-2);border:1px solid var(--line-2);color:var(--bone);border-radius:999px;padding:8px 12px;min-height:40px;font:13px var(--font-text);cursor:pointer}
+.ex-chip:hover,.ex-chip:focus{border-color:var(--bone);outline:none}
