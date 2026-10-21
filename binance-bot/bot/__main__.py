@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import traceback
 
 from telegram import Update
 from telegram.error import InvalidToken
@@ -15,6 +16,42 @@ from .config import ConfigError, Settings, load_settings
 from .handlers import BOT_COMMANDS, check_alerts, register_handlers
 
 log = logging.getLogger("bot")
+
+
+class RedactTokenFilter(logging.Filter):
+    """Не даёт токену бота попасть в логи.
+
+    PTB кладёт токен в текст InvalidToken; такую ошибку main() сообщает сам,
+    поэтому запись с ней отбрасывается, а в остальных токен заменяется на ***.
+    """
+
+    def __init__(self, token: str):
+        super().__init__()
+        self.token = token
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.exc_info and isinstance(record.exc_info[1], InvalidToken):
+            return False
+        message = record.getMessage()
+        if self.token in message:
+            record.msg, record.args = message.replace(self.token, "***"), ()
+        if record.exc_info and record.exc_info[1] is not None:
+            text = "".join(traceback.format_exception(*record.exc_info)).rstrip("\n")
+            if self.token in text:
+                record.exc_text = text.replace(self.token, "***")
+        return True
+
+
+def setup_logging(settings: Settings) -> None:
+    logging.basicConfig(
+        level=settings.log_level,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+    # httpx на уровне INFO пишет URL запросов к Telegram, а в них — токен бота
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    redact = RedactTokenFilter(settings.telegram_token)
+    for handler in logging.getLogger().handlers:
+        handler.addFilter(redact)
 
 
 async def _post_init(app: Application) -> None:
@@ -64,13 +101,7 @@ def main() -> int:
         print(f"Ошибка конфигурации: {exc}", file=sys.stderr)
         return 2
 
-    logging.basicConfig(
-        level=settings.log_level,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    )
-    # httpx на уровне INFO пишет URL запросов к Telegram, а в них — токен бота
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-
+    setup_logging(settings)
     try:
         build_application(settings).run_polling(allowed_updates=Update.ALL_TYPES)
     except InvalidToken:

@@ -8,7 +8,7 @@ import logging
 from html import escape
 from typing import Awaitable, Callable
 
-from telegram import BotCommand, Update
+from telegram import BotCommand, LinkPreviewOptions, Update
 from telegram.constants import ChatAction, ParseMode
 from telegram.error import Forbidden, TelegramError
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
@@ -25,6 +25,7 @@ log = logging.getLogger(__name__)
 DEFAULT_INTERVAL = "4h"
 ANALYZE_CANDLES = 300
 TOP_DEFAULT, TOP_MAX = 10, 20
+NO_PREVIEW = LinkPreviewOptions(is_disabled=True)
 
 _DIRECTION_ALIASES = {
     "above": ABOVE, "выше": ABOVE, ">": ABOVE, ">=": ABOVE, "up": ABOVE,
@@ -74,7 +75,7 @@ Handler = Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[None]]
 async def _reply(update: Update, text: str) -> None:
     if update.effective_message:
         await update.effective_message.reply_text(
-            text, parse_mode=ParseMode.HTML, disable_web_page_preview=True
+            text, parse_mode=ParseMode.HTML, link_preview_options=NO_PREVIEW
         )
 
 
