@@ -23,6 +23,7 @@ const ctx={
   escapeHtml:s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),
   ico:()=>'<svg/>',formatTaskDate:s=>s,uid:(()=>{let n=0;return()=>'new'+(++n)})(),toast:()=>{},
   fxFlash:e=>flashes.push(e),fxDraw:()=>{},
+  habitsCache:[],checksCache:[],getHabits:async()=>[],getChecks:async()=>[],getSetting:async()=>null,
   getCol:async n=>(ctx.colCache[n]||(ctx.colCache[n]={data:[]})).data,getTasks:async()=>ctx.tasksCache,
   colPut:async(n,x)=>{puts.push([n,x]);const a=await ctx.getCol(n),i=a.findIndex(y=>y.id===x.id);if(i>=0)a[i]=x;else a.push(x)},
   colDel:async(n,id)=>{dels.push([n,id]);const a=await ctx.getCol(n),i=a.findIndex(y=>y.id===id);if(i>=0)a.splice(i,1)},
@@ -32,7 +33,12 @@ const ctx={
   sheetConfirm:o=>Promise.resolve(!!ctx.confirm([o&&o.title,o&&o.text].filter(Boolean).join('\n\n'))),
 };
 vm.createContext(ctx);
-vm.runInContext(code+`
+vm.runInContext(`function localDate(d){const z=d.getTimezoneOffset()*60000;return new Date(d-z).toISOString().slice(0,10)}
+function addDays(s,n){const d=parseLocalDate(s);d.setDate(d.getDate()+n);return localDate(d)}
+function daysBetween(a,b){return Math.round((parseLocalDate(b)-parseLocalDate(a))/86400000)}
+function isoWeekday(s){const w=parseLocalDate(s).getDay();return w===0?7:w}
+function weekStart(d){return addDays(d,-(isoWeekday(d)-1))}
+`+code+`
 ;this.M={lastDoneEntry,suggestWeight,pendingWorkoutTask,workoutSummary,parseKg,parseRepsVal,staleWorkout,wkClean,
   setWeight,setReps,startWorkout,finishWorkout,resumeWorkout,refreshBody,renderBody,
   get wk(){return wk},set wk(v){wk=v},get wkCur(){return wkCur},set wkCur(v){wkCur=v},get wkSummary(){return wkSummary}};`,ctx);
