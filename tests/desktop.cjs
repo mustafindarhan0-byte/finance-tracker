@@ -28,8 +28,8 @@ ok(/class="side-head side-only"/.test(nav)&&/class="side-foot side-only"/.test(n
 const m=css.indexOf('@media (min-width:1024px){');ok(m>0,'desktop block exists');
 let d=0,e=m+'@media (min-width:1024px)'.length;for(;e<css.length;e++){if(css[e]==='{')d++;else if(css[e]==='}'&&--d===0)break}
 const outside=css.slice(0,m)+css.slice(e+1),rx=/([^{}]*(?:\.nav-label|\.side-|\.q-side|\.st-col|\.split|\.cmd-box|\.stats-grid|\.sk-grid)[^{}]*)\{([^}]*)\}/g;
-const bad=[];let r;while((r=rx.exec(outside)))if(!/^\s*display:(none|contents)\s*$/.test(r[2]))bad.push(r[1].trim()+'{'+r[2]+'}');
-ok(bad.length===0,'new layout classes do nothing below 1024 px except hide / display:contents',bad);
+const bad=[];let r;while((r=rx.exec(outside)))if(/display:(?!none|contents)|grid-|position:|width:|columns:/.test(r[2]))bad.push(r[1].trim()+'{'+r[2]+'}');
+ok(bad.length===0,'new layout classes add no layout below 1024 px (only hide / display:contents; type styles are fine)',bad);
 ok(/\.bottom-nav\{top:0;bottom:0;left:0/.test(css.slice(m,e)),'nav becomes a left panel only inside the desktop block');
 
 // D3/D5/D6 wrappers keep the phone order (display:contents)

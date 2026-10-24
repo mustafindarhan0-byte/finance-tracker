@@ -159,7 +159,7 @@ async function runLevel(){
   const cv=mk('lvl-cv','',ov),W=cv.width=Math.min(window.innerWidth,420),H=cv.height=260,ctx=cv.getContext('2d');
   function sample(txt){
     const o=document.createElement('canvas');o.width=W;o.height=H;const c=o.getContext('2d');
-    c.fillStyle='#fff';c.font='700 190px Tektur,Unbounded,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(txt,W/2,H/2);
+    c.fillStyle='#fff';c.font='700 190px Handjet,monospace';c.textAlign='center';c.textBaseline='middle';c.fillText(txt,W/2,H/2);
     const d=c.getImageData(0,0,W,H).data,pts=[];
     for(let y=0;y<H;y+=5)for(let x=0;x<W;x+=5)if(d[(y*W+x)*4+3]>128)pts.push([x,y]);
     return pts;
@@ -224,4 +224,182 @@ window.fxBoot=function(){
     })();
   });
 };
+// G3 — фигура из частиц. sampleParticles — чистая функция (тест tests/glow.cjs): точки по яркости картинки, детерминированно по seed
+function sampleParticles(lum,w,h,n,seed,thr){
+  thr=thr==null?.16:thr;
+  let s=(seed>>>0)||1;
+  const rnd=()=>{s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+  const cand=[];let total=0;
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const v=lum[y*w+x];if(v>thr){const wg=Math.pow(v,1.6);cand.push(x,y,v,wg);total+=wg}}
+  if(!cand.length||!(n>0))return[];
+  const out=[],step=total/n;let acc=0,next=rnd()*step;
+  for(let k=0;k<cand.length&&out.length<n;k+=4){
+    acc+=cand[k+3];
+    while(next<acc&&out.length<n){out.push({x:cand[k]+rnd()-.5,y:cand[k+1]+rnd()-.5,b:cand[k+2]});next+=step}
+  }
+  return out;
+}
+window.fxSampleParticles=sampleParticles;
+
+const HP={wrap:null,cv:null,gl:null,ctx:null,gctx:null,img:null,buf:null,src:'',key:'',run:false,ready:false,assembleAt:0,mx:-1e5,my:-1e5,W:0,H:0,dpr:1,n:0,nf:0};
+const fine=()=>!!(window.matchMedia&&matchMedia('(pointer:fine)').matches);
+const wide=()=>!!(window.matchMedia&&matchMedia('(min-width:1024px)').matches);
+function hpLoad(src){return new Promise(res=>{const im=new Image();im.onload=()=>res(im);im.onerror=()=>res(null);im.src=src})}
+async function hpBuild(src){
+  const W=HP.W,H=HP.H,im=await hpLoad(src);
+  const NF=wide()?7000:2600,NT=wide()?3200:1100,NS=wide()?140:70;
+  // фигура: высота 96 % окна, по центру, низом к низу; выборка на сетке ≤ 220 px высотой
+  let fig=[];
+  if(im){
+    const sh=Math.min(220,Math.round(H*.6)),sw=Math.max(1,Math.round(sh*im.width/im.height));
+    const c=document.createElement('canvas');c.width=sw;c.height=sh;const x=c.getContext('2d',{willReadFrequently:true});
+    x.drawImage(im,0,0,sw,sh);const d=x.getImageData(0,0,sw,sh).data,lum=new Float32Array(sw*sh);
+    const ss=(a,b,v)=>{const t=Math.min(1,Math.max(0,(v-a)/(b-a)));return t*t*(3-2*t)};
+    const def=/figure\.jpg$/.test(src);
+    for(let i=0,p=0;i<lum.length;i++,p+=4){
+      const u=(i%sw)/sw,v=Math.floor(i/sw)/sh,l=(.2126*d[p]+.7152*d[p+1]+.0722*d[p+2])/255;
+      if(def){
+        // контровой свет даёт контур, а тело (по яркости как туман) заполняем редко по форме головы и корпуса
+        const head=Math.hypot((u-.47)/.11,(v-.34)/.14)<1,neck=Math.abs(u-.5)<.07&&v>.42&&v<.56,torso=Math.hypot((u-.5)/.31,(v-.86)/.36)<1&&v>.54;
+        const inside=head||neck||torso;
+        lum[i]=Math.max(ss(.34,.8,l)*(v>.76?.5:1),inside?.42*ss(.06,.14,l):0)*(u>.12&&u<.88?1:0);
+      }else{
+        const ex=(u-.5)/.42,ey=(v-.55)/.52,mask=Math.max(0,1-Math.sqrt(ex*ex+ey*ey));
+        lum[i]=Math.min(1,Math.max(0,(l-.1)/.75))*Math.min(1,mask*1.8);
+      }
+    }
+    const scale=H*.96/sh,ox=W/2-sw*scale/2,oy=H-sh*scale;
+    fig=sampleParticles(lum,sw,sh,NF,7).map(p=>({x:ox+p.x*scale,y:oy+p.y*scale,b:.35+.65*p.b,k:0}));
+  }
+  // «холмы» из частиц: 3 гребня, плотнее у гребня, медленно текут
+  let s=99;const rnd=()=>{s=(s*16807)%2147483647;return s/2147483647};
+  const gauss=()=>{let u=0;for(let i=0;i<4;i++)u+=rnd();return u-2};
+  const ter=[];
+  for(let i=0;i<NT;i++){
+    const r=i%3,x=rnd()*W,ry=H*(.8+.075*r)+Math.sin(x/W*Math.PI*(1.3+r*.55)+r*1.7)*H*.05,dy=Math.abs(gauss())*H*(.025+.02*r);
+    ter.push({x,y:ry+dy*(rnd()<.8?1:-1),b:.18+.55*Math.exp(-dy/(H*.03)),k:1+r});
+  }
+  const stars=[];for(let i=0;i<NS;i++)stars.push({x:rnd()*W,y:rnd()*H*.55,b:.15+.6*rnd(),k:9});
+  const all=fig.concat(ter,stars),n=all.length;
+  const A=k=>new Float32Array(n);
+  HP.n=n;HP.nf=fig.length;HP.hx=A();HP.hy=A();HP.x=A();HP.y=A();HP.vx=A();HP.vy=A();HP.b=A();HP.ph=A();HP.kind=new Uint8Array(n);HP.sx=A();HP.sy=A();HP.dl=A();
+  for(let i=0;i<n;i++){
+    const p=all[i];HP.hx[i]=p.x;HP.hy[i]=p.y;HP.b[i]=p.b;HP.kind[i]=p.k;HP.ph[i]=rnd()*6.283;
+    const a=rnd()*6.283,rr=Math.max(W,H)*(.25+rnd()*.6);HP.sx[i]=W/2+Math.cos(a)*rr;HP.sy[i]=H*.55+Math.sin(a)*rr*.6;
+    HP.dl[i]=p.k===0?(1-p.y/H)*.55+rnd()*.25:rnd()*.5;
+    HP.x[i]=HP.sx[i];HP.y[i]=HP.sy[i];
+  }
+  HP.ready=true;
+}
+function hpSize(host){
+  const r=host.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1),W=Math.round(r.width),H=Math.round(r.height);
+  if(!W||!H)return false;
+  const changed=W!==HP.W||H!==HP.H||dpr!==HP.dpr;
+  HP.W=W;HP.H=H;HP.dpr=dpr;
+  if(changed){
+    HP.cv.width=W*dpr;HP.cv.height=H*dpr;HP.gl.width=Math.ceil(W/4);HP.gl.height=Math.ceil(H/4);
+    HP.img=HP.ctx.createImageData(HP.cv.width,HP.cv.height);HP.buf=new Uint32Array(HP.img.data.buffer);
+  }
+  return changed;
+}
+function hpFrame(now){
+  if(!HP.run)return;
+  const vis=HP.wrap.isConnected&&HP.wrap.offsetParent!==null&&!document.hidden;
+  if(!vis){HP.run=false;return}
+  if(HP.ready)hpDraw(now);
+  requestAnimationFrame(hpFrame);
+}
+function hpDraw(now){
+  const {W,H,dpr,n}=HP,cw=HP.cv.width,ch=HP.cv.height,buf=HP.buf,t=now*.001,since=(now-HP.assembleAt)/1000,still=RM();
+  buf.fill(0);
+  const mx=HP.mx,my=HP.my,R=wide()?90:60,R2=R*R;
+  const add=(j,vv)=>{const c=buf[j]&255,nv=Math.min(255,c+vv);buf[j]=(255<<24)|(nv<<16)|(nv<<8)|nv};
+  for(let i=0;i<n;i++){
+    const k=HP.kind[i];let tx=HP.hx[i],ty=HP.hy[i],a=HP.b[i];
+    if(k>=1&&k<=3){tx=((tx+t*(4+k*3))%(W+20)+W+20)%(W+20)-10;ty+=Math.sin(t*.4+tx*.01+k)*1.2}
+    else if(k===9){a*=.55+.45*Math.sin(t*(1.2+HP.ph[i])+HP.ph[i]*3)}
+    else{tx+=Math.sin(t*1.1+HP.ph[i])*.7;ty+=Math.cos(t*1.3+HP.ph[i])*.7}
+    let x,y;
+    const p=still?1:Math.min(1,Math.max(0,(since-HP.dl[i])/1.15));
+    if(p<1){const e=1-Math.pow(1-p,4);x=HP.sx[i]+(tx-HP.sx[i])*e;y=HP.sy[i]+(ty-HP.sy[i])*e;HP.x[i]=x;HP.y[i]=y;HP.vx[i]=0;HP.vy[i]=0;a*=.3+.7*p}
+    else if(k===0){
+      x=HP.x[i];y=HP.y[i];
+      const dx=x-mx,dy=y-my,d2=dx*dx+dy*dy;
+      if(d2<R2&&d2>.01){const d=Math.sqrt(d2),f=(1-d/R)*2.6;HP.vx[i]+=dx/d*f;HP.vy[i]+=dy/d*f}
+      HP.vx[i]=(HP.vx[i]+(tx-x)*.05)*.86;HP.vy[i]=(HP.vy[i]+(ty-y)*.05)*.86;
+      x+=HP.vx[i];y+=HP.vy[i];HP.x[i]=x;HP.y[i]=y;
+    }else{x=tx;y=ty}
+    const px=(x*dpr)|0,py=(y*dpr)|0;
+    if(px<0||py<0||px>=cw-1||py>=ch-1)continue;
+    const v=Math.min(255,(a*255)|0),o=py*cw+px;
+    add(o,v);
+    if(dpr>1.4||a>.7){add(o+1,v>>1);add(o+cw,v>>1);if(a>.85)add(o+cw+1,v>>2)}
+  }
+  HP.ctx.putImageData(HP.img,0,0);
+  HP.gctx.clearRect(0,0,HP.gl.width,HP.gl.height);HP.gctx.drawImage(HP.cv,0,0,HP.gl.width,HP.gl.height);
+}
+document.addEventListener('pointermove',e=>{
+  if(!HP.wrap||!HP.run||!fine())return;
+  const r=HP.wrap.getBoundingClientRect();HP.mx=e.clientX-r.left;HP.my=e.clientY-r.top;
+},{passive:true});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&HP.wrap&&HP.wrap.isConnected&&!HP.run&&!RM()){HP.run=true;requestAnimationFrame(hpFrame)}});
+window.addEventListener('resize',()=>{if(HP.wrap&&HP.wrap.isConnected&&HP.wrap.parentNode)window.fxHeroMount(HP.wrap.parentNode,HP.src,{})});
+// Монтирует (или переносит) холст фигуры в окно героя. assemble — точки слетаются заново (открытие Статуса)
+window.fxHeroMount=async function(host,src,opts){
+  if(!host)return;opts=opts||{};
+  if(!HP.wrap){
+    HP.wrap=document.createElement('div');HP.wrap.className='hero-pts';HP.wrap.setAttribute('aria-hidden','true');
+    HP.gl=document.createElement('canvas');HP.gl.className='pts-glow';HP.cv=document.createElement('canvas');HP.cv.className='pts-main';
+    HP.wrap.append(HP.gl,HP.cv);HP.ctx=HP.cv.getContext('2d');HP.gctx=HP.gl.getContext('2d');
+    HP.wrap.addEventListener('pointerleave',()=>{HP.mx=HP.my=-1e5});
+  }
+  if(HP.wrap.parentNode!==host)host.appendChild(HP.wrap);
+  const changed=hpSize(host),key=src+'|'+HP.W+'x'+HP.H;
+  if(key!==HP.key||changed){HP.key=key;HP.src=src;HP.ready=false;await hpBuild(src);opts.assemble=opts.assemble!==false}
+  if(opts.assemble)HP.assembleAt=performance.now();
+  if(RM()){hpDraw(performance.now()+1e6);return}
+  if(!HP.run){HP.run=true;requestAnimationFrame(hpFrame)}
+};
+
+// G4 — вход экрана: блоки по очереди поднимаются, проявляются и наводятся на резкость (только при смене раздела)
+const ENTER_SEL='.header,.q-tabs,.money-tabs,.body-seg,.period-tabs,.marquee,.hero,.xpbar,.bento,.st-plaques,.card,.wk-grid,.wa-strip,.task-section-title,.task-item,.q-side,.balance-card,.stat-cards,.sk-head,.kg-cap';
+window.fxEnterView=function(view){
+  if(!view||RM())return;
+  const run=()=>{
+    const vh=innerHeight;let i=0;
+    view.querySelectorAll(ENTER_SEL).forEach(el=>{
+      if(el.dataset.entered||i>=18)return;
+      if(el.parentElement&&el.parentElement.closest('.card,.q-side,.wk-grid,.bento'))return;
+      const r=el.getBoundingClientRect();if(!r.height||r.top>vh)return;
+      el.dataset.entered='1';el.style.setProperty('--i',i++);el.classList.add('fx-enter');
+      el.addEventListener('animationend',()=>el.classList.remove('fx-enter'),{once:true});
+    });
+  };
+  run();
+  // экраны дорисовываются после загрузки данных — анимируем и новые блоки, но не дольше 700 мс
+  const mo=new MutationObserver(()=>{clearTimeout(mo.t);mo.t=setTimeout(run,24)});
+  mo.observe(view,{childList:true,subtree:true});setTimeout(()=>mo.disconnect(),700);
+};
+
+// G4 — стекло отвечает на курсор: свет следует за мышью; главные кнопки чуть притягиваются; фон смещается (параллакс)
+const GLASS_SEL='.card,.tile,.wk-stat,.q-side,.balance-card,.stat-card,.cmd-box,.sheet';
+const MAG_SEL='.save-btn.primary,.nav-btn.nav-add,.period-tab,.settings-btn,.cmd-bank,.cmd-date';
+let glassEl=null,magEl=null;
+const desk=()=>!!(window.matchMedia&&matchMedia('(min-width:1024px) and (pointer:fine)').matches);
+document.addEventListener('pointermove',e=>{
+  if(RM()||e.pointerType!=='mouse')return;
+  const g=e.target.closest&&e.target.closest(GLASS_SEL);
+  if(glassEl&&glassEl!==g){glassEl.style.removeProperty('--gx');glassEl.style.removeProperty('--gy')}
+  glassEl=g;
+  if(g){const r=g.getBoundingClientRect();g.style.setProperty('--gx',(e.clientX-r.left)+'px');g.style.setProperty('--gy',(e.clientY-r.top)+'px')}
+  if(!desk())return;
+  const m=e.target.closest&&e.target.closest(MAG_SEL);
+  if(magEl&&magEl!==m){magEl.style.translate='';magEl=null}
+  if(m){const r=m.getBoundingClientRect(),dx=(e.clientX-r.left-r.width/2)/r.width,dy=(e.clientY-r.top-r.height/2)/r.height;
+    m.style.translate=`${(dx*6).toFixed(1)}px ${(dy*5).toFixed(1)}px`;magEl=m}
+  const bg=document.querySelector('.bg-photo');
+  if(bg){bg.style.setProperty('--px',((e.clientX/innerWidth-.5)*-24).toFixed(1)+'px');bg.style.setProperty('--py',((e.clientY/innerHeight-.5)*-16).toFixed(1)+'px')}
+},{passive:true});
+document.addEventListener('pointerleave',()=>{if(magEl){magEl.style.translate='';magEl=null}},{passive:true});
+
 })();

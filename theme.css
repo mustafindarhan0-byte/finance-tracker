@@ -1,10 +1,12 @@
 /* «Система» — монохромный кинематографичный интерфейс. Грузится ПОСЛЕ встроенного <style>, поэтому перекрывает его. */
 
 /* ── Шрифты (самохостинг, кириллица + латиница) ── */
-@font-face{font-family:'Tektur';font-style:normal;font-weight:400 900;font-display:swap;src:url(fonts/tektur-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
-@font-face{font-family:'Tektur';font-style:normal;font-weight:400 900;font-display:swap;src:url(fonts/tektur-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
-@font-face{font-family:'Golos Text';font-style:normal;font-weight:400 600;font-display:swap;src:url(fonts/golos-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
-@font-face{font-family:'Golos Text';font-style:normal;font-weight:400 600;font-display:swap;src:url(fonts/golos-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Handjet';font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/handjet-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Handjet';font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/handjet-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Geist';font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/geist-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Geist';font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/geist-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Geist Mono';font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/geistmono-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Geist Mono';font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/geistmono-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
 
 /* ── Токены ── */
 :root{
@@ -16,8 +18,12 @@
   --money:#E9C46A;--dfir:#6FE3F2;--body:#FF5A5F;
   --t-fast:140ms;--t-base:260ms;--t-slow:520ms;--t-epic:1100ms;
   --ease-out:cubic-bezier(.16,1,.3,1);--ease-in-out:cubic-bezier(.65,0,.35,1);
-  --font-display:'Tektur','Unbounded',ui-monospace,sans-serif;
-  --font-text:'Golos Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --font-display:'Handjet',ui-monospace,monospace;
+  --font-text:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --font-mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  /* SPEC_glow: стекло и свет */
+  --glass:rgba(255,255,255,.045);--glass-2:rgba(255,255,255,.075);--glass-line:rgba(255,255,255,.09);--glass-under:rgba(10,10,12,.46);
+  --glass-blur:24px;--r-panel:16px;--ease-spring:cubic-bezier(.2,.9,.2,1);
 
   /* старые переменные → монохром, чтобы весь существующий интерфейс перекрасился */
   --bg:#000;--bg2:#0E0E0F;--bg3:#1A1A1C;
@@ -29,7 +35,6 @@
   --orange:#E9C46A;--orange-light:#211b0a;
   --radius:6px;--radius-sm:4px;--shadow:none;
 }
-*{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
 html{background:var(--void)}
 body{background:var(--void)!important;color:var(--bone);font-family:var(--font-text);font-size:15px;line-height:1.45;font-weight:400}
 :focus-visible{outline:1px solid var(--bone);outline-offset:3px}
@@ -298,7 +303,7 @@ body.fx-paused *,body.fx-paused::after{animation-play-state:paused!important}
 .outline{color:transparent;-webkit-text-stroke:1.5px var(--bone)}
 .outline-dim{color:transparent;-webkit-text-stroke:1px var(--line-2)}
 .st-head{display:flex;align-items:center;gap:12px;padding:6px 0 10px}
-.st-title{font-family:var(--font-display,'Tektur',sans-serif);letter-spacing:.2em;font-size:13px;color:var(--bone);flex:1}
+.st-title{font-family:var(--font-display);letter-spacing:.2em;font-size:13px;color:var(--bone);flex:1}
 .st-date{color:var(--fog);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
 .marquee{overflow:hidden;white-space:nowrap;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:7px 0;color:var(--fog);font-size:12px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px}
 .mq-track{display:inline-flex;animation:mq 20s linear infinite}
@@ -359,7 +364,7 @@ body.fx-paused *,body.fx-paused::after{animation-play-state:paused!important}
 .rm-dot{position:absolute;left:-28px;top:18px;width:9px;height:9px;border-radius:50%;background:var(--void);border:1px solid var(--bone)}
 .rm-phase.now .rm-dot{background:var(--bone);box-shadow:0 0 10px var(--bone)}
 .rm-month{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--fog)}
-.rm-name{font-family:var(--font-display,'Tektur',sans-serif);font-size:20px;margin:2px 0 4px;color:var(--bone)}
+.rm-name{font-family:var(--font-display);font-size:20px;margin:2px 0 4px;color:var(--bone)}
 .rm-text{font-size:13px;color:var(--fog)}
 .rm-phase.final .rm-text{color:var(--money)}
 .ach-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -695,3 +700,94 @@ button.calendar-day::before{content:'';position:absolute;inset:-2px}
   .task-row:hover,.recent-item:hover,.qrow:hover,.upc-row:hover,.plan-go:hover,.mus-line:hover{background:rgba(255,255,255,.03)}
   .settings-btn:hover,.period-tab:not(.active):hover,.cmd-bank:not(.on):hover,.cmd-date:not(.on):hover{color:var(--bone);border-color:var(--line-2)}
 }
+
+/* ── Glow: частицы, стекло, свет (SPEC_glow) ── */
+/* G1 — фон: размытое фото города + дрейфующие пятна света */
+.bg-photo,.bg-lights{position:fixed;inset:0;pointer-events:none;z-index:0}
+.bg-photo{inset:-40px;background:#000 url(bg.jpg) center/cover no-repeat;filter:blur(28px) brightness(.38) saturate(.8);transform:translate3d(var(--px,0px),var(--py,0px),0) scale(1.08);transition:transform 1.2s var(--ease-out)}
+.bg-lights i{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55;will-change:transform}
+.bg-lights i:nth-child(1){width:46vmax;height:46vmax;left:-12vmax;top:-18vmax;background:radial-gradient(circle,rgba(226,234,240,.20),transparent 65%);animation:drift1 52s ease-in-out infinite alternate}
+.bg-lights i:nth-child(2){width:40vmax;height:40vmax;right:-14vmax;top:8vmax;background:radial-gradient(circle,rgba(150,205,180,.16),transparent 65%);animation:drift2 61s ease-in-out infinite alternate}
+.bg-lights i:nth-child(3){width:34vmax;height:34vmax;left:24vmax;bottom:-20vmax;background:radial-gradient(circle,rgba(190,200,215,.12),transparent 65%);animation:drift3 47s ease-in-out infinite alternate}
+@keyframes drift1{to{transform:translate3d(14vmax,10vmax,0) scale(1.15)}}
+@keyframes drift2{to{transform:translate3d(-12vmax,14vmax,0) scale(.9)}}
+@keyframes drift3{to{transform:translate3d(10vmax,-12vmax,0) scale(1.1)}}
+.fx-grid{opacity:.5}
+.fx-vignette{background:radial-gradient(ellipse at 50% 40%,transparent 40%,rgba(0,0,0,.72) 100%)}
+body{font-family:var(--font-text)}
+
+/* G1/G5 — стекло: панели, плитки, окна */
+.card,.stat-card,.budget-card,.goal-card,.calendar-wrap,.modal,.stmt-upload,.balance-card,.tile,.wk-stat,.sheet,.hero{
+  background:radial-gradient(320px circle at var(--gx,-999px) var(--gy,-999px),rgba(255,255,255,.075),transparent 62%),linear-gradient(180deg,var(--glass-2),var(--glass) 40%),var(--glass-under)!important;
+  border:1px solid var(--glass-line)!important;border-radius:var(--r-panel)!important;
+  -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(140%);backdrop-filter:blur(var(--glass-blur)) saturate(140%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 18px 40px rgba(0,0,0,.35)!important}
+.sheet{border-radius:22px 22px 0 0!important}
+.hero{background:radial-gradient(ellipse at 50% 70%,rgba(255,255,255,.06),transparent 70%),var(--glass-under)!important}
+.bottom-nav{background:rgba(18,18,22,.55)!important;-webkit-backdrop-filter:blur(26px) saturate(150%);backdrop-filter:blur(26px) saturate(150%);border:1px solid var(--glass-line)!important}
+.cmd-layer{-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+
+/* G5 — пилюли: главная белая, остальные стеклянные */
+.save-btn{border-radius:999px!important}
+.save-btn.primary,.save-btn.income{background:#fff!important;color:#000!important;box-shadow:0 0 0 1px rgba(255,255,255,.6),0 8px 30px rgba(255,255,255,.14)!important}
+.save-btn.neutral,.save-btn.expense,.settings-btn,.period-tab,.cmd-bank,.cmd-date,.cmd-flip{background:rgba(255,255,255,.06)!important;border:1px solid var(--glass-line)!important;color:var(--bone)!important;border-radius:999px!important;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.period-tab.active,.cmd-bank.on,.cmd-date.on{background:#fff!important;color:#000!important;border-color:#fff!important}
+.body-seg,.cmd-seg{background:rgba(255,255,255,.05);border-color:var(--glass-line)!important;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.body-seg button.on,.cmd-seg button.on{background:#fff!important;color:#000!important;border-radius:999px}
+.smart-input,.settings-input,.search-input,.currency-select,select,input[type=text],input[type=number],input[type=date],input[type=time],input[type=month]{background:rgba(255,255,255,.05)!important;border-color:var(--glass-line)!important;border-radius:12px!important}
+.recent-icon{background:rgba(255,255,255,.07)!important}
+
+/* G1 — типографика: Handjet для заголовков и чисел, Geist Mono для ярлыков */
+.disp,.header h1,.wk-num,.t-lvl,.hero-num,.kg-input,.set-input,.balance-amount,.period-net-amount,.sphere-total,.side-brand,.st-title,.rm-name,.q-side-title,.lvl-num,.lvl-title{font-family:var(--font-display)!important}
+.header h1{font-weight:400;font-size:40px;letter-spacing:0;color:var(--bone)}
+.header h1 .h-dim{color:var(--fog)}
+.wk-num{font-size:52px;font-weight:300;line-height:1}
+.t-lvl{font-weight:300}
+.wk-lbl,.hero-plate,.marquee,.qw-head,.tl-day,.task-section-title,.sk-head,.side-date,.side-keys,.cmd-kind,.card-title.caps,.body-map-head>span:first-child{font-family:var(--font-mono)!important;font-size:11px!important;letter-spacing:.12em!important;text-transform:uppercase}
+.card-title{font-family:var(--font-mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--fog)}
+.side-brand{font-weight:500;letter-spacing:.14em;font-size:20px}
+
+@media (max-width:1023px){
+  :root{--glass-blur:16px}
+  .bg-lights i{filter:blur(70px)}
+}
+@media (prefers-reduced-motion:reduce){.bg-lights i,.bg-photo{animation:none!important;transition:none!important}}
+
+/* G3 — герой: цифра уровня залита и приглушена, фигура и «холмы» — частицы на canvas */
+.hero{height:300px}
+.hero-num{color:rgba(255,255,255,.15)!important;-webkit-text-stroke:0!important;font-weight:200;z-index:1!important}
+.hero-pts{position:absolute;inset:0;z-index:2;pointer-events:auto}
+.hero-pts canvas{position:absolute;inset:0;width:100%;height:100%}
+.pts-glow{filter:blur(7px) brightness(1.5);opacity:.75;mix-blend-mode:screen}
+.pts-main{mix-blend-mode:screen}
+.hero-rings{opacity:.35}
+.hero-rank,.hero-plate{z-index:3!important}
+
+/* G2 — «Квест дня» разгорается */
+.qw-bar{position:relative;height:4px;margin:2px 0 12px;border-radius:999px;background:rgba(255,255,255,.07)}
+.qw-bar i{position:absolute;inset:0;border-radius:inherit;background:#fff;transform-origin:0 50%;transform:scaleX(0);transition:transform 900ms var(--ease-spring),box-shadow 900ms var(--ease-out)}
+.qw-bar.full i{animation:qwPulse 2.4s ease-in-out infinite}
+@keyframes qwPulse{50%{box-shadow:0 0 40px 14px rgba(255,255,255,.95),0 0 160px 44px rgba(255,255,255,.5)}}
+.qw-bar-top{margin:-4px 0 16px}
+
+/* G4 — движения */
+@keyframes fxEnter{from{opacity:0;transform:translateY(12px);filter:blur(6px)}to{opacity:1;transform:none;filter:none}}
+@keyframes fxEnterM{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.fx-enter{animation:fxEnterM 520ms var(--ease-spring) both;animation-delay:calc(var(--i,0)*40ms)}
+.save-btn,.settings-btn,.period-tab,.cmd-bank,.cmd-date,.nav-btn{transition:translate 380ms var(--ease-spring),background-color var(--t-fast),color var(--t-fast),border-color var(--t-fast)}
+.nav-lamp{transition:transform 520ms var(--ease-spring),opacity var(--t-base)!important}
+@media (min-width:1024px){
+  .fx-enter{animation:fxEnter 680ms var(--ease-spring) both;animation-delay:calc(var(--i,0)*45ms)}
+  .hero{height:420px}
+  .q-side{background:radial-gradient(320px circle at var(--gx,-999px) var(--gy,-999px),rgba(255,255,255,.075),transparent 62%),linear-gradient(180deg,var(--glass-2),var(--glass) 40%),var(--glass-under)!important;border:1px solid var(--glass-line)!important;border-radius:var(--r-panel)!important;-webkit-backdrop-filter:blur(24px) saturate(140%);backdrop-filter:blur(24px) saturate(140%)}
+  .bottom-nav{background:rgba(12,12,16,.42)!important;border:0!important;border-right:1px solid var(--glass-line)!important}
+  .cmd-layer.show .cmd-box{animation:boxIn 420ms var(--ease-spring) both}
+  @keyframes boxIn{from{opacity:0;transform:scale(.96);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}
+  .cmd-box{background:linear-gradient(180deg,var(--glass-2),var(--glass) 40%),rgba(14,14,18,.6)!important;border-color:var(--glass-line)!important;border-radius:20px!important;-webkit-backdrop-filter:blur(30px) saturate(150%);backdrop-filter:blur(30px) saturate(150%)}
+}
+@media (prefers-reduced-motion:reduce){.fx-enter,.qw-bar.full i,.cmd-layer.show .cmd-box{animation:none!important}.qw-bar i{transition:none}}
+/* G5 — вложенные плитки: тот же язык радиусов (панель 16 → плитка внутри 12) */
+.plan-go,.bank-card,.balance-box,.wk-stat .wk-stat,.mus-detail,.al-row input{border-radius:12px!important}
+.plan-go{background:rgba(255,255,255,.04)!important;border:1px solid var(--glass-line)!important}
+.plan-line .settings-btn,.plan-new{border-radius:12px!important}
+.bank-card{background:linear-gradient(160deg,rgba(255,255,255,.08),rgba(255,255,255,.02))!important;border:1px solid var(--glass-line)!important}

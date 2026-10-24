@@ -1,21 +1,23 @@
-const CACHE_NAME = 'finance-v43';
+const CACHE_NAME = 'finance-v44';
 // App files: all must cache, or the install fails (an incomplete offline copy is worse than the previous one)
 const LOCAL_ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './theme.css?v=43',
-  './fx.js?v=43',
+  './theme.css?v=44',
+  './fx.js?v=44',
   './figure.jpg',
   './icon.svg',
   './icon-180.png',
   './icon-192.png',
   './icon-512.png',
   './icon-512-maskable.png',
-  './fonts/tektur-cyrillic.woff2',
-  './fonts/tektur-latin.woff2',
-  './fonts/golos-cyrillic.woff2',
-  './fonts/golos-latin.woff2'
+  './fonts/handjet-cyrillic.woff2',
+  './fonts/handjet-latin.woff2',
+  './fonts/geist-cyrillic.woff2',
+  './fonts/geist-latin.woff2',
+  './fonts/geistmono-cyrillic.woff2',
+  './fonts/geistmono-latin.woff2'
 ];
 // CDN files: cached one by one — a CDN that is down must not break the install
 const CDN_ASSETS = [

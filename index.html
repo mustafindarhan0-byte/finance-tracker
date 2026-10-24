@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-auth-compat.js" integrity="sha384-5I6kB//hXDU3+uF6P5whMNsiMpLfjPrRMnO628LkoLTV1F4roavOGYGkaES3TPAa" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-check-compat.js" integrity="sha384-B/AP4FGRp30uqxiGDJ1XO7TvHcPxaZEPR798W+ASc3xztnppTUQe2E0ThTTM2+FH" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore-compat.js" integrity="sha384-x/Sc6BbQTFJ8Xok/nKTwZ6hrjKCAPuoiUBD0gRRS0yNLtHZiq2MpDvGVEGBUQefs" crossorigin="anonymous"></script>
-<script src="fx.js?v=43"></script>
+<script src="fx.js?v=44"></script>
 <style>
 :root{
   --bg:#0a0a0f;--bg2:#161620;--bg3:#262436;
@@ -313,9 +313,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   .budget-ring{filter:drop-shadow(0 0 16px rgba(255,255,255,.4))}
 }
 </style>
-<link rel="stylesheet" href="theme.css?v=43">
+<link rel="stylesheet" href="theme.css?v=44">
 </head>
 <body>
+<div class="bg-photo" aria-hidden="true"></div>
+<div class="bg-lights" aria-hidden="true"><i></i><i></i><i></i></div>
 <div class="fx-grid" aria-hidden="true"></div>
 <div class="fx-vignette" aria-hidden="true"></div>
 
@@ -360,6 +362,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div class="q-split">
   <div id="q-today">
   <div class="header"><h1 id="tasks-title">Сегодня</h1><div class="tasks-done-month" id="tasks-done-month"></div></div>
+  <div class="qw-bar qw-bar-top" id="tasks-qbar" role="progressbar" aria-label="Квест дня" aria-valuemin="0" aria-valuemax="100"><i></i></div>
   <div class="card"><div class="card-title">Ближайшее</div><div id="tasks-upcoming"></div></div>
   <div class="card">
     <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">Привычки <button class="settings-btn" id="habits-edit-btn" onclick="toggleHabitsEdit()" style="font-size:12px;padding:4px 10px">Настроить</button></div>
@@ -3714,7 +3717,8 @@ function renderTasks(){
   const tasks=tasksCache||[],habits=habitsCache||[],checks=checksCache||[],log=logCache||[];
   const t0=today(),t1=addDays(t0,1);
   // header
-  document.getElementById('tasks-title').textContent='Сегодня, '+parseLocalDate(t0).toLocaleDateString('ru-RU',{day:'numeric',month:'short'}).replace('.','');
+  document.getElementById('tasks-title').innerHTML='Сегодня<span class="h-dim">, '+escapeHtml(parseLocalDate(t0).toLocaleDateString('ru-RU',{day:'numeric',month:'short'}).replace('.',''))+'</span>';
+  {const sm=statusSummary(),p=sm.total?sm.done/sm.total:0,qb=document.getElementById('tasks-qbar');if(qb){qb.classList.toggle('full',p>=1);qb.setAttribute('aria-valuenow',String(Math.round(p*100)));qb.firstChild.style.cssText=questGlowCss(p)}}
   const month=t0.slice(0,7);
   document.getElementById('tasks-done-month').textContent='Сделано за месяц: '+log.filter(l=>(l.date||'').startsWith(month)).length;
   // upcoming
@@ -4130,6 +4134,14 @@ function todaySpend(txs,t0){
   const top=Object.values(by).sort((a,b)=>b.sum-a.sum).slice(0,3).map(c=>({...c,sum:Math.round(c.sum*100)/100}));
   return{spent:Math.round(spent*100)/100,count,top};
 }
+// G2: «Квест дня» glows stronger as more is done (a tight inner glow + the reference shadow, so a 4 px bar still shines) — Shadow 1 / 2 / 3 of the reference at ⅓, ⅔ and 100 %, linear in between
+function questGlow(p){
+  p=Math.min(1,Math.max(0,+p||0));
+  const K=[[0,0,0],[1/3,8,0],[2/3,32,8],[1,128,32]];
+  for(let i=1;i<K.length;i++)if(p<=K[i][0]){const a=K[i-1],b=K[i],f=(p-a[0])/(b[0]-a[0]);return{blur:Math.round((a[1]+(b[1]-a[1])*f)*10)/10,spread:Math.round((a[2]+(b[2]-a[2])*f)*10)/10}}
+  return{blur:128,spread:32};
+}
+function questGlowCss(p){const g=questGlow(p);return`transform:scaleX(${Math.max(0,Math.min(1,p)).toFixed(3)});box-shadow:0 0 ${(g.blur/4).toFixed(1)}px ${(g.spread/3).toFixed(1)}px rgba(255,255,255,${(.55+.35*Math.min(1,Math.max(0,p))).toFixed(2)}),0 0 ${g.blur}px ${g.spread}px rgba(255,255,255,${(.3+.3*Math.min(1,Math.max(0,p))).toFixed(2)})`}
 // R2: the line above the [+] field — what the line will be saved as, and why
 function cmdKindLabel(st,forced){
   if(!st)return'';
@@ -5205,14 +5217,15 @@ function switchView(name,btn){
     document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===key));
     moveLamp();updateMoneyTabs(MONEY_CHILD[name]||name);window.scrollTo(0,0);
     requestAnimationFrame(()=>fitAll(document.getElementById('view-'+name)));
-    const h1=document.querySelector('#view-'+name+' .header h1');if(h1&&window.fxScramble)fxScramble(h1);
+    const h1=document.querySelector('#view-'+name+' .header h1');if(h1&&window.fxScramble&&!h1.children.length)fxScramble(h1);
+    if(window.fxEnterView)fxEnterView(document.getElementById('view-'+name));
     if(name==='add'){
       document.getElementById('smart-input').value='';
       document.getElementById('fallback-grid').classList.remove('show');
       pendingInput=null;renderTemplates();
     }
   });
-  if(name==='status')refreshStatus();
+  if(name==='status'){heroAssemble=true;refreshStatus()}
   if(name==='quests'){refreshTasks();requestAnimationFrame(()=>setQuestTab(questTab))}
   if(name==='body')refreshBody();
   if(name==='home')refreshDashboard();
@@ -5261,7 +5274,7 @@ function coolingSync(){return coolingInfo(xpLogSync())}
 const MONTHS_GEN=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 const WD_SHORT=['пн','вт','ср','чт','пт','сб','вс'];
 const dayWord=n=>{const a=n%10,b=n%100;return b>=11&&b<=14?'дней':a===1?'день':a>=2&&a<=4?'дня':'дней'};
-let statusAvatar=null,heroPrev=null,introPending=false;
+let statusAvatar=null,heroPrev=null,introPending=false,heroAssemble=true,questPrevPct=0;
 let firstRunState=null,statusMoney=null;
 async function refreshStatus(){
   await Promise.all([getTasks(),getHabits(),getChecks(),getTaskLog(),getCol('xpLog'),getCol('journal')]);
@@ -5287,7 +5300,7 @@ function statusMoneyHtml(){
 function renderStatus(){
   const root=document.getElementById('status-root');if(!root)return;
   const tot=xpTotalsSync(),warn=coolingSync(),sm=statusSummary(),t0=today();
-  const hero=levelInfo(tot.all),L=hero.level;
+  const hero=levelInfo(tot.all),L=hero.level,qPct=sm.total?sm.done/sm.total:0;
   const d=parseLocalDate(t0),dateStr=WD_SHORT[isoWeekday(t0)-1]+', '+d.getDate()+' '+MONTHS_GEN[d.getMonth()];
   const sd=document.getElementById('side-date');if(sd)sd.textContent=dateStr;
   const habits=(habitsCache||[]).filter(h=>!h.archived),checks=checksCache||[];
@@ -5324,14 +5337,13 @@ function renderStatus(){
     <div class="hero-plate">УРОВЕНЬ</div>
     <div class="hero-num disp outline" id="hero-level" style="font-size:${L>=100?92:140}px">${introPending?'00':String(L).padStart(2,'0')}</div>
     <div class="hero-rings" aria-hidden="true"><i></i><i></i><i></i></div>
-    <div class="hero-fig" aria-hidden="true"><img class="hf-glow" src="${src}" alt=""><img class="hf-main" src="${src}" alt=""></div>
     <div class="hero-rank">${escapeHtml(rankOf(L))}</div>
   </div>
   <div class="xpbar"><span>XP</span><div class="bar"><i id="xp-fill" style="transform:scaleX(${prevPct.toFixed(3)})"></i></div><span id="hero-xp">${fmt(Math.round(prevXp))} / ${fmt(hero.need)}</span></div>
   <div class="bento">${tile('money')}${tile('dfir')}${tile('body')}</div>
   ${plaques?`<div class="st-plaques">${plaques}</div>`:''}
   </div><div class="st-col st-col-r">
-  <div class="card hud spot qw"><div class="qw-head"><span>Квест дня</span><span class="qw-count">${sm.done}/${sm.total}</span></div>${taskRows}${habRows}${(!taskRows&&!habRows)?'<div class="cmd-hint" style="padding:10px 0">На сегодня всё выполнено</div>':''}<div class="qw-foot">если не выполнить: ${foot}</div></div>
+  <div class="card hud spot qw"><div class="qw-head"><span>Квест дня</span><span class="qw-count">${sm.done}/${sm.total}</span></div><div class="qw-bar${qPct>=1?' full':''}" role="progressbar" aria-label="Квест дня" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(qPct*100)}"><i id="qw-fill" style="${questGlowCss(questPrevPct)}"></i></div>${taskRows}${habRows}${(!taskRows&&!habRows)?'<div class="cmd-hint" style="padding:10px 0">На сегодня всё выполнено</div>':''}<div class="qw-foot">если не выполнить: ${foot}</div></div>
   ${typeof firstRunChecklistHtml==='function'&&firstRunState?firstRunChecklistHtml(firstRunState):''}
   <div class="card"><div class="card-title">Ближайшее</div>${ev.length?ev.map(e=>`<div class="upc-row"><div class="upc-when">${escapeHtml(formatTaskDate(e.date))}${e.time?' · '+escapeHtml(e.time):''}</div><div class="upc-title">${escapeHtml(e.title)}${e.repeat?ico('repeat',12):''}</div></div>`).join(''):'<div class="cmd-hint">Ближайших событий нет</div>'}</div>
   ${statusMoneyHtml()}
@@ -5340,6 +5352,8 @@ function renderStatus(){
   fitAll(root.querySelector('.st-today'));
   if(window.fxMarquee)fxMarquee(document.getElementById('st-marquee'),mq.map(escapeHtml).join(' &nbsp;•&nbsp; '));
   // тикеры: XP и полоса дотягиваются, уровень считается
+  if(window.fxHeroMount)fxHeroMount(document.getElementById('hero'),src,{assemble:heroAssemble});heroAssemble=false;
+  requestAnimationFrame(()=>{const q=document.getElementById('qw-fill');if(q)q.style.cssText=questGlowCss(qPct);questPrevPct=qPct});
   requestAnimationFrame(()=>{const f=document.getElementById('xp-fill');if(f)f.style.transform=`scaleX(${hero.pct.toFixed(3)})`});
   const xe=document.getElementById('hero-xp');
   if(xe&&heroPrev&&heroPrev.into!==hero.into){xe.dataset.v=heroPrev.into;fxTicker(xe,hero.into,n=>fmt(Math.round(n))+' / '+fmt(hero.need))}
