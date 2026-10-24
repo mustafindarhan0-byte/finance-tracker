@@ -195,32 +195,66 @@ window.fxAchievement=function(a){
   b.animate([{transform:'translate(-50%,-20px)',opacity:0},{transform:'translate(-50%,0)',opacity:1,offset:.15},{transform:'translate(-50%,0)',opacity:1,offset:.85},{transform:'translate(-50%,-10px)',opacity:0}],{duration:2600,fill:'both'}).onfinish=()=>b.remove();
 };
 
-// A1 — экран загрузки «световое кольцо» (~3 с), тап пропускает. При каждом открытии приложения.
+// A1 — заставка: картинка (boot.jpg) плавно проявляется из размытия, затем рассыпается на «пиксели»,
+// которые разлетаются влево и вправо от центра; сквозь них проявляется приложение. Тап / клавиша — пропустить.
 window.fxBoot=function(){
   return new Promise(resolve=>{
     if(RM()){resolve();return}
     const ov=mk('boot');
-    ov.innerHTML='<div class="boot-stage"><div class="boot-ring"></div><svg class="boot-arcs" viewBox="0 0 200 200"><circle cx="100" cy="100" r="86" fill="none" stroke="#E6EEFF" stroke-width="3" stroke-linecap="round" stroke-dasharray="48 28"/><circle cx="100" cy="100" r="70" fill="none" stroke="#9EBBFF" stroke-width="2" stroke-linecap="round" stroke-dasharray="26 40"/></svg><div class="boot-core"></div><div class="boot-drop"></div></div><div class="boot-word disp">СИСТЕМА</div>';
-    const ring=ov.querySelector('.boot-ring'),arcs=ov.querySelector('.boot-arcs'),core=ov.querySelector('.boot-core'),drop=ov.querySelector('.boot-drop'),word=ov.querySelector('.boot-word');
-    let done=false;
-    const finish=()=>{if(done)return;done=true;ov.animate([{opacity:1},{opacity:0}],{duration:300,fill:'forwards'}).onfinish=()=>{ov.remove();resolve()}};
-    ov.addEventListener('click',finish);
-    setTimeout(()=>{if(!ov.isConnected)return;done=true;ov.remove();resolve()},6000); // страховка: оверлей не должен блокировать приложение
-    ring.style.transform='rotateX(88deg)';arcs.style.opacity=0;word.style.opacity=0;drop.style.opacity=0;
+    ov.innerHTML='<img class="boot-img" src="boot.jpg" alt="" decoding="async"><canvas class="boot-cv" aria-hidden="true"></canvas>';
+    const img=ov.querySelector('.boot-img'),cv=ov.querySelector('.boot-cv'),ctx=cv.getContext('2d');
+    let done=false,raf=0;
+    const finish=fast=>{
+      if(done)return;done=true;cancelAnimationFrame(raf);
+      ov.animate([{opacity:1},{opacity:0}],{duration:fast?220:420,easing:'ease-out',fill:'forwards'}).onfinish=()=>{ov.remove();resolve()};
+    };
+    const skip=()=>finish(true);
+    ov.addEventListener('click',skip);addEventListener('keydown',skip,{once:true});
+    setTimeout(()=>{if(!done)finish(true)},7000); // страховка: заставка не должна держать приложение
+    const ready=img.decode?img.decode().catch(()=>{}):new Promise(r=>{img.onload=img.onerror=r});
     (async()=>{
-      await ring.animate([{transform:'rotateX(88deg)'},{transform:'rotateX(0deg)'}],{duration:900,easing:'cubic-bezier(.65,0,.35,1)',fill:'forwards'}).finished.catch(()=>{});
+      await ready;if(done)return;
+      // 1) проявление: из размытия и чуть крупнее — к резкой картинке
+      await img.animate([{opacity:0,filter:'blur(22px) brightness(1.4)',transform:'scale(1.06)'},{opacity:1,filter:'blur(0) brightness(1)',transform:'scale(1)'}],
+        {duration:1150,easing:'cubic-bezier(.2,.9,.2,1)',fill:'forwards'}).finished.catch(()=>{});
       if(done)return;
-      await drop.animate([{transform:'translateY(0) scale(.6)',opacity:1},{transform:'translateY(70px) scale(1)',opacity:0}],{duration:600,easing:'ease-in',fill:'forwards'}).finished.catch(()=>{});
-      if(done)return;
-      ring.animate([{opacity:1},{opacity:0}],{duration:300,fill:'forwards'});
-      arcs.animate([{opacity:0,transform:'rotate(0deg)'},{opacity:1,transform:'rotate(180deg)'}],{duration:700,fill:'forwards',easing:'ease-out'});
-      await sleep(700);if(done)return;
-      word.style.opacity=1;fxScramble(word,'СИСТЕМА',420);
-      await sleep(700);if(done)return;
-      const g=ov.querySelector('.boot-stage');
-      g.animate([{transform:'scale(1)',opacity:1},{transform:'scale(2.4)',opacity:0}],{duration:500,easing:'cubic-bezier(.65,0,.35,1)',fill:'forwards'});
-      word.animate([{opacity:1},{opacity:0}],{duration:300,fill:'forwards'});
-      await sleep(420);finish();
+      await sleep(380);if(done)return;
+      // 2) картинка → сетка «пикселей» того же вида (серый уровень каждой клетки)
+      const dpr=Math.min(2,devicePixelRatio||1),W=innerWidth,H=innerHeight;
+      cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+      const r=img.getBoundingClientRect(),cell=W>=1024?4:5,cols=Math.round(r.width/cell),rows=Math.round(r.height/cell);
+      const sc=document.createElement('canvas');sc.width=cols;sc.height=rows;const sx=sc.getContext('2d',{willReadFrequently:true});
+      sx.imageSmoothingQuality='high';sx.drawImage(img,0,0,cols,rows);const px=sx.getImageData(0,0,cols,rows).data;
+      const cw=r.width/cols,chh=r.height/rows,cx=r.left+r.width/2,n=cols*rows;
+      const X=new Float32Array(n),Y=new Float32Array(n),D=new Float32Array(n),DL=new Float32Array(n),VY=new Float32Array(n),G=new Uint8Array(n),order=new Uint32Array(n);
+      for(let i=0;i<n;i++){
+        const c=i%cols,rr=(i/cols)|0;X[i]=r.left+c*cw;Y[i]=r.top+rr*chh;G[i]=px[i*4]>>3;
+        const off=(X[i]+cw/2-cx)/(r.width/2);D[i]=off<0?-1:1;
+        DL[i]=.12*(1-Math.abs(off))+.42*Math.random();           // центр трогается чуть раньше, края подхватывают
+        VY[i]=(Math.random()-.5)*2;order[i]=i;
+      }
+      order.sort((a,b)=>G[a]-G[b]); // рисуем пачками одного серого — 32 смены цвета на кадр вместо тысяч
+      const lvl=Array.from({length:32},(_,g)=>`rgb(${g*8+4},${g*8+4},${g*8+4})`);
+      img.style.visibility='hidden';
+      ov.animate([{backgroundColor:'rgba(0,0,0,1)'},{backgroundColor:'rgba(0,0,0,0)'}],{duration:1500,delay:250,easing:'ease-in-out',fill:'forwards'});
+      const t0=performance.now(),dur=1.25,reach=Math.max(W,H)*.75;
+      const frame=now=>{
+        if(done)return;
+        const t=(now-t0)/1000;let alive=0,cur=-1;
+        ctx.clearRect(0,0,W,H);
+        for(let k=0;k<n;k++){
+          const i=order[k],p=Math.min(1,Math.max(0,(t-DL[i])/dur));
+          if(p>=1)continue;alive++;
+          const e=p*p*(3-2*p),ee=p*p*p,s=Math.max(.2,1-ee*.8);
+          const x=X[i]+D[i]*reach*ee+Math.sin(i*.7+t*3)*6*e,y=Y[i]+VY[i]*60*ee;
+          if(G[i]!==cur){cur=G[i];ctx.fillStyle=lvl[cur]}
+          ctx.globalAlpha=1-ee;
+          ctx.fillRect(x,y,cw*s+.4,chh*s+.4);
+        }
+        ctx.globalAlpha=1;
+        if(alive)raf=requestAnimationFrame(frame);else finish(false);
+      };
+      raf=requestAnimationFrame(frame);
     })();
   });
 };

@@ -8,6 +8,7 @@ const LOCAL_ASSETS = [
   './fx.js?v=44',
   './figure.jpg',
   './bg.jpg',
+  './boot.jpg',
   './icon.svg',
   './icon-180.png',
   './icon-192.png',

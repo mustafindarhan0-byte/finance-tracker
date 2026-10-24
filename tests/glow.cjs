@@ -51,5 +51,13 @@ ok(/prefers-reduced-motion:reduce\)\{\.fx-enter/.test(glow)&&/prefers-reduced-mo
 ok(/function fxEnterView|window\.fxEnterView=function/.test(fx)&&/if\(!view\|\|RM\(\)\)return/.test(fx),'entrance choreography skips reduced motion');
 ok(/hpFrame[\s\S]*offsetParent!==null&&!document\.hidden/.test(fx),'particles stop when the hero is not visible or the tab is hidden');
 
+// A1 — boot: the picture loads from blur, then breaks into pixels flying to the sides; skippable; nothing with reduced motion
+const boot=fx.slice(fx.indexOf('window.fxBoot=function'),fx.indexOf('// G3 — фигура из частиц.'));
+ok(/src="boot\.jpg"/.test(boot)&&fs.existsSync(path.join(ROOT,'boot.jpg'))&&sw.includes("'./boot.jpg'"),'boot picture exists and is cached by the SW');
+ok(/if\(RM\(\)\)\{resolve\(\);return\}/.test(boot),'reduced motion: no boot screen');
+ok(/addEventListener\('click',skip\)/.test(boot)&&/addEventListener\('keydown',skip/.test(boot)&&/setTimeout\(\(\)=>\{if\(!done\)finish\(true\)\},\d+\)/.test(boot),'tap / key skips it, a safety timeout never lets it block the app');
+ok(/D\[i\]=off<0\?-1:1/.test(boot)&&/X\[i\]\+D\[i\]\*reach/.test(boot),'pixels fly to the left half / right half sides');
+ok(!/boot-ring|СИСТЕМА/.test(boot)&&!/\.boot-ring|\.boot-word/.test(css),'the old light-ring boot is gone');
+
 console.log(`glow: ${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);
