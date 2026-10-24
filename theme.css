@@ -600,3 +600,19 @@ button.calendar-day::before{content:'';position:absolute;inset:-2px}
 .ex-chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 10px}
 .ex-chip{background:var(--ink-2);border:1px solid var(--line-2);color:var(--bone);border-radius:999px;padding:8px 12px;min-height:40px;font:13px var(--font-text);cursor:pointer}
 .ex-chip:hover,.ex-chip:focus{border-color:var(--bone);outline:none}
+
+/* ── 365: сводка дня на Статусе, тип записи в [+], неделя «Впереди» ── */
+.cmd-kind{margin:2px 0 -8px}
+.st-today-head{display:flex;justify-content:space-between;align-items:center}
+.st-today-head .settings-btn{font-size:12px;padding:4px 10px}
+.st-today .wk-grid{margin:10px 0 6px}
+.st-today .wk-stat .link-btn{margin-top:6px}
+.st-today-empty{padding:8px 0}
+.wa-strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin:0 0 12px}
+.wa-day{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 0}
+.wa-day span{font-size:11px}
+.wa-day b{font:700 16px var(--font-display);font-variant-numeric:tabular-nums}
+.wa-day.past{opacity:.45}
+.wa-past{margin:0 0 4px}
+.wa-rep .task-check{opacity:.35}
+.wa-later{margin-top:16px}

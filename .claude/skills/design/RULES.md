@@ -45,7 +45,7 @@
 | Прямоугольные периоды | `.period-tab(.active)` в ряд | ref/11, ref/13 |
 | Чипы-пилюли | `.cmd-date(.on)`, `.cmd-bank(.on)` | ref/06 |
 | Карточка | `.card` + `.card-title`; ключевая — `.card.hud.spot` (HUD-уголки, только на главном блоке экрана) | ref/02 |
-| Большие числа | `.wk-grid > .wk-stat.spot > .wk-num.disp + .wk-lbl` | ref/05 |
+| Большие числа | `.wk-grid > .wk-stat.spot > .wk-num.disp + .wk-lbl` (длинное число — `data-fit="40,18"` + `fitAll`) | ref/05, ref/02 |
 | Плитки сфер | `.bento > .tile.spot` со `style="--c:var(--money)"`, `.t-name`, `.t-lvl.disp`, `.bar > i` | ref/01 |
 | Строка-квест | `.qrow > .habit-check / .task-check + .qt + .qxp` | ref/02 |
 | Строка «когда — что» | `.upc-row > .upc-when + .upc-title` | ref/02 |

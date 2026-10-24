@@ -15,6 +15,9 @@ const code=[
   slice('// Quick input, parsed from the end','async function addQuickTask'),
   slice('// ── F6 pure helpers','\n// ── Module 3: installments'),
   slice('let allocIncome=','\n// ── Module 5: workouts'),
+  line(/function daysBetween\([^\n]*\n/),line(/function weekStart\([^\n]*\n/),
+  slice('// First date strictly after `after`','// Completed early'),
+  slice('// Occurrences (incl. future repeats)','function taskRowHtml('),
 ].join('\n');
 
 const T0='2026-10-17';
@@ -56,6 +59,7 @@ vm.runInContext(code+`
 ;KEYWORDS_REF=KEYWORDS;this.M={cmdParse,cmdNoAmountHint,cmdEnterAction,cmdDateValue,cmdDatePick,cmdDateLabel,cmdFixAmountToken,
   taskActionKind,taskTapAction,workoutOpenDecision,statusTileTarget,allocBudgetQuestion,findRecordedSalary,saveTx,bankBalance,
   allocConfirm,setCmdType:t=>{cmdType=t},setOverride:o=>{cmdCatOverride=o},
+  todaySpend,cmdKindLabel,weekAhead,setForce:(f,l)=>{cmdForce=f;cmdList=l||null},
   setPlan:p=>{allocPlanState=p}};`,ctx);
 const M=ctx.M;
 
@@ -181,6 +185,53 @@ const rs=slice('function renderStatus(){','function openSphere(');
 ok(!/mq\.push\(warn/.test(rs)&&/st-plaques/.test(rs)&&/<button class="tile/.test(rs)&&!/completeTask\(/.test(rs),'53 renderStatus: warnings on plaques, tiles are buttons, no direct completeTask');
 const tr=slice('function taskRowHtml(','function taskEditHtml(');
 ok(!/completeTask\(this/.test(tr)&&/taskTap\(this\.dataset\.id,'check',this\)/.test(tr),'54 task rows go through taskTap');
+
+// ── SPEC_365 R1: today's spending
+{const tx=(id,type,amount,category,date)=>({id,type,amount,category,date});
+ const r=M.todaySpend([tx(1,'expense',1500,'food',T0),tx(2,'expense',3000,'food',T0),tx(3,'expense',2450,'transport',T0),tx(4,'expense',800,'fun',T0),tx(5,'expense',100,'telecom',T0),
+   tx(6,'income',450000,'salary',T0),tx(7,'expense',9999,'food','2026-10-16'),tx(8,'expense',50000,'goal_g1',T0)],T0);
+ ok(r.spent===7850&&r.count===5,'R1 todaySpend: only today expenses, goal_* left out',r);
+ ok(r.top.length===3&&r.top[0].cat==='food'&&r.top[0].sum===4500&&r.top[0].n===2&&r.top[1].cat==='transport'&&r.top[2].cat==='fun','R1 top-3 by sum with counts',r.top);
+ ok(JSON.stringify(M.todaySpend([],T0))==='{"spent":0,"count":0,"top":[]}','R1 empty day');
+}
+
+// ── SPEC_365 R2: the [+] type label and the type switch
+await (async()=>{
+  M.setForce(null);M.setCmdType('expense');
+  const L=async(s,forced)=>M.cmdKindLabel(await M.cmdParse(s),forced);
+  ok(await L('кофе 1500')==='расход · понял по сумме','R2 label: expense by amount',await L('кофе 1500'));
+  ok(await L('+5000 подработка')==='доход · начинается с +','R2 label: income by +',await L('+5000 подработка'));
+  ok(await L('созвон с банком завтра 10:00')==='задача · есть дата или время','R2 label: task with date/time',await L('созвон с банком завтра 10:00'));
+  ok(await L('купить корм #быт')==='задача · есть #список','R2 label: task with #tag',await L('купить корм #быт'));
+  ok(await L('позвонить маме')==='задача · суммы нет','R2 label: task without amount',await L('позвонить маме'));
+  ok(await L('кофе')==='похоже на трату — добавь сумму','R2 label: hint',await L('кофе'));
+  ok(await L('+ разобрал кейс')==='журнал · начинается с +','R2 label: journal',await L('+ разобрал кейс'));
+  ok(M.cmdKindLabel(null,false)==='','R2 label: empty line');
+  M.setForce('task','gym');
+  const t=await M.cmdParse('купить корм 3000');
+  ok(t.kind==='task'&&t.title==='купить корм 3000'&&t.list==='gym'&&M.cmdKindLabel(t,true)==='задача · выбрано вручную','R2 forced task keeps the amount in the title, chosen list',t);
+  M.setForce('tx');
+  const x=await M.cmdParse('созвон завтра 10:00');
+  ok(x.kind==='task'&&!!x.hint,'R2 forced expense on a line without an amount → amount hint, not a task',x);
+  const y=await M.cmdParse('кофе 1500');
+  ok(y.kind==='tx'&&y.amount===1500&&M.cmdKindLabel(y,true)==='расход · выбрано вручную','R2 forced expense with an amount',y);
+  M.setForce(null);
+  ok((await M.cmdParse('кофе')).hint&&(await M.cmdParse('+ разобрал кейс')).kind==='journal'&&(await M.cmdParse('+5000 зп')).type==='income','R2 old behaviour kept');
+})();
+
+// ── SPEC_365 R3: week «Впереди» (T0 = Sat 17.10.2026 → days Sat, Sun)
+{const tk=(id,title,due,extra)=>({id,title,due,list:'inbox',time:'',done:false,...(extra||{})});
+ const tasks=[tk('a','Лаба',T0,{time:'14:00'}),tk('b','Созвон',T0,{time:'10:00'}),tk('c','Просрочка','2026-10-15'),tk('d','Тренировка C','2026-10-18',{time:'12:00'}),
+   tk('e','Взвеситься',T0,{repeat:{type:'daily'}}),tk('f','Готово',T0,{done:true}),tk('g','Потом','2026-10-21'),tk('h','Сорвано','2026-10-13')];
+ const log=[{date:'2026-10-12'},{date:'2026-10-14'},{date:'2026-10-17'},{date:'2026-10-05'}];
+ const w=M.weekAhead(tasks,log,T0);
+ ok(w.ws==='2026-10-12'&&w.we==='2026-10-18'&&w.days.map(d=>d.date).join()===T0+',2026-10-18','R3 days from today to Sunday',w.days.map(d=>d.date));
+ const d0=w.days[0].items.map(i=>i.title);
+ ok(d0[0]==='Сорвано'&&d0[1]==='Просрочка'&&w.days[0].items[0].late&&w.days[0].items[1].late,'R3 overdue go to today, first, oldest first',d0);
+ ok(d0.indexOf('Созвон')<d0.indexOf('Лаба')&&!d0.includes('Готово'),'R3 sorted by time, done left out',d0);
+ ok(w.days[1].items.some(i=>i.title==='Взвеситься'&&i.repeat&&!i.real)&&w.days[1].items.some(i=>i.title==='Тренировка C'&&i.real),'R3 daily repeat gives tomorrow too (not a real instance)',w.days[1].items);
+ ok(w.past.done===2&&w.past.planned===4,'R3 past days: 2 done, 2 failed (13.10, 15.10)',w.past);
+ ok(w.later.some(e=>e.title==='Потом')&&w.later.length<=5,'R3 later = up to 5 things in the 7 days after Sunday',w.later);}
 
 console.log(`status_cmd: ${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

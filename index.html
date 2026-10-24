@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-auth-compat.js" integrity="sha384-5I6kB//hXDU3+uF6P5whMNsiMpLfjPrRMnO628LkoLTV1F4roavOGYGkaES3TPAa" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-check-compat.js" integrity="sha384-B/AP4FGRp30uqxiGDJ1XO7TvHcPxaZEPR798W+ASc3xztnppTUQe2E0ThTTM2+FH" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore-compat.js" integrity="sha384-x/Sc6BbQTFJ8Xok/nKTwZ6hrjKCAPuoiUBD0gRRS0yNLtHZiq2MpDvGVEGBUQefs" crossorigin="anonymous"></script>
-<script src="fx.js?v=41"></script>
+<script src="fx.js?v=42"></script>
 <style>
 :root{
   --bg:#0a0a0f;--bg2:#161620;--bg3:#262436;
@@ -313,7 +313,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   .budget-ring{filter:drop-shadow(0 0 16px rgba(255,255,255,.4))}
 }
 </style>
-<link rel="stylesheet" href="theme.css?v=41">
+<link rel="stylesheet" href="theme.css?v=42">
 </head>
 <body>
 <div class="fx-grid" aria-hidden="true"></div>
@@ -718,13 +718,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 <div id="cmd-layer" class="cmd-layer" hidden role="dialog" aria-modal="true" aria-label="Быстрый ввод: трата, задача или запись в журнал">
   <div class="cmd-top">
-    <div class="cmd-seg" id="cmd-seg" role="group" aria-label="Тип операции"><button type="button" id="cmd-exp" class="on" aria-pressed="true" onclick="cmdSetType('expense')">Расход</button><button type="button" id="cmd-inc" aria-pressed="false" onclick="cmdSetType('income')">Доход</button></div>
+    <div class="cmd-seg" id="cmd-seg" role="group" aria-label="Тип записи"><button type="button" id="cmd-exp" class="on" aria-pressed="true" onclick="cmdSetType('expense')">Расход</button><button type="button" id="cmd-inc" aria-pressed="false" onclick="cmdSetType('income')">Доход</button><button type="button" id="cmd-task" aria-pressed="false" onclick="cmdSetType('task')">Задача</button></div>
     <button type="button" class="header-btn" onclick="closeCmd()" aria-label="Закрыть быстрый ввод"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
   </div>
+  <div class="wk-lbl cmd-kind" id="cmd-kind" aria-live="polite" hidden></div>
   <div class="cmd-field" id="cmd-field"><input id="cmd-input" class="cmd-input" type="text" autocomplete="off" autocapitalize="off" placeholder="кофе 500" oninput="cmdUpdate()" onkeydown="cmdKey(event)" aria-label="Команда"></div>
   <div id="cmd-chips" class="cmd-chips" aria-live="polite"></div>
   <div id="cmd-dates" class="cmd-dates" role="group" aria-label="Дата операции"><button type="button" class="cmd-date on" data-d="today" aria-pressed="true" onclick="cmdSetDate(this.dataset.d)">Сегодня</button><button type="button" class="cmd-date" data-d="yesterday" aria-pressed="false" onclick="cmdSetDate(this.dataset.d)">Вчера</button><label class="cmd-date cmd-date-pick" data-d="pick"><span id="cmd-date-pick-l">Дата…</span><input type="date" id="cmd-date-input" onclick="try{this.showPicker&amp;&amp;this.showPicker()}catch(e){}" onchange="cmdSetDate('pick',this.value)" aria-label="Выбрать дату операции"></label></div>
   <div id="cmd-banks" class="cmd-banks" role="group" aria-label="Банк или карта"></div>
+  <div id="cmd-lists" class="cmd-banks" role="group" aria-label="Список задачи" hidden></div>
   <div id="cmd-cats" class="cat-grid" hidden></div>
   <div id="cmd-templates"></div>
   <div class="cmd-hint">кофе 500 · тренировка #зал вт 18:00 · + разобрал образ диска #dfir</div>
@@ -3640,7 +3642,7 @@ function upcomingEvents(tasks,from,days){
   const end=addDays(from,days),out=[];
   tasks.forEach(t=>{
     if(t.done)return;
-    const push=d=>out.push({date:d,time:t.time||'',title:t.title,list:t.list,repeat:!!t.repeat});
+    const push=d=>out.push({id:t.id,date:d,time:t.time||'',title:t.title,list:t.list,repeat:!!t.repeat});
     if(!t.repeat){if(t.due&&t.due>=from&&t.due<=end)push(t.due);return}
     let cur=t.due&&t.due>from?t.due:from;
     if(t.due&&t.due>=from&&t.due<=end)push(t.due);
@@ -3730,6 +3732,8 @@ function renderTasks(){
   }
   renderJournalToday();
   document.getElementById('tasks-list').innerHTML=html||'<div class="empty-state"><span class="icon-wrap">'+ico('tasks',40)+'</span>Задач нет</div>';
+  // R3: rows in «Неделя → Впереди» are the same tasks — keep that list in step after a check or an edit
+  if(questTab==='week'&&weekOffset===0&&weekMode==='ahead')renderWeek();
 }
 function toggleTasksLater(){tasksLaterOpen=!tasksLaterOpen;renderTasks()}
 function toggleHabitsEdit(){habitsEditing=!habitsEditing;renderTasks()}
@@ -4100,7 +4104,46 @@ function findRecordedSalary(txs,S,t0){
   return (txs||[]).filter(t=>t.type==='income'&&t.category==='salary'&&Math.abs((+t.amount||0)-S)<1&&t.date>=from&&t.date<=t0).sort((a,b)=>b.date.localeCompare(a.date))[0]||null;
 }
 
+// R1: today's spending for the Status card — expenses dated t0 (piggy-bank transfers goal_* are savings, not spending), top-3 categories
+function todaySpend(txs,t0){
+  const by={};let spent=0,count=0;
+  (txs||[]).forEach(t=>{
+    if(t.type!=='expense'||t.date!==t0||String(t.category||'').startsWith('goal_'))return;
+    const a=+t.amount||0;spent+=a;count++;
+    const c=by[t.category]||(by[t.category]={cat:t.category,sum:0,n:0});c.sum+=a;c.n++;
+  });
+  const top=Object.values(by).sort((a,b)=>b.sum-a.sum).slice(0,3).map(c=>({...c,sum:Math.round(c.sum*100)/100}));
+  return{spent:Math.round(spent*100)/100,count,top};
+}
+// R2: the line above the [+] field — what the line will be saved as, and why
+function cmdKindLabel(st,forced){
+  if(!st)return'';
+  if(st.kind==='journal')return'журнал · начинается с +';
+  if(st.kind==='task'&&st.hint)return'похоже на трату — добавь сумму';
+  const kind=st.kind==='task'?'задача':st.type==='income'?'доход':'расход';
+  if(forced)return kind+' · выбрано вручную';
+  if(st.kind==='task')return st.tagged?'задача · есть #список':(st.due||st.time)?'задача · есть дата или время':'задача · суммы нет';
+  return st.plus?'доход · начинается с +':kind+' · понял по сумме';
+}
+// R3: «Впереди» on the current week — open tasks from today to Sunday by day (overdue ones go to today, repeats give their
+// next occurrences), what was done on the past days of the week, and up to 5 things in the 7 days after Sunday
+function weekAhead(tasks,log,t0){
+  const ws=weekStart(t0),we=addDays(ws,6),open=(tasks||[]).filter(t=>!t.done),byId=new Map(open.map(t=>[t.id,t]));
+  const ev=upcomingEvents(open,t0,daysBetween(t0,we));
+  const days=[];
+  for(let d=t0;d<=we;d=addDays(d,1)){
+    const items=ev.filter(e=>e.date===d).map(e=>({...e,task:byId.get(e.id)||null,real:!!byId.get(e.id)&&byId.get(e.id).due===d}));
+    if(d===t0)items.unshift(...open.filter(t=>t.due&&t.due<t0&&!t.repeat).sort((x,y)=>x.due.localeCompare(y.due)).map(t=>({id:t.id,date:t0,time:t.time||'',title:t.title,list:t.list,repeat:false,task:t,real:true,late:true})));
+    if(items.length)days.push({date:d,items});
+  }
+  const done=(log||[]).filter(l=>l.date>=ws&&l.date<t0).length;
+  const failed=open.filter(t=>t.due&&t.due>=ws&&t.due<t0).length;
+  const later=upcomingEvents(open,addDays(we,1),6).slice(0,5);
+  return{ws,we,days,past:{done,planned:done+failed},later};
+}
+
 let cmdType='expense',cmdSeq=0,cmdState=null;
+let cmdForce=null,cmdList=null; // R2: 'task' | 'tx' after a tap on the type switch, chosen list — both until [+] closes
 let cmdDate={choice:'today',picked:''},cmdCatOverride=null,cmdCatsMode='save',cmdHintArmed=false;
 function refreshActive(){
   const v=document.querySelector('.view.active');if(!v)return;
@@ -4117,7 +4160,7 @@ function openCmd(){
   renderTemplates();renderCmdBanks();
   const inp=document.getElementById('cmd-input');inp.value='';
   document.getElementById('cmd-chips').innerHTML='';document.getElementById('cmd-cats').hidden=true;cmdState=null;
-  cmdDate={choice:'today',picked:''};cmdCatOverride=null;cmdCatsMode='save';cmdHintArmed=false;
+  cmdDate={choice:'today',picked:''};cmdCatOverride=null;cmdForce=null;cmdList=null;cmdType='expense';cmdCatsMode='save';cmdHintArmed=false;
   const di=document.getElementById('cmd-date-input');if(di){di.value='';di.max=today()}
   renderCmdDates();cmdSyncRows(null);
   requestAnimationFrame(()=>{L.classList.add('show');inp.focus()});
@@ -4129,13 +4172,12 @@ function closeCmd(){
   const back=cmdPrevFocus;cmdPrevFocus=null;
   try{if(back&&back!==document.body&&document.contains(back)&&typeof back.focus==='function')back.focus();else{const b=document.querySelector('.nav-add');if(b)b.focus()}}catch(e){}
 }
+// R2: a tap on Расход / Доход / Задача fixes the type until [+] closes
 function cmdSetType(t){
-  cmdType=t;
-  const ex=document.getElementById('cmd-exp'),inc=document.getElementById('cmd-inc');
-  ex.classList.toggle('on',t==='expense');inc.classList.toggle('on',t==='income');
-  ex.setAttribute('aria-pressed',String(t==='expense'));inc.setAttribute('aria-pressed',String(t==='income'));
+  if(t==='task')cmdForce='task';else{cmdType=t;cmdForce='tx'}
   return cmdUpdate();
 }
+function cmdSetList(l){cmdList=l;return cmdUpdate()}
 function cmdCurDate(){return cmdDateValue(cmdDate.choice,cmdDate.picked,today())}
 function renderCmdDates(){
   const box=document.getElementById('cmd-dates');if(!box)return;
@@ -4149,13 +4191,18 @@ function cmdSetDate(choice,val){
   renderCmdDates();
   if(cmdState&&cmdState.kind==='tx')document.getElementById('cmd-chips').innerHTML=cmdChipHtml(cmdState);
 }
-// Bank row, date chips and the Расход/Доход switch only make sense for a transaction (or an empty / hinted line)
+// Bank row and date chips only make sense for a transaction (or an empty / hinted line), the list row for a task.
+// R2: the type switch is always shown and lights what the line will be saved as; the label above the field says why.
 function cmdSyncRows(st){
-  const money=!st||st.kind==='tx'||!!st.hint;
+  const money=!st?cmdForce!=='task':st.kind==='tx'||!!st.hint,task=!!st&&st.kind==='task'&&!st.hint;
   document.getElementById('cmd-banks').hidden=!money;
   const d=document.getElementById('cmd-dates');if(d)d.hidden=!money;
-  const seg=document.getElementById('cmd-seg');if(seg)seg.classList.toggle('off',!money);
   if(!money)document.getElementById('cmd-cats').hidden=true;
+  const on=!st?(cmdForce==='task'?'task':cmdType):st.kind==='tx'?st.type:task?'task':st.hint?cmdType:'';
+  [['cmd-exp','expense'],['cmd-inc','income'],['cmd-task','task']].forEach(([id,k])=>{const b=document.getElementById(id);if(b){b.classList.toggle('on',on===k);b.setAttribute('aria-pressed',String(on===k))}});
+  const lab=document.getElementById('cmd-kind');if(lab){lab.textContent=cmdKindLabel(st,!!cmdForce);lab.hidden=!lab.textContent}
+  const ls=document.getElementById('cmd-lists');
+  if(ls){ls.hidden=!task;if(task)ls.innerHTML=LISTS.map(l=>`<button type="button" class="cmd-bank${l.id===st.list?' on':''}" aria-pressed="${l.id===st.list}" data-l="${l.id}" onclick="cmdSetList(this.dataset.l)">${escapeHtml(l.name)}</button>`).join('')}
 }
 async function cmdParse(s){
   s=(s||'').trim();if(!s)return null;
@@ -4165,17 +4212,19 @@ async function cmdParse(s){
     else{const j=extractJournal(s.slice(1));return j.text?{kind:'journal',text:j.text,sphere:j.sphere}:null}
   }
   const q=parseQuickTask(s);
-  if(!forceIncome&&(q.tagged||q.due||q.time))return{kind:'task',title:q.title,list:q.list,due:q.due,time:q.time};
+  if(cmdForce==='task')return{kind:'task',title:q.title||s,list:cmdList||q.list,due:q.due,time:q.time,tagged:!!q.tagged};
+  if(!forceIncome&&cmdForce!=='tx'&&(q.tagged||q.due||q.time))return{kind:'task',title:q.title,list:cmdList||q.list,due:q.due,time:q.time,tagged:!!q.tagged};
   const p=parseInput(s);
   if(p&&p.amount>0){
     const type=forceIncome?'income':cmdType;
     const ov=cmdCatOverride&&cmdCatOverride.desc===p.desc&&cmdCatOverride.type===type?cmdCatOverride.cat:null;
     const cat=ov||(p.desc?await classify(p.desc,type):null);
-    return{kind:'tx',type,desc:p.desc,amount:p.amount,cat};
+    return{kind:'tx',type,desc:p.desc,amount:p.amount,cat,plus:forceIncome};
   }
-  const h=cmdNoAmountHint(s,KEYWORDS,learnedMap);
+  // «Расход»/«Доход» chosen by hand on a line without an amount → ask for the amount instead of making a task
+  const h=cmdNoAmountHint(s,KEYWORDS,learnedMap)||(cmdForce==='tx'?{text:s+' 500',fill:s+' ',fixed:false}:null);
   if(h&&forceIncome){h.text='+'+h.text;h.fill='+'+h.fill}
-  return h?{kind:'task',title:(forceIncome?'+':'')+s,list:'inbox',due:'',time:'',hint:h}:{kind:'task',title:s,list:'inbox',due:'',time:''};
+  return h?{kind:'task',title:(forceIncome?'+':'')+s,list:cmdList||'inbox',due:'',time:'',hint:h}:{kind:'task',title:s,list:cmdList||'inbox',due:'',time:''};
 }
 function cmdChipHtml(st){
   if(st.kind==='journal')return `<span class="cmd-chip" id="cmd-chip"><b>Журнал</b>${st.sphere?' · '+escapeHtml(SPHERES[st.sphere]):''} · ${escapeHtml(st.text)}</span>`;
@@ -5193,11 +5242,12 @@ const MONTHS_GEN=['января','февраля','марта','апреля','�
 const WD_SHORT=['пн','вт','ср','чт','пт','сб','вс'];
 const dayWord=n=>{const a=n%10,b=n%100;return b>=11&&b<=14?'дней':a===1?'день':a>=2&&a<=4?'дня':'дней'};
 let statusAvatar=null,heroPrev=null,introPending=false;
-let firstRunState=null;
+let firstRunState=null,statusMoney=null;
 async function refreshStatus(){
   await Promise.all([getTasks(),getHabits(),getChecks(),getTaskLog(),getCol('xpLog'),getCol('journal')]);
   statusAvatar=await getSetting('avatar');
   try{firstRunState=typeof firstRunChecklistState==='function'?await firstRunChecklistState():null}catch(e){firstRunState=null}
+  try{const txs=await getTxs(),vals={};for(const k of BANK_KEYS)vals[k]=await bankBalance(k,txs);statusMoney={spend:todaySpend(txs,today()),bank:bankTotals(vals)}}catch(e){statusMoney=null}
   renderStatus();
 }
 function statusSummary(){
@@ -5205,6 +5255,14 @@ function statusSummary(){
   const doneT=log.filter(l=>l.date===t0).length,doneH=habits.filter(h=>checks.some(c=>c.key===`${h.id}_${t0}`)).length;
   const openT=tasks.filter(t=>!t.done&&t.due&&t.due<=t0),openH=habits.filter(h=>!checks.some(c=>c.key===`${h.id}_${t0}`));
   return{doneT,doneH,openT,openH,total:doneT+doneH+openT.length+openH.length,done:doneT+doneH};
+}
+// R1: «Сегодня в цифрах» — spent today, money on the accounts (as «На счетах» in Деньги → Обзор), top categories of the day
+function statusMoneyHtml(){
+  const m=statusMoney;if(!m)return'';
+  const sp=m.spend,b=m.bank,stat=(v,l,extra)=>`<div class="wk-stat spot"><div class="wk-num disp" data-fit="40,18">${v}</div><div class="wk-lbl">${l}</div>${extra||''}</div>`;
+  const acc=b.set.length?stat(fmt(Math.round(b.total)),'на счетах, ₸'):stat('—','на счетах, ₸','<button type="button" class="link-btn" data-v="home" onclick="switchView(this.dataset.v)">Указать</button>');
+  const rows=sp.top.length?sp.top.map(c=>`<div class="recent-item"><div class="recent-info"><div class="recent-desc">${escapeHtml(getCat(c.cat).name)}</div><div class="recent-cat">${nWord(c.n,['операция','операции','операций'])}</div></div><div class="recent-amount">-${fmtCur(c.sum)}</div></div>`).join(''):'<div class="cmd-hint st-today-empty">Сегодня трат нет</div>';
+  return `<div class="card st-today"><div class="card-title st-today-head">Сегодня в цифрах <button type="button" class="settings-btn" data-v="history" onclick="switchView(this.dataset.v)">Операции</button></div><div class="wk-grid">${stat(fmt(Math.round(sp.spent)),'потрачено, ₸')}${acc}</div>${rows}</div>`;
 }
 function renderStatus(){
   const root=document.getElementById('status-root');if(!root)return;
@@ -5252,8 +5310,10 @@ function renderStatus(){
   ${plaques?`<div class="st-plaques">${plaques}</div>`:''}
   <div class="card hud spot qw"><div class="qw-head"><span>Квест дня</span><span class="qw-count">${sm.done}/${sm.total}</span></div>${taskRows}${habRows}${(!taskRows&&!habRows)?'<div class="cmd-hint" style="padding:10px 0">На сегодня всё выполнено</div>':''}<div class="qw-foot">если не выполнить: ${foot}</div></div>
   ${typeof firstRunChecklistHtml==='function'&&firstRunState?firstRunChecklistHtml(firstRunState):''}
-  <div class="card"><div class="card-title">Ближайшее</div>${ev.length?ev.map(e=>`<div class="upc-row"><div class="upc-when">${escapeHtml(formatTaskDate(e.date))}${e.time?' · '+escapeHtml(e.time):''}</div><div class="upc-title">${escapeHtml(e.title)}${e.repeat?ico('repeat',12):''}</div></div>`).join(''):'<div class="cmd-hint">Ближайших событий нет</div>'}</div>`;
+  <div class="card"><div class="card-title">Ближайшее</div>${ev.length?ev.map(e=>`<div class="upc-row"><div class="upc-when">${escapeHtml(formatTaskDate(e.date))}${e.time?' · '+escapeHtml(e.time):''}</div><div class="upc-title">${escapeHtml(e.title)}${e.repeat?ico('repeat',12):''}</div></div>`).join(''):'<div class="cmd-hint">Ближайших событий нет</div>'}</div>
+  ${statusMoneyHtml()}`;
   renderSyncState();
+  fitAll(root.querySelector('.st-today'));
   if(window.fxMarquee)fxMarquee(document.getElementById('st-marquee'),mq.map(escapeHtml).join(' &nbsp;•&nbsp; '));
   // тикеры: XP и полоса дотягиваются, уровень считается
   requestAnimationFrame(()=>{const f=document.getElementById('xp-fill');if(f)f.style.transform=`scaleX(${hero.pct.toFixed(3)})`});
@@ -5317,11 +5377,41 @@ async function renderSeason(){
 }
 
 // ── Quests → Week ──
-let weekOffset=0,weekText='';
+let weekOffset=0,weekText='',weekMode='ahead';
 function weekShift(d){weekOffset+=d;if(weekOffset>0)weekOffset=0;renderWeek()}
+function setWeekMode(m){weekMode=m;renderWeek()}
+// R3: «Впереди / Итоги» — only on the current week; past weeks are always «Итоги»
+function weekSegHtml(){
+  if(weekOffset!==0)return'';
+  const b=(m,l)=>`<button type="button" class="${weekMode===m?'on':''}" aria-pressed="${weekMode===m}" data-m="${m}" onclick="setWeekMode(this.dataset.m)">${l}</button>`;
+  return `<div class="body-seg" role="group" aria-label="Неделя">${b('ahead','Впереди')}${b('review','Итоги')}</div>`;
+}
+function weekNavHtml(ws,we){
+  const fmtD=d=>d.slice(8,10)+'.'+d.slice(5,7);
+  return `<div class="wk-nav"><button type="button" class="header-btn" onclick="weekShift(-1)" aria-label="Предыдущая неделя">${ico('chevLeft',18)}</button><div class="wk-range" aria-live="polite">${fmtD(ws)}–${fmtD(we)}${weekOffset===0?' · эта неделя':''}</div><button type="button" class="header-btn" onclick="weekShift(1)" aria-label="Следующая неделя"${weekOffset===0?' disabled style="opacity:.3"':''}>${ico('chevRight',18)}</button></div>${weekSegHtml()}`;
+}
+const WD_FULL=['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
+function renderWeekAhead(el){
+  const t0=today(),w=weekAhead(tasksCache,logCache,t0),dayN=d=>+d.slice(8,10);
+  const strip=Array.from({length:7},(_,i)=>{
+    const d=addDays(w.ws,i),past=d<t0,cls='period-tab wa-day'+(d===t0?' active':'')+(past?' past':'');
+    return `<button type="button" class="${cls}" data-d="${d}" onclick="weekDayTap(this.dataset.d)" aria-label="${WD_FULL[i]}, ${dayN(d)}${past?' — итоги':''}"><span>${WD_SHORT[i]}</span><b>${dayN(d)}</b></button>`;
+  }).join('');
+  const pastTxt=t0>w.ws?`<div class="cmd-hint wa-past">${WD_SHORT[0]}–${WD_SHORT[isoWeekday(t0)-2]}: сделано ${w.past.done} из ${w.past.planned} — подробно в «Итогах»</div>`:'';
+  const item=e=>e.real&&e.task?taskRowHtml(e.task,!!e.late):`<div class="task-item wa-rep"><div class="task-row"><span class="task-check" aria-hidden="true"></span><div class="task-main"><div class="task-title">${escapeHtml(e.title)}</div><div class="task-meta">${e.time?`<span>${escapeHtml(e.time)}</span>`:''}${ico('repeat',13)}<span class="task-badge">${escapeHtml(listName(e.list))}</span></div></div></div></div>`;
+  const days=w.days.map(d=>`<div class="task-section-title" id="wa-${d.date}">${WD_FULL[isoWeekday(d.date)-1]}, ${dayN(d.date)}${d.date===t0?' · сегодня':''}</div>${d.items.map(item).join('')}`).join('')
+    ||'<div class="empty-state" style="padding:16px 0">До конца недели дел нет</div>';
+  const later=w.later.length?`<div class="card wa-later"><div class="card-title">Дальше</div>${w.later.map(e=>`<div class="upc-row"><div class="upc-when">${escapeHtml(formatTaskDate(e.date))}${e.time?' · '+escapeHtml(e.time):''}</div><div class="upc-title">${escapeHtml(e.title)}${e.repeat?ico('repeat',12):''}</div></div>`).join('')}</div>`:'';
+  el.innerHTML=weekNavHtml(w.ws,w.we)+`<div class="wa-strip">${strip}</div>${pastTxt}${days}${later}`;
+}
+function weekDayTap(d){
+  if(d<today())return setWeekMode('review');
+  const s=document.getElementById('wa-'+d);if(s)s.scrollIntoView({behavior:reducedMotion()?'auto':'smooth',block:'start'});else toast('В этот день дел нет');
+}
 async function renderWeek(){
   const el=document.getElementById('q-week');if(!el)return;
   await Promise.all([getTasks(),getHabits(),getChecks(),getTaskLog(),getCol('journal'),getCol('workouts'),getCol('xpLog'),getCol('workoutPlans')]);const txAll=await getTxs();
+  if(weekOffset===0&&weekMode==='ahead')return renderWeekAhead(el);
   const t0=today(),ws=addDays(weekStart(t0),weekOffset*7),we=addDays(ws,6),inW=d=>d>=ws&&d<=we;
   const log=logCache.filter(l=>inW(l.date)),jr=colCache.journal.data.filter(j=>inW(j.date)),wo=colCache.workouts.data.filter(w=>w.done&&inW(w.date));
   const planned=new Set(tasksCache.filter(t=>t.workoutPlan).map(t=>t.id));
@@ -5357,7 +5447,7 @@ async function renderWeek(){
   weekText=lines.join('\n');
   const big=(n,l)=>`<div class="wk-stat spot"><div class="wk-num disp" data-n="${n}">${n}</div><div class="wk-lbl">${l}</div></div>`;
   let lastDay='';
-  el.innerHTML=`<div class="wk-nav"><button type="button" class="header-btn" onclick="weekShift(-1)" aria-label="Предыдущая неделя">${ico('chevLeft',18)}</button><div class="wk-range" aria-live="polite">${fmtD(ws)}–${fmtD(we)}${weekOffset===0?' · эта неделя':''}</div><button type="button" class="header-btn" onclick="weekShift(1)" aria-label="Следующая неделя"${weekOffset===0?' disabled style="opacity:.3"':''}>${ico('chevRight',18)}</button></div>
+  el.innerHTML=`${weekNavHtml(ws,we)}
     <div class="wk-grid">${big(tasksDone+'/'+tasksPlanned,'задачи')}${big(hPct+'%','привычки')}${big(wo.length+'/'+woPlanned,'тренировки')}${big(fmt(Math.round(spentSum/1000))+'к','траты, ₸')}</div>
     <div class="card"><div class="card-title">Опыт за неделю</div><div class="wk-xp">${Object.keys(SPHERES).map(s=>`<span style="--c:var(--${s})"><i></i>${SPHERES[s]} ${xp[s]>=0?'+':''}${xp[s]}</span>`).join('')}</div></div>
     <div class="card"><div class="card-title">Таймлайн</div>${tl.length?tl.map(e=>{const h=e.date!==lastDay?`<div class="tl-day">${WD_SHORT[isoWeekday(e.date)-1]}, ${e.date.slice(8,10)}.${e.date.slice(5,7)}</div>`:'';lastDay=e.date;return h+`<div class="jr-row"><span class="jr-time">${e.journal||e.at>0&&!String(e.text).startsWith('Достижение')?hhmm(e.at):''}</span><span class="jr-dot" style="--c:${sphereColor(e.sphere)}"></span><span class="jr-text">${escapeHtml(e.text)}</span></div>`}).join(''):'<div class="cmd-hint">На этой неделе событий нет</div>'}</div>
