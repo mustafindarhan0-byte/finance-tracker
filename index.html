@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-auth-compat.js" integrity="sha384-5I6kB//hXDU3+uF6P5whMNsiMpLfjPrRMnO628LkoLTV1F4roavOGYGkaES3TPAa" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-check-compat.js" integrity="sha384-B/AP4FGRp30uqxiGDJ1XO7TvHcPxaZEPR798W+ASc3xztnppTUQe2E0ThTTM2+FH" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore-compat.js" integrity="sha384-x/Sc6BbQTFJ8Xok/nKTwZ6hrjKCAPuoiUBD0gRRS0yNLtHZiq2MpDvGVEGBUQefs" crossorigin="anonymous"></script>
-<script src="fx.js?v=42"></script>
+<script src="fx.js?v=43"></script>
 <style>
 :root{
   --bg:#0a0a0f;--bg2:#161620;--bg3:#262436;
@@ -313,7 +313,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   .budget-ring{filter:drop-shadow(0 0 16px rgba(255,255,255,.4))}
 }
 </style>
-<link rel="stylesheet" href="theme.css?v=42">
+<link rel="stylesheet" href="theme.css?v=43">
 </head>
 <body>
 <div class="fx-grid" aria-hidden="true"></div>
@@ -357,6 +357,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <button class="q-tab" data-q="week" onclick="setQuestTab('week')">Неделя</button>
     <span class="q-ind" id="q-ind"></span>
   </div>
+  <div class="q-split">
   <div id="q-today">
   <div class="header"><h1 id="tasks-title">Сегодня</h1><div class="tasks-done-month" id="tasks-done-month"></div></div>
   <div class="card"><div class="card-title">Ближайшее</div><div id="tasks-upcoming"></div></div>
@@ -372,6 +373,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div id="tasks-list"></div>
   <div id="journal-today"></div>
   </div>
+  <aside class="q-side" id="q-side" aria-label="Неделя: что впереди" hidden></aside>
+  </div>
   <div id="q-season" hidden></div>
   <div id="q-week" hidden></div>
 </div>
@@ -384,6 +387,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div id="view-home" class="view">
 <div class="container">
   <div class="header"><h1>Обзор</h1><button class="header-btn" data-v="settings" onclick="switchView(this.dataset.v)" aria-label="Настройки"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.9 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.9-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.9-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.9 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9c0 .7.6 1.3 1.6 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg></button></div>
+  <div class="split mh-split"><div class="split-col">
   <div class="balance-card">
     <div class="balance-label">На счетах</div>
     <div class="balance-amount" id="bank-total">—</div>
@@ -420,7 +424,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       <button class="save-btn primary" onclick="saveBankBalances()" style="margin-top:8px">Сохранить</button>
     </div>
   </div>
+  </div><div class="split-col">
   <div class="card"><div class="card-title">Последние операции</div><div id="recent-list"></div></div>
+  </div></div>
 </div>
 </div>
 
@@ -501,7 +507,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="stat-card"><div class="label">В среднем за день</div><div class="value" id="stat-avg">0</div></div>
     <div class="stat-card"><div class="label">Больше всего</div><div class="value" id="stat-top">—</div></div>
   </div>
-  <div class="card"><div class="card-title">Расходы за период</div>
+  <div class="stats-grid">
+  <div class="card st-ring"><div class="card-title">Расходы за период</div>
     <div class="ring-wrap">
       <svg id="ring-svg" viewBox="0 0 200 200" aria-hidden="true"></svg>
       <div class="sphere-center">
@@ -511,9 +518,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     </div>
     <div class="sphere-legend" id="sphere-legend"></div>
   </div>
-  <div class="card"><div class="card-title">Динамика</div><div class="chart-container"><canvas id="chart-bar"></canvas></div></div>
-  <div class="card"><div class="card-title">Все категории</div><div id="cat-breakdown"></div></div>
-  <div class="card" id="bank-breakdown-card" hidden><div class="card-title">Расходы по банкам</div><div id="bank-breakdown"></div></div>
+  <div class="card st-dyn"><div class="card-title">Динамика</div><div class="chart-container"><canvas id="chart-bar"></canvas></div></div>
+  <div class="card st-cats"><div class="card-title">Все категории</div><div id="cat-breakdown"></div></div>
+  <div class="card st-banks" id="bank-breakdown-card" hidden><div class="card-title">Расходы по банкам</div><div id="bank-breakdown"></div></div>
+  </div>
 </div>
 </div>
 
@@ -717,6 +725,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </div>
 
 <div id="cmd-layer" class="cmd-layer" hidden role="dialog" aria-modal="true" aria-label="Быстрый ввод: трата, задача или запись в журнал">
+<div class="cmd-box">
   <div class="cmd-top">
     <div class="cmd-seg" id="cmd-seg" role="group" aria-label="Тип записи"><button type="button" id="cmd-exp" class="on" aria-pressed="true" onclick="cmdSetType('expense')">Расход</button><button type="button" id="cmd-inc" aria-pressed="false" onclick="cmdSetType('income')">Доход</button><button type="button" id="cmd-task" aria-pressed="false" onclick="cmdSetType('task')">Задача</button></div>
     <button type="button" class="header-btn" onclick="closeCmd()" aria-label="Закрыть быстрый ввод"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
@@ -731,13 +740,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div id="cmd-templates"></div>
   <div class="cmd-hint">кофе 500 · тренировка #зал вт 18:00 · + разобрал образ диска #dfir</div>
 </div>
+</div>
 <nav class="bottom-nav" id="bottom-nav" hidden>
   <span class="nav-lamp" id="nav-lamp" aria-hidden="true"></span>
-  <button class="nav-btn active" data-view="status" onclick="switchView('status',this)" aria-label="Статус"><span class="icon"><svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg></span></button>
-  <button class="nav-btn" data-view="quests" onclick="switchView('quests',this)" aria-label="Квесты"><span class="icon"><svg width="24" height="24" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm4.7 7.7-5.4 5.6a1 1 0 0 1-1.4 0l-2.6-2.6a1 1 0 1 1 1.4-1.4l1.9 1.9 4.7-4.9a1 1 0 0 1 1.4 1.4Z"/></svg></span></button>
-  <button class="nav-btn nav-add" data-view="add" onclick="openCmd()" aria-label="Добавить"><span class="icon"><svg viewBox="0 0 24 24"><path d="M10.5 4h3v6.5H20v3h-6.5V20h-3v-6.5H4v-3h6.5z"/></svg></span></button>
-  <button class="nav-btn" data-view="body" onclick="switchView('body',this)" aria-label="Тело"><span class="icon"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M2 9.5h2.2v5H2zM19.8 9.5H22v5h-2.2zM5 7h2.4v10H5zM16.6 7H19v10h-2.4zM7.4 11h9.2v2H7.4z"/></svg></span></button>
-  <button class="nav-btn" data-view="money" onclick="switchView('money',this)" aria-label="Деньги"><span class="icon"><svg width="24" height="24" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20ZM7.5 8h9v2h-3.5v6h-2v-6H7.5Z"/></svg></span></button>
+  <div class="side-head side-only"><div class="side-brand">▸ СИСТЕМА</div><div class="side-date" id="side-date"></div></div>
+  <button class="nav-btn active" data-view="status" onclick="switchView('status',this)" aria-label="Статус"><span class="icon"><svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg></span><span class="nav-label">Статус</span></button>
+  <button class="nav-btn" data-view="quests" onclick="switchView('quests',this)" aria-label="Квесты"><span class="icon"><svg width="24" height="24" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm4.7 7.7-5.4 5.6a1 1 0 0 1-1.4 0l-2.6-2.6a1 1 0 1 1 1.4-1.4l1.9 1.9 4.7-4.9a1 1 0 0 1 1.4 1.4Z"/></svg></span><span class="nav-label">Квесты</span></button>
+  <button class="nav-btn nav-add" data-view="add" onclick="openCmd()" aria-label="Добавить"><span class="icon"><svg viewBox="0 0 24 24"><path d="M10.5 4h3v6.5H20v3h-6.5V20h-3v-6.5H4v-3h6.5z"/></svg></span><span class="nav-label">Записать</span></button>
+  <button class="nav-btn" data-view="body" onclick="switchView('body',this)" aria-label="Тело"><span class="icon"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M2 9.5h2.2v5H2zM19.8 9.5H22v5h-2.2zM5 7h2.4v10H5zM16.6 7H19v10h-2.4zM7.4 11h9.2v2H7.4z"/></svg></span><span class="nav-label">Тело</span></button>
+  <button class="nav-btn" data-view="money" onclick="switchView('money',this)" aria-label="Деньги"><span class="icon"><svg width="24" height="24" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20ZM7.5 8h9v2h-3.5v6h-2v-6H7.5Z"/></svg></span><span class="nav-label">Деньги</span></button>
+  <div class="side-foot side-only">
+    <div class="side-keys"><span><kbd>/</kbd> записать</span><span><kbd>1</kbd>–<kbd>4</kbd> разделы</span></div>
+    <span class="side-sync" id="side-sync" role="status"></span>
+    <button class="nav-btn side-settings" data-view="settings" onclick="switchView('settings',this)" aria-label="Настройки"><span class="icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></span><span class="nav-label">Настройки</span></button>
+  </div>
 </nav>
 
 <script>
@@ -976,10 +992,8 @@ async function checkRemoteReset(){
   }catch(e){}
 }
 function renderSyncState(){
-  const el=document.getElementById('st-sync');if(!el)return;
-  const off=navigator.onLine===false;
-  el.textContent=off?(pendingWrites?`офлайн · не отправлено: ${pendingWrites}`:'офлайн'):'';
-  el.classList.toggle('on',!!el.textContent);
+  const off=navigator.onLine===false,txt=off?(pendingWrites?`офлайн · не отправлено: ${pendingWrites}`:'офлайн'):'';
+  ['st-sync','side-sync'].forEach(id=>{const el=document.getElementById(id);if(el){el.textContent=txt;el.classList.toggle('on',!!txt)}});
 }
 window.addEventListener('online',renderSyncState);window.addEventListener('offline',renderSyncState);
 async function dbClear(s){
@@ -3650,7 +3664,7 @@ function upcomingEvents(tasks,from,days){
   });
   return out.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'99:99').localeCompare(b.time||'99:99')||a.title.localeCompare(b.title));
 }
-function taskRowHtml(t,showDate){
+function taskRowHtml(t,showDate,noEdit){
   const late=showDate&&t.due&&t.due<today();
   const meta=[
     showDate&&t.due?`<span class="${late?'late':''}">${escapeHtml(formatTaskDate(t.due))}</span>`:'',
@@ -3661,7 +3675,7 @@ function taskRowHtml(t,showDate){
   const id=escapeHtml(t.id),act=taskActionKind(t);
   const go=act?`<span class="task-badge task-go">${act==='workout'?'тренировка →':'распределение →'}</span>`:'';
   const row=`<div class="task-row" data-id="${id}" role="button" tabindex="0" onclick="taskTap(this.dataset.id,'row')"><button type="button" class="task-check" aria-label="${act==='workout'?'Открыть тренировку':act==='salary'?'Открыть распределение зарплаты':'Выполнить'}" data-id="${id}" onclick="event.stopPropagation();taskTap(this.dataset.id,'check',this)"></button><div class="task-main"><div class="task-title">${escapeHtml(t.title)}</div><div class="task-meta">${go}${meta}</div></div>${act?`<button type="button" class="header-btn task-edit-btn" data-id="${id}" onclick="event.stopPropagation();editTask(this.dataset.id)" aria-label="Изменить задачу">${ico('settings',16)}</button>`:''}</div>`;
-  return `<div class="task-item">${row}${editingTaskId===t.id?taskEditHtml(t):''}</div>`;
+  return `<div class="task-item">${row}${editingTaskId===t.id&&!noEdit?taskEditHtml(t):''}</div>`;
 }
 // F6.5: a workout task opens its workout, the salary task opens the allocation — for the row and the checkbox alike
 // (the workout closes the task itself on finish, the allocation on confirm; no XP shortcut)
@@ -3734,6 +3748,7 @@ function renderTasks(){
   document.getElementById('tasks-list').innerHTML=html||'<div class="empty-state"><span class="icon-wrap">'+ico('tasks',40)+'</span>Задач нет</div>';
   // R3: rows in «Неделя → Впереди» are the same tasks — keep that list in step after a check or an edit
   if(questTab==='week'&&weekOffset===0&&weekMode==='ahead')renderWeek();
+  syncQuestSide();
 }
 function toggleTasksLater(){tasksLaterOpen=!tasksLaterOpen;renderTasks()}
 function toggleHabitsEdit(){habitsEditing=!habitsEditing;renderTasks()}
@@ -5055,7 +5070,7 @@ async function renderSkillPath(){
   };
   root.innerHTML=`<div class="header"><h1>Тело</h1></div>${bodySegHtml()}
     <div class="sk-head"><span>Путь</span><b>${doneN} / ${SKILL_TREES.body.length}</b></div>
-    ${branches.map(b=>`<div class="card sk-branch"><div class="card-title">${escapeHtml(b)}</div>${chainsOf(b).map(ch=>`<div class="sk-chain">${ch.map(node).join('')}</div>`).join('')}</div>`).join('')}`;
+    <div class="sk-grid">${branches.map(b=>`<div class="card sk-branch"><div class="card-title">${escapeHtml(b)}</div>${chainsOf(b).map(ch=>`<div class="sk-chain">${ch.map(node).join('')}</div>`).join('')}</div>`).join('')}</div>`;
 }
 let bodySeg='workout',bodyMuscleSel=null;
 function setBodySeg(s){bodySeg=['map','path'].includes(s)?s:'workout';renderBody()}
@@ -5088,15 +5103,16 @@ function renderBodyMap(){
       <div class="mus-row"><span>Последний раз</span><b>${escapeHtml(ago)}${r.state==='rest'?' · восстанавливается':''}</b></div>
       <div class="mus-ex">${exs.length?exs.map(x=>`<div>${escapeHtml(x.ex.name)} <span>· ${escapeHtml(x.p.name)}${x.mm.p.includes(m)?'':' · вспомогательная'}</span></div>`).join(''):'<div>В планах нет упражнений на эту мышцу</div>'}</div></div>`;
   }
-  root.innerHTML=`<div class="header"><h1>Тело</h1></div>${bodySegHtml()}
+  root.innerHTML=`<div class="header"><h1>Тело</h1></div>${bodySegHtml()}<div class="split bd-split"><div class="split-col">
     <div class="card body-map-card"><div class="body-map-head"><span>Нагрузка за 7 дней</span><span class="cmd-hint">цель ${WEEKLY_SETS_TARGET[0]}–${WEEKLY_SETS_TARGET[1]} подходов на мышцу</span></div>
       <div class="body-figs">${bodyFigureSvg('front',load,rec)}${bodyFigureSvg('back',load,rec)}</div>
       <div class="body-legend"><span><i class="lg-load"></i>подходы</span><span><i class="lg-rest"></i>восстанавливается</span><span><i class="lg-stale"></i>давно не работала</span></div>
       ${anyData?'':'<div class="cmd-hint" style="margin-top:8px">Заверши первую тренировку — карта заполнится.</div>'}
     </div>
     ${detail}
+    </div><div class="split-col">
     <div class="card"><div class="card-title">Отстают</div>${lagging.length?lagging.map(m=>`<button type="button" class="mus-line" data-m="${m}" onclick="selectMuscle(this.dataset.m)"><span>${escapeHtml(MUSCLES[m].name)}</span><b>${fmtSets(load[m])} / ${WEEKLY_SETS_TARGET[0]}</b></button>`).join(''):'<div class="cmd-hint">Все мышцы в норме за неделю</div>'}</div>
-    ${resting.length?`<div class="card"><div class="card-title">Восстанавливаются</div><div class="cmd-hint">${resting.map(m=>escapeHtml(MUSCLES[m].name)).join(', ')} — лучше дать им 48 ч</div></div>`:''}`;
+    ${resting.length?`<div class="card"><div class="card-title">Восстанавливаются</div><div class="cmd-hint">${resting.map(m=>escapeHtml(MUSCLES[m].name)).join(', ')} — лучше дать им 48 ч</div></div>`:''}</div></div>`;
   root.querySelectorAll('polygon.mus').forEach(p=>{
     p.addEventListener('click',()=>selectMuscle(p.dataset.m));
     p.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();selectMuscle(p.dataset.m)}});
@@ -5111,7 +5127,7 @@ function renderBody(keepFocus){
   const act=document.activeElement&&document.activeElement.dataset&&document.activeElement.dataset.k,
         selS=document.activeElement&&document.activeElement.selectionStart;
   const bw=wcol('bodyWeights').slice().sort((a,b)=>a.date.localeCompare(b.date)),lastBw=bw[bw.length-1];
-  let html='<div class="header"><h1>Тело</h1></div>'+bodySegHtml();
+  let html='<div class="header"><h1>Тело</h1></div>'+bodySegHtml()+'<div class="split bd-split"><div class="split-col">';
   const plan=wk&&planById(wk.planId);
   if(wk&&!(plan&&plan.exercises&&plan.exercises.length)){
     html+=`<div class="card"><div class="card-title">Тренировка</div><div class="cmd-hint">План этой тренировки не найден</div></div>
@@ -5141,9 +5157,9 @@ function renderBody(keepFocus){
       +`<div class="plan-list">${plans.map(p=>`<div class="plan-line"><button type="button" class="plan-go" data-p="${escapeHtml(p.id)}" onclick="startWorkout(this.dataset.p,null)"><b>${escapeHtml(p.name)}</b><span>${p.exercises.length} упр. · ${escapeHtml(p.exercises.slice(0,3).map(e=>e.name.split(' ')[0].toLowerCase()).join(', '))}</span></button><button type="button" class="settings-btn" data-p="${escapeHtml(p.id)}" onclick="editPlan(this.dataset.p)" aria-label="Изменить программу ${escapeHtml(p.name)}">Изменить</button></div>`).join('')}</div>`+`<button type="button" class="settings-btn plan-new" onclick="newPlan()">+ Своя тренировка</button></div>`;
   }
   const lastW=lastBw?lastBw.kg:null;
-  html+=`<div class="card"><div class="card-title">Вес тела${lastW?' · '+fmtNum(lastW)+' кг':''}</div>
+  html+=`</div><div class="split-col"><div class="card"><div class="card-title">Вес тела${lastW?' · '+fmtNum(lastW)+' кг':''}</div>
     <div class="al-row"><input type="number" step="0.1" inputmode="decimal" id="bw-input" placeholder="кг" aria-label="Вес тела, кг" value=""><button type="button" class="settings-btn" onclick="saveBodyWeight()">Записать</button></div>
-    ${sparkline(bw.slice(-12),75)}<div class="cmd-hint">цель 75 кг</div></div>`;
+    ${sparkline(bw.slice(-12),75)}<div class="cmd-hint">цель 75 кг</div></div></div></div>`;
   root.innerHTML=html;
   const sp=document.getElementById('spark-path');if(sp&&!bodyDrawn){fxDraw(sp,1100);bodyDrawn=true}
   if(keepFocus&&act){const n=root.querySelector('[data-k="'+act+'"]');if(n){n.focus();try{n.setSelectionRange(selS,selS)}catch(e){}}}
@@ -5165,12 +5181,15 @@ function fxViewTransition(fn){
   if(document.startViewTransition&&!reducedMotion()){try{const vt=document.startViewTransition(fn);['ready','finished','updateCallbackDone'].forEach(k=>vt[k]&&vt[k].catch(()=>{}));return}catch(e){}}
   fn();
 }
+// D1: ≥1024 px the nav is a left side panel — the lamp then moves down to the active row instead of along the capsule
+const isDesktop=()=>!!(window.matchMedia&&window.matchMedia('(min-width:1024px)').matches);
 function moveLamp(){
   const nav=document.getElementById('bottom-nav'),btn=nav&&nav.querySelector('.nav-btn.active');
   if(!btn||nav.hidden)return;
-  nav.style.setProperty('--lx',(btn.offsetLeft+btn.offsetWidth/2-28)+'px');
+  if(isDesktop())nav.style.setProperty('--ly',btn.offsetTop+'px');
+  else nav.style.setProperty('--lx',(btn.offsetLeft+btn.offsetWidth/2-28)+'px');
 }
-window.addEventListener('resize',moveLamp);
+window.addEventListener('resize',()=>{moveLamp();if(typeof syncQuestSide==='function')syncQuestSide()});
 let lastMoney='home',curView='status',settingsFrom='status';
 function switchView(name,btn){
   if(name==='money')name=lastMoney;
@@ -5223,6 +5242,7 @@ function setQuestTab(t){
   moveQInd();
   if(t==='season')renderSeason();
   if(t==='week')renderWeek();
+  syncQuestSide();
 }
 function moveQInd(){
   const b=document.querySelector('.q-tab.active'),ind=document.getElementById('q-ind');
@@ -5269,6 +5289,7 @@ function renderStatus(){
   const tot=xpTotalsSync(),warn=coolingSync(),sm=statusSummary(),t0=today();
   const hero=levelInfo(tot.all),L=hero.level;
   const d=parseLocalDate(t0),dateStr=WD_SHORT[isoWeekday(t0)-1]+', '+d.getDate()+' '+MONTHS_GEN[d.getMonth()];
+  const sd=document.getElementById('side-date');if(sd)sd.textContent=dateStr;
   const habits=(habitsCache||[]).filter(h=>!h.archived),checks=checksCache||[];
   const bestStreak=habits.reduce((m,h)=>Math.max(m,habitStreak(h.id,checks)),0);
   const dfirWeek=(tasksCache||[]).filter(t=>!t.done&&/^DFIR неделя \d+/.test(t.title)).sort((a,b)=>(a.due||'').localeCompare(b.due||''))[0];
@@ -5298,6 +5319,7 @@ function renderStatus(){
   const prevXp=heroPrev?heroPrev.into:hero.into,prevPct=heroPrev?heroPrev.pct:hero.pct;
   root.innerHTML=`<div class="st-head"><div class="st-title">▸ СИСТЕМА</div><div class="st-date">${dateStr}<span class="st-sync" id="st-sync" role="status"></span></div><button type="button" class="header-btn" data-v="settings" onclick="switchView(this.dataset.v)" aria-label="Настройки">${ico('settings',20)}</button></div>
   <div class="marquee" id="st-marquee" aria-label="Сводка дня"></div>
+  <div class="st-cols"><div class="st-col st-col-l">
   <div class="hero hud${introPending?' hero-intro':''}" id="hero">
     <div class="hero-plate">УРОВЕНЬ</div>
     <div class="hero-num disp outline" id="hero-level" style="font-size:${L>=100?92:140}px">${introPending?'00':String(L).padStart(2,'0')}</div>
@@ -5308,10 +5330,12 @@ function renderStatus(){
   <div class="xpbar"><span>XP</span><div class="bar"><i id="xp-fill" style="transform:scaleX(${prevPct.toFixed(3)})"></i></div><span id="hero-xp">${fmt(Math.round(prevXp))} / ${fmt(hero.need)}</span></div>
   <div class="bento">${tile('money')}${tile('dfir')}${tile('body')}</div>
   ${plaques?`<div class="st-plaques">${plaques}</div>`:''}
+  </div><div class="st-col st-col-r">
   <div class="card hud spot qw"><div class="qw-head"><span>Квест дня</span><span class="qw-count">${sm.done}/${sm.total}</span></div>${taskRows}${habRows}${(!taskRows&&!habRows)?'<div class="cmd-hint" style="padding:10px 0">На сегодня всё выполнено</div>':''}<div class="qw-foot">если не выполнить: ${foot}</div></div>
   ${typeof firstRunChecklistHtml==='function'&&firstRunState?firstRunChecklistHtml(firstRunState):''}
   <div class="card"><div class="card-title">Ближайшее</div>${ev.length?ev.map(e=>`<div class="upc-row"><div class="upc-when">${escapeHtml(formatTaskDate(e.date))}${e.time?' · '+escapeHtml(e.time):''}</div><div class="upc-title">${escapeHtml(e.title)}${e.repeat?ico('repeat',12):''}</div></div>`).join(''):'<div class="cmd-hint">Ближайших событий нет</div>'}</div>
-  ${statusMoneyHtml()}`;
+  ${statusMoneyHtml()}
+  </div></div>`;
   renderSyncState();
   fitAll(root.querySelector('.st-today'));
   if(window.fxMarquee)fxMarquee(document.getElementById('st-marquee'),mq.map(escapeHtml).join(' &nbsp;•&nbsp; '));
@@ -5391,18 +5415,25 @@ function weekNavHtml(ws,we){
   return `<div class="wk-nav"><button type="button" class="header-btn" onclick="weekShift(-1)" aria-label="Предыдущая неделя">${ico('chevLeft',18)}</button><div class="wk-range" aria-live="polite">${fmtD(ws)}–${fmtD(we)}${weekOffset===0?' · эта неделя':''}</div><button type="button" class="header-btn" onclick="weekShift(1)" aria-label="Следующая неделя"${weekOffset===0?' disabled style="opacity:.3"':''}>${ico('chevRight',18)}</button></div>${weekSegHtml()}`;
 }
 const WD_FULL=['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
-function renderWeekAhead(el){
-  const t0=today(),w=weekAhead(tasksCache,logCache,t0),dayN=d=>+d.slice(8,10);
+function renderWeekAhead(el,panel){
+  const t0=today(),w=weekAhead(tasksCache,logCache,t0),dayN=d=>+d.slice(8,10),idp=panel?'qs-':'wa-';
   const strip=Array.from({length:7},(_,i)=>{
     const d=addDays(w.ws,i),past=d<t0,cls='period-tab wa-day'+(d===t0?' active':'')+(past?' past':'');
     return `<button type="button" class="${cls}" data-d="${d}" onclick="weekDayTap(this.dataset.d)" aria-label="${WD_FULL[i]}, ${dayN(d)}${past?' — итоги':''}"><span>${WD_SHORT[i]}</span><b>${dayN(d)}</b></button>`;
   }).join('');
   const pastTxt=t0>w.ws?`<div class="cmd-hint wa-past">${WD_SHORT[0]}–${WD_SHORT[isoWeekday(t0)-2]}: сделано ${w.past.done} из ${w.past.planned} — подробно в «Итогах»</div>`:'';
-  const item=e=>e.real&&e.task?taskRowHtml(e.task,!!e.late):`<div class="task-item wa-rep"><div class="task-row"><span class="task-check" aria-hidden="true"></span><div class="task-main"><div class="task-title">${escapeHtml(e.title)}</div><div class="task-meta">${e.time?`<span>${escapeHtml(e.time)}</span>`:''}${ico('repeat',13)}<span class="task-badge">${escapeHtml(listName(e.list))}</span></div></div></div></div>`;
-  const days=w.days.map(d=>`<div class="task-section-title" id="wa-${d.date}">${WD_FULL[isoWeekday(d.date)-1]}, ${dayN(d.date)}${d.date===t0?' · сегодня':''}</div>${d.items.map(item).join('')}`).join('')
+  const item=e=>e.real&&e.task?taskRowHtml(e.task,!!e.late,panel):`<div class="task-item wa-rep"><div class="task-row"><span class="task-check" aria-hidden="true"></span><div class="task-main"><div class="task-title">${escapeHtml(e.title)}</div><div class="task-meta">${e.time?`<span>${escapeHtml(e.time)}</span>`:''}${ico('repeat',13)}<span class="task-badge">${escapeHtml(listName(e.list))}</span></div></div></div></div>`;
+  const days=w.days.map(d=>`<div class="task-section-title" id="${idp}${d.date}">${WD_FULL[isoWeekday(d.date)-1]}, ${dayN(d.date)}${d.date===t0?' · сегодня':''}</div>${d.items.map(item).join('')}`).join('')
     ||'<div class="empty-state" style="padding:16px 0">До конца недели дел нет</div>';
   const later=w.later.length?`<div class="card wa-later"><div class="card-title">Дальше</div>${w.later.map(e=>`<div class="upc-row"><div class="upc-when">${escapeHtml(formatTaskDate(e.date))}${e.time?' · '+escapeHtml(e.time):''}</div><div class="upc-title">${escapeHtml(e.title)}${e.repeat?ico('repeat',12):''}</div></div>`).join('')}</div>`:'';
-  el.innerHTML=weekNavHtml(w.ws,w.we)+`<div class="wa-strip">${strip}</div>${pastTxt}${days}${later}`;
+  el.innerHTML=panel?`<div class="q-side-title">Неделя</div><div class="cmd-hint">что впереди до воскресенья</div>${days}${later}`
+    :weekNavHtml(w.ws,w.we)+`<div class="wa-strip">${strip}</div>${pastTxt}${days}${later}`;
+}
+// D4: on the desktop «Сегодня» gets «Впереди» as a side panel
+function syncQuestSide(){
+  const el=document.getElementById('q-side');if(!el)return;
+  const on=isDesktop()&&questTab==='today'&&curView==='quests';
+  el.hidden=!on;if(on)renderWeekAhead(el,true);else el.innerHTML='';
 }
 function weekDayTap(d){
   if(d<today())return setWeekMode('review');
@@ -5791,6 +5822,26 @@ document.addEventListener('keydown',e=>{
     f[sheetNextFocus(i<0?(e.shiftKey?0:f.length-1):i,f.length,e.shiftKey)].focus();
   }
 });
+
+// D2: desktop keys — / or N opens [+], 1–4 switch sections; never while typing, with a modifier, or over an open window
+function desktopKeyAction(k){
+  if(!k||k.ctrl||k.alt||k.meta||k.typing||k.overlay)return null;
+  if(k.code==='Slash'||k.code==='KeyN')return'cmd';
+  const m=/^(?:Digit|Numpad)([1-4])$/.exec(k.code||'');
+  return m?{view:['status','quests','body','money'][+m[1]-1]}:null;
+}
+document.addEventListener('keydown',e=>{
+  if(!isDesktop())return;
+  const t=e.target,typing=!!t&&t.nodeType===1&&(t.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+  const L=document.getElementById('cmd-layer'),nav=document.getElementById('bottom-nav');
+  const overlay=(L&&!L.hidden)||!nav||nav.hidden||!!document.querySelector('.sheet-layer,.modal.show,.lvl,.boot');
+  const a=desktopKeyAction({code:e.code,ctrl:e.ctrlKey,alt:e.altKey,meta:e.metaKey,typing,overlay});
+  if(!a)return;
+  e.preventDefault();
+  if(a==='cmd')openCmd();else switchView(a.view,document.querySelector('.nav-btn[data-view="'+a.view+'"]'));
+});
+// D2: on the desktop the [+] layer is a dimmed backdrop around the window — a click on it closes
+document.getElementById('cmd-layer').addEventListener('click',e=>{if(e.target===e.currentTarget&&isDesktop())closeCmd()});
 
 // ── Init ──
 async function startApp(){
