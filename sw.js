@@ -7,6 +7,7 @@ const LOCAL_ASSETS = [
   './theme.css?v=44',
   './fx.js?v=44',
   './figure.jpg',
+  './bg.jpg',
   './icon.svg',
   './icon-180.png',
   './icon-192.png',

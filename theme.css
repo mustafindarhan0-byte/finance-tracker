@@ -12,7 +12,7 @@
 :root{
   --void:#000000;--ink-1:#0E0E0F;--ink-2:#1A1A1C;
   --line:rgba(255,255,255,.08);--line-2:rgba(255,255,255,.18);
-  --fog:#8A8A90;--bone:#F2F2EF;--glow:rgba(242,242,239,.55);
+  --fog:#A0A0A6;--bone:#F2F2EF;--glow:rgba(242,242,239,.55);
   /* F6.8: неактивные иконки и закрытые достижения — не ниже 3:1 к фону (tests/a11y_texts.cjs считает контраст) */
   --dim:#6A6A72;
   --money:#E9C46A;--dfir:#6FE3F2;--body:#FF5A5F;
@@ -22,7 +22,7 @@
   --font-text:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
   --font-mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
   /* SPEC_glow: стекло и свет */
-  --glass:rgba(255,255,255,.045);--glass-2:rgba(255,255,255,.075);--glass-line:rgba(255,255,255,.09);--glass-under:rgba(10,10,12,.46);
+  --glass:rgba(255,255,255,.045);--glass-2:rgba(255,255,255,.075);--glass-line:rgba(255,255,255,.09);--glass-under:rgba(10,10,12,.6);
   --glass-blur:24px;--r-panel:16px;--ease-spring:cubic-bezier(.2,.9,.2,1);
 
   /* старые переменные → монохром, чтобы весь существующий интерфейс перекрасился */
@@ -704,7 +704,7 @@ button.calendar-day::before{content:'';position:absolute;inset:-2px}
 /* ── Glow: частицы, стекло, свет (SPEC_glow) ── */
 /* G1 — фон: размытое фото города + дрейфующие пятна света */
 .bg-photo,.bg-lights{position:fixed;inset:0;pointer-events:none;z-index:0}
-.bg-photo{inset:-40px;background:#000 url(bg.jpg) center/cover no-repeat;filter:blur(28px) brightness(.38) saturate(.8);transform:translate3d(var(--px,0px),var(--py,0px),0) scale(1.08);transition:transform 1.2s var(--ease-out)}
+.bg-photo{inset:-40px;background:#000 url(bg.jpg) center/cover no-repeat;filter:blur(2px) brightness(.46) contrast(1.05);transform:translate3d(var(--px,0px),var(--py,0px),0) scale(1.06);transition:transform 1.2s var(--ease-out)}
 .bg-lights i{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55;will-change:transform}
 .bg-lights i:nth-child(1){width:46vmax;height:46vmax;left:-12vmax;top:-18vmax;background:radial-gradient(circle,rgba(226,234,240,.20),transparent 65%);animation:drift1 52s ease-in-out infinite alternate}
 .bg-lights i:nth-child(2){width:40vmax;height:40vmax;right:-14vmax;top:8vmax;background:radial-gradient(circle,rgba(150,205,180,.16),transparent 65%);animation:drift2 61s ease-in-out infinite alternate}
