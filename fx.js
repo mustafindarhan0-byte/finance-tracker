@@ -247,11 +247,11 @@ const wide=()=>!!(window.matchMedia&&matchMedia('(min-width:1024px)').matches);
 function hpLoad(src){return new Promise(res=>{const im=new Image();im.onload=()=>res(im);im.onerror=()=>res(null);im.src=src})}
 async function hpBuild(src){
   const W=HP.W,H=HP.H,im=await hpLoad(src);
-  const NF=wide()?7000:2600,NT=wide()?3200:1100,NS=wide()?140:70;
+  const NF=wide()?12000:3400,NT=wide()?2600:800,NS=wide()?120:60;
   // фигура: высота 96 % окна, по центру, низом к низу; выборка на сетке ≤ 220 px высотой
   let fig=[];
   if(im){
-    const sh=Math.min(220,Math.round(H*.6)),sw=Math.max(1,Math.round(sh*im.width/im.height));
+    const sh=Math.min(360,Math.round(H*.85)),sw=Math.max(1,Math.round(sh*im.width/im.height));
     const c=document.createElement('canvas');c.width=sw;c.height=sh;const x=c.getContext('2d',{willReadFrequently:true});
     x.drawImage(im,0,0,sw,sh);const d=x.getImageData(0,0,sw,sh).data,lum=new Float32Array(sw*sh);
     const ss=(a,b,v)=>{const t=Math.min(1,Math.max(0,(v-a)/(b-a)));return t*t*(3-2*t)};
@@ -262,14 +262,14 @@ async function hpBuild(src){
         // контровой свет даёт контур, а тело (по яркости как туман) заполняем редко по форме головы и корпуса
         const head=Math.hypot((u-.47)/.11,(v-.34)/.14)<1,neck=Math.abs(u-.5)<.07&&v>.42&&v<.56,torso=Math.hypot((u-.5)/.31,(v-.86)/.36)<1&&v>.54;
         const inside=head||neck||torso;
-        lum[i]=Math.max(ss(.34,.8,l)*(v>.76?.5:1),inside?.42*ss(.06,.14,l):0)*(u>.12&&u<.88?1:0);
+        lum[i]=Math.max(ss(.3,.72,l)*(v>.76?.55:1),inside?.3*ss(.06,.14,l):0)*(u>.12&&u<.88?1:0);
       }else{
         const ex=(u-.5)/.42,ey=(v-.55)/.52,mask=Math.max(0,1-Math.sqrt(ex*ex+ey*ey));
         lum[i]=Math.min(1,Math.max(0,(l-.1)/.75))*Math.min(1,mask*1.8);
       }
     }
     const scale=H*.96/sh,ox=W/2-sw*scale/2,oy=H-sh*scale;
-    fig=sampleParticles(lum,sw,sh,NF,7).map(p=>({x:ox+p.x*scale,y:oy+p.y*scale,b:.35+.65*p.b,k:0}));
+    fig=sampleParticles(lum,sw,sh,NF,7).map(p=>({x:ox+p.x*scale,y:oy+p.y*scale,b:.5+.5*p.b,k:0}));
   }
   // «холмы» из частиц: 3 гребня, плотнее у гребня, медленно текут
   let s=99;const rnd=()=>{s=(s*16807)%2147483647;return s/2147483647};
@@ -318,7 +318,7 @@ function hpDraw(now){
     const k=HP.kind[i];let tx=HP.hx[i],ty=HP.hy[i],a=HP.b[i];
     if(k>=1&&k<=3){tx=((tx+t*(4+k*3))%(W+20)+W+20)%(W+20)-10;ty+=Math.sin(t*.4+tx*.01+k)*1.2}
     else if(k===9){a*=.55+.45*Math.sin(t*(1.2+HP.ph[i])+HP.ph[i]*3)}
-    else{tx+=Math.sin(t*1.1+HP.ph[i])*.7;ty+=Math.cos(t*1.3+HP.ph[i])*.7}
+    else{tx+=Math.sin(t*1.1+HP.ph[i])*.3;ty+=Math.cos(t*1.3+HP.ph[i])*.3}
     let x,y;
     const p=still?1:Math.min(1,Math.max(0,(since-HP.dl[i])/1.15));
     if(p<1){const e=1-Math.pow(1-p,4);x=HP.sx[i]+(tx-HP.sx[i])*e;y=HP.sy[i]+(ty-HP.sy[i])*e;HP.x[i]=x;HP.y[i]=y;HP.vx[i]=0;HP.vy[i]=0;a*=.3+.7*p}
@@ -333,7 +333,8 @@ function hpDraw(now){
     if(px<0||py<0||px>=cw-1||py>=ch-1)continue;
     const v=Math.min(255,(a*255)|0),o=py*cw+px;
     add(o,v);
-    if(dpr>1.4||a>.7){add(o+1,v>>1);add(o+cw,v>>1);if(a>.85)add(o+cw+1,v>>2)}
+    // фигура — чёткие точки в один CSS-пиксель (на ретине 2×2), без размазывания; холмы и звёзды — с мягким краем
+    if(dpr>1.4){add(o+1,v);add(o+cw,v);add(o+cw+1,v)}else if(k!==0&&a>.7){add(o+1,v>>1);add(o+cw,v>>1)}
   }
   HP.ctx.putImageData(HP.img,0,0);
   HP.gctx.clearRect(0,0,HP.gl.width,HP.gl.height);HP.gctx.drawImage(HP.cv,0,0,HP.gl.width,HP.gl.height);
