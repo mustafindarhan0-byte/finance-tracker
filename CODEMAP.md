@@ -1,140 +1,140 @@
 # CODEMAP — карта кода index.html
 
-Сгенерировано `node tools/codemap.cjs` (обновляется само при каждом коммите). 5755 строк, 523 функций, 40 разделов. Номера — строки index.html.
+Сгенерировано `node tools/codemap.cjs` (обновляется само при каждом коммите). 5756 строк, 523 функций, 40 разделов. Номера — строки index.html.
 
 Связи: `node tools/codemap.cjs who <функция>` (что вызывает и кто её вызывает), `find <часть имени>`, `section <часть заголовка>`. Читай index.html кусками по номерам строк отсюда, а не целиком.
 
 ## Icons (inline SVG via currentColor — replaces emoji so style/color are ours to control) · L743
-Данные: ICON_PATHS L744, CATS L794, CAT_MAP L817, CAT_COLORS L819, AVATAR_GRADIENTS L827, KEYWORDS L840, CUR_SYM L858
-ico L785, icoInline L790, catColor L821, statsColor L823, avatarGradient L831, personBadge L835
+Данные: ICON_PATHS L744, CATS L795, CAT_MAP L818, CAT_COLORS L820, AVATAR_GRADIENTS L828, KEYWORDS L841, CUR_SYM L859
+ico L786, icoInline L791, catColor L822, statsColor L824, avatarGradient L832, personBadge L836
 
-## Firestore-backed storage (replaces IndexedDB; store names/keys mirror the old object stores) · L882
-Данные: EXTRA_STORES L884, ALL_STORES L885, STORE_KEY_FIELD L886
-docId L887, serverTs L893, stamped L894, tombstone L895, trackWrite L896, commitBatch L902, docRef L903, batchPut L904, batchDel L905, batchGoalInc L907, batchSetting L912, batchXp L917, colCacheDel L926, dbPut L927, dbDel L928, countRead L929, syncKey L930, readSyncMark L931, writeSyncMark L934, dbAll L940, dbAllInner L944, clearSyncMarks L965, checkRemoteReset L967, renderSyncState L975, dbClear L982
+## Firestore-backed storage (replaces IndexedDB; store names/keys mirror the old object stores) · L883
+Данные: EXTRA_STORES L885, ALL_STORES L886, STORE_KEY_FIELD L887
+docId L888, serverTs L894, stamped L895, tombstone L896, trackWrite L897, commitBatch L903, docRef L904, batchPut L905, batchDel L906, batchGoalInc L908, batchSetting L913, batchXp L918, colCacheDel L927, dbPut L928, dbDel L929, countRead L930, syncKey L931, readSyncMark L932, writeSyncMark L935, dbAll L941, dbAllInner L945, clearSyncMarks L966, checkRemoteReset L968, renderSyncState L976, dbClear L983
 
-## Sync setup (space = your data, addressed by a hash of your access code) · L991
-Данные: APPCHECK_SITE_KEY L1001
-generateCode L992, sha256Hex L996, ensureAuth L1005, withTimeout L1014, deviceLabel L1015, memberKey L1020, ensureSpaceDoc L1022, ensureMember L1030, ensureMembership L1041, showDevices L1047, revokeDevice L1058, connectSpace L1063, readLegacyIndexedDB L1087, hasAnyLegacyData L1106, downloadLegacyBackup L1107, uploadLegacyData L1112, showCodeModal L1124, copyCode L1133, confirmCodeSaved L1137, showMyCode L1144, createNewSpace L1150, joinExistingSpace L1171, syncNow L1195
+## Sync setup (space = your data, addressed by a hash of your access code) · L992
+Данные: APPCHECK_SITE_KEY L1002
+generateCode L993, sha256Hex L997, ensureAuth L1006, withTimeout L1015, deviceLabel L1016, memberKey L1021, ensureSpaceDoc L1023, ensureMember L1031, ensureMembership L1042, showDevices L1048, revokeDevice L1059, connectSpace L1064, readLegacyIndexedDB L1088, hasAnyLegacyData L1107, downloadLegacyBackup L1108, uploadLegacyData L1113, showCodeModal L1125, copyCode L1134, confirmCodeSaved L1138, showMyCode L1145, createNewSpace L1151, joinExistingSpace L1172, syncNow L1196
 
-## Cache · L1208
-getTxs L1209, dirtyTx L1213, txCacheRemove L1214
+## Cache · L1209
+getTxs L1210, dirtyTx L1214, txCacheRemove L1215
 
-## Utils · L1216
-Данные: W_OPS L1228, ERR_OFFLINE_WRITE L1231, ERR_TEXTS L1232, ERR_OFFLINE_CODES L1249, MONTHS_SHORT_RU L1267, MONTHS_NOM_RU L1268, MONTHS_PREP_RU L1269
-fmt L1217, fmtCur L1218, localDate L1219, today L1220, uid L1221, getCat L1222, escapeHtml L1223, plural L1226, nWord L1227, errCode L1250, errText L1251, ymdShift L1270, dateRange L1274, filterPeriod L1287, periodLabel L1289, periodPhrase L1298, dayMonthShort L1306, formatDateShort L1313, fitTextSize L1320, fitText L1327, fitAll L1336, labelPeriodTabs L1338
+## Utils · L1217
+Данные: W_OPS L1229, ERR_OFFLINE_WRITE L1232, ERR_TEXTS L1233, ERR_OFFLINE_CODES L1250, MONTHS_SHORT_RU L1268, MONTHS_NOM_RU L1269, MONTHS_PREP_RU L1270
+fmt L1218, fmtCur L1219, localDate L1220, today L1221, uid L1222, getCat L1223, escapeHtml L1224, plural L1227, nWord L1228, errCode L1251, errText L1252, ymdShift L1271, dateRange L1275, filterPeriod L1288, periodLabel L1290, periodPhrase L1299, dayMonthShort L1307, formatDateShort L1314, fitTextSize L1321, fitText L1328, fitAll L1337, labelPeriodTabs L1339
 
-## Toast · L1340
-toast L1341, toastUndo L1347, undoTx L1355, showWarning L1366
+## Toast · L1341
+toast L1342, toastUndo L1348, undoTx L1356, showWarning L1367
 
-## Classifier · L1372
-Данные: CAT_TYPE L1384, MCC_MAP L1390, PERSON_NAME_RE L1411
-parseInput L1373, parseAmt L1382, classifyByMCC L1403, classify L1413, learnCategory L1430
+## Classifier · L1373
+Данные: CAT_TYPE L1385, MCC_MAP L1391, PERSON_NAME_RE L1412
+parseInput L1374, parseAmt L1383, classifyByMCC L1404, classify L1414, learnCategory L1431
 
-## Solutions to defer to Pro version · L1440
-tickFit L1444, refreshDashboard L1449, setPeriod L1471
+## Solutions to defer to Pro version · L1441
+tickFit L1445, refreshDashboard L1450, setPeriod L1472
 
-## Smart Input · L1473
-setType L1474, handleSmartInput L1483, showFallbackGrid L1501, selectFallbackCat L1517, saveFallback L1523, currentBank L1535, setCurrentBank L1536, renderCmdBanks L1541, saveTx L1545
+## Smart Input · L1474
+setType L1475, handleSmartInput L1484, showFallbackGrid L1502, selectFallbackCat L1518, saveFallback L1524, currentBank L1536, setCurrentBank L1537, renderCmdBanks L1542, saveTx L1546
 
-## Templates · L1555
-renderTemplates L1556, useTmpl L1567, openTmplModal L1577, closeTmplModal L1582, saveTemplate L1584
+## Templates · L1556
+renderTemplates L1557, useTmpl L1568, openTmplModal L1578, closeTmplModal L1583, saveTemplate L1585
 
-## Budget · L1596
-checkBudget L1597
+## Budget · L1597
+checkBudget L1598
 
-## History · L1615
-historyFilteredTxs L1616, setHistorySearch L1622, refreshHistory L1623, setHistoryPeriod L1641, setHistoryBank L1648, renderHistoryCalendar L1649, shiftHistoryCalMonth L1672, selectHistoryDay L1679, exportHistoryFiltered L1683, deleteTx L1691
+## History · L1616
+historyFilteredTxs L1617, setHistorySearch L1623, refreshHistory L1624, setHistoryPeriod L1642, setHistoryBank L1649, renderHistoryCalendar L1650, shiftHistoryCalMonth L1673, selectHistoryDay L1680, exportHistoryFiltered L1684, deleteTx L1692
 
-## Stats · L1693
-Данные: TOOLTIP_STYLE L1779
-refreshStats L1694, buildRing L1742, ringHot L1759, sphereShow L1760, sphereReset L1765, sphereToggle L1771, renderCharts L1780, setStatsPeriod L1797, setStatsMonth L1803
+## Stats · L1694
+Данные: TOOLTIP_STYLE L1780
+refreshStats L1695, buildRing L1743, ringHot L1760, sphereShow L1761, sphereReset L1766, sphereToggle L1772, renderCharts L1781, setStatsPeriod L1798, setStatsMonth L1804
 
-## Plans · L1810
-Данные: PLAN_SEGS L1812
-showPlanSeg L1813, switchSubTab L1820, showAddPlanForm L1825, refreshPlans L1831, planRing L1839, renderHomeBudgetRing L1843, refreshBudgets L1857, saveBudget L1874, delBudget L1883, registerGoalCategories L1887, contributeToGoal L1894, goalRollback L1898, refreshGoals L1903, saveGoal L1916, addToGoal L1923, deleteGoal L1929
+## Plans · L1811
+Данные: PLAN_SEGS L1813
+showPlanSeg L1814, switchSubTab L1821, showAddPlanForm L1826, refreshPlans L1832, planRing L1840, renderHomeBudgetRing L1844, refreshBudgets L1858, saveBudget L1875, delBudget L1884, registerGoalCategories L1888, contributeToGoal L1895, goalRollback L1899, refreshGoals L1904, saveGoal L1917, addToGoal L1924, deleteGoal L1930
 
-## Statement · L1931
-Данные: BANK_NAMES L2025, CSV_HEAD_RE L2498
-loadStatement L1933, loadCsvStatement L1940, loadPdfStatement L1962, detectBank L1998, parseKaspiPdf L2027, parseFortePdf L2076, parseHalykPdf L2133, parseFreedomPdf L2222, missRow L2292, setStmtCat L2300, confirmNotDuplicateStatement L2309, extractBalanceKaspiForte L2322, extractBalanceHalyk L2333, extractBalanceFreedom L2340, extractStatementBalance L2357, renderBalanceBanner L2363, applyDetectedBalance L2371, stmtKey L2381, buildTxIndex L2382, takeMatch L2391, matchStatementRows L2394, showPdfResults L2412, parseStmtAmount L2437, stmtValidYmd L2453, parseStmtDate L2456, parseCsvRows L2471, detectCsvDelimiter L2488, csvCellIsData L2499, findCsvHeaderRow L2502, parseCsvTable L2514, countFffd L2523, looksMisdecoded L2524, decodeCsvBuffer L2526, guessCsvColumns L2536, stmtTypeFromCell L2546, stmtRowEntries L2557, analyzeStatement L2570, toggleAllStmt L2607, undoStmtImport L2616, addSelectedStmt L2631
+## Statement · L1932
+Данные: BANK_NAMES L2026, CSV_HEAD_RE L2499
+loadStatement L1934, loadCsvStatement L1941, loadPdfStatement L1963, detectBank L1999, parseKaspiPdf L2028, parseFortePdf L2077, parseHalykPdf L2134, parseFreedomPdf L2223, missRow L2293, setStmtCat L2301, confirmNotDuplicateStatement L2310, extractBalanceKaspiForte L2323, extractBalanceHalyk L2334, extractBalanceFreedom L2341, extractStatementBalance L2358, renderBalanceBanner L2364, applyDetectedBalance L2372, stmtKey L2382, buildTxIndex L2383, takeMatch L2392, matchStatementRows L2395, showPdfResults L2413, parseStmtAmount L2438, stmtValidYmd L2454, parseStmtDate L2457, parseCsvRows L2472, detectCsvDelimiter L2489, csvCellIsData L2500, findCsvHeaderRow L2503, parseCsvTable L2515, countFffd L2524, looksMisdecoded L2525, decodeCsvBuffer L2527, guessCsvColumns L2537, stmtTypeFromCell L2547, stmtRowEntries L2558, analyzeStatement L2571, toggleAllStmt L2608, undoStmtImport L2617, addSelectedStmt L2632
 
-## Settings · L2672
-getSetting L2674, saveSetting L2680
+## Settings · L2673
+getSetting L2675, saveSetting L2681
 
-## Bank balances · L2685
-Данные: BANK_KEYS L2686
-bankBalance L2689, setBankBalance L2698, statementPeriodEnd L2705, bankTotals L2713, renderBankBalances L2717, openBankEdit L2746, toggleBankEdit L2751, saveBankBalances L2757, setCurrency L2769
+## Bank balances · L2686
+Данные: BANK_KEYS L2687
+bankBalance L2690, setBankBalance L2699, statementPeriodEnd L2706, bankTotals L2714, renderBankBalances L2718, openBankEdit L2747, toggleBankEdit L2752, saveBankBalances L2758, setCurrency L2770
 
-## Backups: snapshots in Firestore (F3.4), external copy + CSV (F3.5), restore «заменить» (F3.6) · L2771
-Данные: BACKUP_STORES L2773, BACKUP_KEEP L2774, BACKUP_LABELS L2887
-backupKeyField L2776, plainValue L2778, cleanBackupData L2787, backupCounts L2797, buildBackupV2 L2798, parseBackup L2802, stableStr L2817, diffBackup L2825, chunkList L2847, bytesToB64 L2848, b64ToBytes L2849, pipeBytes L2850, encodeSnapshot L2852, decodeSnapshot L2857, splitB64 L2861, dayRu L2862, dayDiff L2863, ruDays L2864, reminderFor L2865, snapshotDue L2869, csvCell L2871, buildTxCsv L2877, lsGet L2888, lsSet L2889, backupReminderText L2890, backupsCol L2891, snapKey L2892, readImportedStatements L2893, collectBackupData L2898, makeSnapshot L2907, createSnapshot L2908, pruneSnapshots L2924, loadSnapshot L2932, maybeAutoBackup L2944, manualSnapshot L2963, snapSummary L2972, showSnapshots L2976, renderBackupSettings L2988, isAppleTouch L2998, deliverFile L3001, sharePendingFile L3015, markExternalBackup L3023, exportData L3025, exportCsv L3032, reloadAfterBulkChange L3039, importData L3049, readRestoreJob L3064, writeRestoreJob L3065, clearRestoreJob L3066, restoreStash L3068, restorePanel L3082, setRestoreProgress L3083, restoreFromFile L3084, restoreFromSnapshot L3090, startRestore L3097, renderRestorePlan L3112, cancelRestore L3134, restoreOpToBatch L3140, applyRestore L3149, resumeRestore L3188, clearAll L3195
+## Backups: snapshots in Firestore (F3.4), external copy + CSV (F3.5), restore «заменить» (F3.6) · L2772
+Данные: BACKUP_STORES L2774, BACKUP_KEEP L2775, BACKUP_LABELS L2888
+backupKeyField L2777, plainValue L2779, cleanBackupData L2788, backupCounts L2798, buildBackupV2 L2799, parseBackup L2803, stableStr L2818, diffBackup L2826, chunkList L2848, bytesToB64 L2849, b64ToBytes L2850, pipeBytes L2851, encodeSnapshot L2853, decodeSnapshot L2858, splitB64 L2862, dayRu L2863, dayDiff L2864, ruDays L2865, reminderFor L2866, snapshotDue L2870, csvCell L2872, buildTxCsv L2878, lsGet L2889, lsSet L2890, backupReminderText L2891, backupsCol L2892, snapKey L2893, readImportedStatements L2894, collectBackupData L2899, makeSnapshot L2908, createSnapshot L2909, pruneSnapshots L2925, loadSnapshot L2933, maybeAutoBackup L2945, manualSnapshot L2964, snapSummary L2973, showSnapshots L2977, renderBackupSettings L2989, isAppleTouch L2999, deliverFile L3002, sharePendingFile L3016, markExternalBackup L3024, exportData L3026, exportCsv L3033, reloadAfterBulkChange L3040, importData L3050, readRestoreJob L3065, writeRestoreJob L3066, clearRestoreJob L3067, restoreStash L3069, restorePanel L3083, setRestoreProgress L3084, restoreFromFile L3085, restoreFromSnapshot L3091, startRestore L3098, renderRestorePlan L3113, cancelRestore L3135, restoreOpToBatch L3141, applyRestore L3150, resumeRestore L3189, clearAll L3196
 
-## F6.6 first run · F6.7 bottom sheet · F6.9 launch shortcuts · L3209
-Данные: STARTER_PACK L3213, COUNT_FORMS L3266, LAUNCH_VIEWS L3278, FIRST_RUN_STEPS L3298, NATIVE_CONFIRM L3322
-starterPackDocs L3251, countsText L3268, importSummary L3272, launchIntent L3279, sheetMessage L3286, sheetNextFocus L3288, firstRunStateFrom L3290, firstRunChecklistHtml L3305, sheetNative L3324, sheetConfirm L3328, sheetPrompt L3333, sheetQueue L3339, sheetEl L3344, sheetOpen L3345, firstRunKey L3397, starterPackPending L3399, installStarterPack L3404, offerStarterPack L3418, firstRunStateSync L3436, firstRunChecklistState L3442, firstRunHide L3449, firstRunAct L3450
+## F6.6 first run · F6.7 bottom sheet · F6.9 launch shortcuts · L3210
+Данные: STARTER_PACK L3214, COUNT_FORMS L3267, LAUNCH_VIEWS L3279, FIRST_RUN_STEPS L3299, NATIVE_CONFIRM L3323
+starterPackDocs L3252, countsText L3269, importSummary L3273, launchIntent L3280, sheetMessage L3287, sheetNextFocus L3289, firstRunStateFrom L3291, firstRunChecklistHtml L3306, sheetNative L3325, sheetConfirm L3329, sheetPrompt L3334, sheetQueue L3340, sheetEl L3345, sheetOpen L3346, firstRunKey L3398, starterPackPending L3400, installStarterPack L3405, offerStarterPack L3419, firstRunStateSync L3437, firstRunChecklistState L3443, firstRunHide L3450, firstRunAct L3451
 
-## Tasks & habits: data and logic · L3461
-Данные: LISTS L3462
-listName L3463, dirtyTasks L3465, getCol L3468, dirtyCols L3473, colPut L3474, colDel L3479, getTasks L3484, getHabits L3485, getChecks L3486, getTaskLog L3487, cachePut L3488, pad2 L3491, parseLocalDate L3492, addDays L3493, isoWeekday L3494, nextOccurrence L3497, nextDue L3518, completeTask L3522, completeTaskInner L3528, toastUndoTask L3549, undoTask L3556, habitStreak L3572, toggleHabit L3579, toggleHabitInner L3584, setHabitSphere L3601, addHabit L3607, archiveHabit L3614, formatTaskDate L3622
+## Tasks & habits: data and logic · L3462
+Данные: LISTS L3463
+listName L3464, dirtyTasks L3466, getCol L3469, dirtyCols L3474, colPut L3475, colDel L3480, getTasks L3485, getHabits L3486, getChecks L3487, getTaskLog L3488, cachePut L3489, pad2 L3492, parseLocalDate L3493, addDays L3494, isoWeekday L3495, nextOccurrence L3498, nextDue L3519, completeTask L3523, completeTaskInner L3529, toastUndoTask L3550, undoTask L3557, habitStreak L3573, toggleHabit L3580, toggleHabitInner L3585, setHabitSphere L3602, addHabit L3608, archiveHabit L3615, formatTaskDate L3623
 
-## Tasks screen · L3628
-Данные: QUICK_LISTS L3772, QUICK_WEEKDAYS L3773
-refreshTasks L3630, cmpTasks L3634, upcomingEvents L3638, taskRowHtml L3650, taskTap L3665, openSalaryAllocation L3673, taskEditHtml L3674, renderTasks L3696, toggleTasksLater L3733, toggleHabitsEdit L3734, editTask L3735, taskRepeatChanged L3736, saveTaskEdit L3741, deleteTask L3764, parseQuickDate L3774, parseQuickTask L3791, addQuickTask L3805
+## Tasks screen · L3629
+Данные: QUICK_LISTS L3773, QUICK_WEEKDAYS L3774
+refreshTasks L3631, cmpTasks L3635, upcomingEvents L3639, taskRowHtml L3651, taskTap L3666, openSalaryAllocation L3674, taskEditHtml L3675, renderTasks L3697, toggleTasksLater L3734, toggleHabitsEdit L3735, editTask L3736, taskRepeatChanged L3737, saveTaskEdit L3742, deleteTask L3765, parseQuickDate L3775, parseQuickTask L3792, addQuickTask L3806
 
-## Game layer: XP, levels, ranks, cooling, seasons, achievements · L3816
-Данные: SPHERES L3817, SPHERE_OF_LIST L3818, COOL_DAYS L3868, SEASONS L3909, ACHIEVEMENTS L3918
-xpToNext L3819, cumXp L3820, levelOf L3821, levelInfo L3822, rankOf L3823, nextRankAt L3824, daysBetween L3825, weekStart L3826, xpTotals L3828, levelsNow L3833, refreshStatusIfVisible L3837, notifyLevelChange L3838, awardXp L3845, revokeXp L3855, coolWindow L3869, sphereActivityDates L3870, sphereIdleDays L3875, coolingInfo L3880, returnBonusActive L3890, xpWithBonus L3898, runCooling L3902, coolingWarnings L3906, seasonNow L3915, getAchievements L3932, checkAchievements L3935
+## Game layer: XP, levels, ranks, cooling, seasons, achievements · L3817
+Данные: SPHERES L3818, SPHERE_OF_LIST L3819, COOL_DAYS L3869, SEASONS L3910, ACHIEVEMENTS L3919
+xpToNext L3820, cumXp L3821, levelOf L3822, levelInfo L3823, rankOf L3824, nextRankAt L3825, daysBetween L3826, weekStart L3827, xpTotals L3829, levelsNow L3834, refreshStatusIfVisible L3838, notifyLevelChange L3839, awardXp L3846, revokeXp L3856, coolWindow L3870, sphereActivityDates L3871, sphereIdleDays L3876, coolingInfo L3881, returnBonusActive L3891, xpWithBonus L3899, runCooling L3903, coolingWarnings L3907, seasonNow L3916, getAchievements L3933, checkAchievements L3936
 
-## Journal & command line ([+]) · L3969
-Данные: TAG_SPHERE L3970
-sphereColor L3971, hhmm L3972, extractJournal L3973, addJournal L3978, deleteJournal L3985, renderJournalToday L3989, createTask L3995
+## Journal & command line ([+]) · L3970
+Данные: TAG_SPHERE L3971
+sphereColor L3972, hhmm L3973, extractJournal L3974, addJournal L3979, deleteJournal L3986, renderJournalToday L3990, createTask L3996
 
-## F6 pure helpers: [+] dates and no-amount hint, task actions, status tiles, salary (tests/status_cmd.cjs) · L4003
-Данные: MONTHS_SHORT L4004, CMD_TASK_VERB L4046
-isYmdValid L4005, cmdDateValue L4011, cmdDatePick L4017, cmdDateLabel L4023, cmdFixAmountToken L4030, cmdHasKeyword L4036, cmdNoAmountHint L4052, cmdEnterAction L4065, isSalaryTask L4071, taskActionKind L4073, taskTapAction L4075, workoutOpenDecision L4081, statusTileTarget L4090, allocBudgetQuestion L4092, findRecordedSalary L4097, refreshActive L4104, openCmd L4110, closeCmd L4125, cmdSetType L4131, cmdCurDate L4138, renderCmdDates L4139, cmdSetDate L4144, cmdSyncRows L4152, cmdParse L4159, cmdChipHtml L4179, cmdUpdate L4188, cmdKey L4196, cmdSubmit L4201, cmdApplyHint L4211, cmdSaveHintAsTask L4216, cmdEditPart L4221, cmdShowCats L4230, cmdFlipType L4244, cmdPickCat L4250, cmdSave L4260, cmdSaveInner L4265
+## F6 pure helpers: [+] dates and no-amount hint, task actions, status tiles, salary (tests/status_cmd.cjs) · L4004
+Данные: MONTHS_SHORT L4005, CMD_TASK_VERB L4047
+isYmdValid L4006, cmdDateValue L4012, cmdDatePick L4018, cmdDateLabel L4024, cmdFixAmountToken L4031, cmdHasKeyword L4037, cmdNoAmountHint L4053, cmdEnterAction L4066, isSalaryTask L4072, taskActionKind L4074, taskTapAction L4076, workoutOpenDecision L4082, statusTileTarget L4091, allocBudgetQuestion L4093, findRecordedSalary L4098, refreshActive L4105, openCmd L4111, closeCmd L4126, cmdSetType L4132, cmdCurDate L4139, renderCmdDates L4140, cmdSetDate L4145, cmdSyncRows L4153, cmdParse L4160, cmdChipHtml L4180, cmdUpdate L4189, cmdKey L4197, cmdSubmit L4202, cmdApplyHint L4212, cmdSaveHintAsTask L4217, cmdEditPart L4222, cmdShowCats L4231, cmdFlipType L4245, cmdPickCat L4251, cmdSave L4261, cmdSaveInner L4266
 
-## Module 3: installments (рассрочки) · L4285
-fmtNum L4286, nextPayDate L4287, debtLastPayment L4288, refreshDebts L4293, toggleDebtForm L4294, renderDebts L4295, saveDebt L4326, deleteDebt L4336
+## Module 3: installments (рассрочки) · L4286
+fmtNum L4287, nextPayDate L4288, debtLastPayment L4289, refreshDebts L4294, toggleDebtForm L4295, renderDebts L4296, saveDebt L4327, deleteDebt L4337
 
-## Module 4: salary allocation · L4377
-getAllocScheme L4378, refreshAlloc L4380, renderAlloc L4386, allocSave L4408, allocSetLife L4409, allocAdd L4410, allocSet L4411, allocMove L4412, allocDel L4413, allocPlan L4415, allocPreview L4429, allocConfirm L4444
+## Module 4: salary allocation · L4378
+getAllocScheme L4379, refreshAlloc L4381, renderAlloc L4387, allocSave L4409, allocSetLife L4410, allocAdd L4411, allocSet L4412, allocMove L4413, allocDel L4414, allocPlan L4416, allocPreview L4430, allocConfirm L4445
 
-## Module 5: workouts and body weight · L4475
-Данные: WK_MAX_KG L4478, EXTRA_EXERCISES L4550
-wcol L4477, isKg L4479, isRep L4480, fmtKg L4481, wkAllSets L4482, wkDate L4483, parseKg L4485, parseRepsVal L4492, wkClean L4500, wkFirstOpen L4504, lastDoneEntry L4506, lastWeightedEntry L4513, suggestWeight L4515, workoutSummary L4523, staleWorkout L4534, refreshBody L4538, planById L4543, pendingWorkoutTask L4545, exerciseCatalog L4559, installTrainingProgram L4565, newPlan L4576, editPlan L4577, closePlanEdit L4578, planEditField L4579, planEditName L4585, planEditRemove L4586, planEditMove L4587, openExPicker L4588, pickCatalogExercise L4590, pickCustomExercise L4594, addExerciseTo L4599, savePlanEdit L4613, deletePlan L4622, exPickerHtml L4628, planEditorHtml L4635, startWorkout L4658, resumeWorkout L4664, dropWorkout L4668, openWorkoutTask L4674, wkSave L4685, wkInputIdx L4687, setWeight L4688, setReps L4697, wkHint L4708, wkCaption L4712, wkListHtml L4717, wkPaint L4721, pickExercise L4727, finishWorkout L4728, closeWorkoutSummary L4742, cancelWorkout L4743, saveBodyWeight L4747, sparkline L4753, wkSummaryHtml L4760, wkStaleHtml L4767
+## Module 5: workouts and body weight · L4476
+Данные: WK_MAX_KG L4479, EXTRA_EXERCISES L4551
+wcol L4478, isKg L4480, isRep L4481, fmtKg L4482, wkAllSets L4483, wkDate L4484, parseKg L4486, parseRepsVal L4493, wkClean L4501, wkFirstOpen L4505, lastDoneEntry L4507, lastWeightedEntry L4514, suggestWeight L4516, workoutSummary L4524, staleWorkout L4535, refreshBody L4539, planById L4544, pendingWorkoutTask L4546, exerciseCatalog L4560, installTrainingProgram L4566, newPlan L4577, editPlan L4578, closePlanEdit L4579, planEditField L4580, planEditName L4586, planEditRemove L4587, planEditMove L4588, openExPicker L4589, pickCatalogExercise L4591, pickCustomExercise L4595, addExerciseTo L4600, savePlanEdit L4614, deletePlan L4623, exPickerHtml L4629, planEditorHtml L4636, startWorkout L4659, resumeWorkout L4665, dropWorkout L4669, openWorkoutTask L4675, wkSave L4686, wkInputIdx L4688, setWeight L4689, setReps L4698, wkHint L4709, wkCaption L4713, wkListHtml L4718, wkPaint L4722, pickExercise L4728, finishWorkout L4729, closeWorkoutSummary L4743, cancelWorkout L4744, saveBodyWeight L4748, sparkline L4754, wkSummaryHtml L4761, wkStaleHtml L4768
 
-## Body 2.0 · B1: muscle map · L4775
-Данные: MUSCLES L4777, EXERCISE_MUSCLES L4784, MUSCLE_WORDS L4805, CALF_NECK_WORDS L4806, WEEKLY_SETS_TARGET L4850, BODY_SHAPES L4854, MIRROR_SKIP L4869
-exerciseMuscles L4807, muscleLoad L4816, muscleRecovery L4831, muscleVerdict L4851, bodyPolys L4870
+## Body 2.0 · B1: muscle map · L4776
+Данные: MUSCLES L4778, EXERCISE_MUSCLES L4785, MUSCLE_WORDS L4806, CALF_NECK_WORDS L4807, WEEKLY_SETS_TARGET L4851, BODY_SHAPES L4855, MIRROR_SKIP L4870
+exerciseMuscles L4808, muscleLoad L4817, muscleRecovery L4832, muscleVerdict L4852, bodyPolys L4871
 
-## Body 2.0 · B2: skill tree («Путь») · L4878
-Данные: MAJOR_MUSCLES L4881, SKILL_TREES L4882, BODY_GOAL_KG L4907
-avgBodyWeight L4908, bestStreak L4912, liftBest L4918, repsBest L4922, volumeWeeks L4926, evaluateSkillTree L4936, skillData L4965, checkSkills L4971, selectSkill L4985, renderSkillPath L4986, setBodySeg L5011, bodySegHtml L5012, bodyFigureSvg L5015, renderBodyMap L5022, selectMuscle L5055, renderBody L5057
+## Body 2.0 · B2: skill tree («Путь») · L4879
+Данные: MAJOR_MUSCLES L4882, SKILL_TREES L4883, BODY_GOAL_KG L4908
+avgBodyWeight L4909, bestStreak L4913, liftBest L4919, repsBest L4923, volumeWeeks L4927, evaluateSkillTree L4937, skillData L4966, checkSkills L4972, selectSkill L4986, renderSkillPath L4987, setBodySeg L5012, bodySegHtml L5013, bodyFigureSvg L5016, renderBodyMap L5023, selectMuscle L5056, renderBody L5058
 
-## Shell: navigation, money sub-tabs, quest tabs · L5102
-Данные: MONEY_VIEWS L5104, MONEY_LABELS L5105, MONEY_CHILD L5106, PLAN_ALIAS L5107
-navKeyOf L5109, reducedMotion L5113, fxViewTransition L5114, moveLamp L5118, switchView L5125, closeSettings L5155, buildMoneyTabs L5156, updateMoneyTabs L5167, setQuestTab L5169, moveQInd L5177, showAchievementPlaque L5182
+## Shell: navigation, money sub-tabs, quest tabs · L5103
+Данные: MONEY_VIEWS L5105, MONEY_LABELS L5106, MONEY_CHILD L5107, PLAN_ALIAS L5108
+navKeyOf L5110, reducedMotion L5114, fxViewTransition L5115, moveLamp L5119, switchView L5126, closeSettings L5156, buildMoneyTabs L5157, updateMoneyTabs L5168, setQuestTab L5170, moveQInd L5178, showAchievementPlaque L5183
 
-## Status screen (hero, bento, daily quest) · L5187
-Данные: MONTHS_GEN L5191, WD_SHORT L5192
-xpLogSync L5188, xpTotalsSync L5189, coolingSync L5190, dayWord L5193, refreshStatus L5196, statusSummary L5202, renderStatus L5208, openSphere L5263, playStatusIntro L5273, setAvatar L5282, resetAvatar L5295
+## Status screen (hero, bento, daily quest) · L5188
+Данные: MONTHS_GEN L5192, WD_SHORT L5193
+xpLogSync L5189, xpTotalsSync L5190, coolingSync L5191, dayWord L5194, refreshStatus L5197, statusSummary L5203, renderStatus L5209, openSphere L5264, playStatusIntro L5274, setAvatar L5283, resetAvatar L5296
 
-## Quests → Season · L5297
-Данные: ACH_ICON L5298
-renderSeason L5299
+## Quests → Season · L5298
+Данные: ACH_ICON L5299
+renderSeason L5300
 
-## Quests → Week · L5318
-weekShift L5320, renderWeek L5321, copyWeek L5365
+## Quests → Week · L5319
+weekShift L5321, renderWeek L5322, copyWeek L5366
 
-## F3.3 Data integrity check: pure part (tests/integrity.cjs loads it from here up to the UI marker) · L5371
-Данные: INTEGRITY_CLASSES L5372, XP_KNOWN_PREFIXES L5373
-isYmd L5374, checkInvariants L5382
+## F3.3 Data integrity check: pure part (tests/integrity.cjs loads it from here up to the UI marker) · L5372
+Данные: INTEGRITY_CLASSES L5373, XP_KNOWN_PREFIXES L5374
+isYmd L5375, checkInvariants L5383
 
-## F3.3 Data integrity check: UI · L5580
-Данные: INTEGRITY_SEV L5582
-integrityLoad L5583, runIntegrityCheck L5589, renderIntegrity L5598, integrityFixText L5613, integrityBeforeFix L5627, integrityDelTasks L5635, integrityApply L5639, integrityFix L5661, integrityFixClass L5672
+## F3.3 Data integrity check: UI · L5581
+Данные: INTEGRITY_SEV L5583
+integrityLoad L5584, runIntegrityCheck L5590, renderIntegrity L5599, integrityFixText L5614, integrityBeforeFix L5628, integrityDelTasks L5636, integrityApply L5640, integrityFix L5662, integrityFixClass L5673
 
-## Init · L5704
-startApp L5705, init L5734
+## Init · L5705
+startApp L5706, init L5735
 
 ## fx.js (эффекты)
 fxRM L11, fxScramble L18, fxTicker L35, fxFlash L52, fxQuestDone L59, fxFly L82, fxDraw L91, fxMarquee L123, fxLevelUp L135, fxAchievement L192, fxBoot L199

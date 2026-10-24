@@ -166,5 +166,11 @@ check('errText: the raw code goes to the console only',!/permission-denied|Missi
 const raw=[...script.matchAll(/toast\([^;]*?(err|e)\.(code|message)/g)].map(m=>m[0].slice(0,80));
 check('errText: no toast shows e.code / e.message directly',raw.length===0,raw);
 
+// every category icon has a path (a missing one renders an empty circle in the operations list)
+{const icons=new Set([...slice('const ICON_PATHS={','\n};').matchAll(/^  ([a-zA-Z_]+):/gm)].map(m=>m[1]));
+ const used=[...new Set([...src.matchAll(/\{id:'[a-z_]+',name:'[^']+',icon:'([a-zA-Z_]+)'\}/g)].map(m=>m[1]))];
+ const missing=used.filter(i=>!icons.has(i));
+ check('every category icon exists in ICON_PATHS ('+used.length+' used)',used.length>10&&missing.length===0,missing);}
+
 console.log(`\na11y_texts: ${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);
