@@ -182,22 +182,48 @@ def direction_text(direction: str) -> str:
     return "выше" if direction == ABOVE else "ниже"
 
 
+def fmt_rule_pct(value: float) -> str:
+    """Процент из правила уведомления без лишних нулей: +10%, −5.5%."""
+    text = f"{abs(value):.2f}".rstrip("0").rstrip(".")
+    return ("+" if value > 0 else "−") + text + "%"
+
+
+def base_change_pct(alert: Alert, price: float | None = None) -> float | None:
+    """На сколько процентов `price` (по умолчанию цель) отличается от базовой цены."""
+    if not alert.base_price:
+        return None
+    return ((price if price is not None else alert.price) / alert.base_price - 1) * 100
+
+
 def format_alert(alert: Alert) -> str:
     sign = "≥" if alert.direction == ABOVE else "≤"
-    return f"#{alert.id} <code>{escape(alert.symbol)}</code> {sign} {fmt_price(alert.price)}"
+    text = f"#{alert.id} <code>{escape(alert.symbol)}</code> {sign} {fmt_price(alert.price)}"
+    pct = base_change_pct(alert)
+    if pct is not None:
+        text += f" ({fmt_rule_pct(pct)} от {fmt_price(alert.base_price)})"
+    return text
 
 
 def format_alerts(alerts: list[Alert]) -> str:
     if not alerts:
-        return "У вас нет активных уведомлений. Создать: /alert BTC above 70000"
+        return ("У вас нет активных уведомлений. Создать: /alert BTC above 70000 "
+                "или /track BTC 84000 10%")
     return "\n".join(
         ["<b>Ваши уведомления</b>", *(format_alert(a) for a in alerts), "", "Удалить: /unalert &lt;id&gt;"]
     )
 
 
 def format_triggered(alert: Alert, price: float) -> str:
-    return (
-        f"🔔 <b>{escape(alert.symbol)}</b>: цена {fmt_price(price)} — "
-        f"{direction_text(alert.direction)} {fmt_price(alert.price)}\n"
-        f"Уведомление #{alert.id} сработало и удалено."
-    )
+    pct = base_change_pct(alert, price)
+    if pct is not None:
+        verb = "вырос" if alert.direction == ABOVE else "упал"
+        head = (
+            f"🔔 <b>{escape(alert.symbol)}</b> {verb} на {fmt_pct(pct)} "
+            f"от {fmt_price(alert.base_price)}: цена {fmt_price(price)}"
+        )
+    else:
+        head = (
+            f"🔔 <b>{escape(alert.symbol)}</b>: цена {fmt_price(price)} — "
+            f"{direction_text(alert.direction)} {fmt_price(alert.price)}"
+        )
+    return f"{head}\nУведомление #{alert.id} сработало и удалено."

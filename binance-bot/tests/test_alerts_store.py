@@ -67,3 +67,34 @@ def test_find_triggered():
     ]
     hits = find_triggered(alerts, {"BTCUSDT": 71000.0, "ETHUSDT": 2500.0})
     assert hits == [(alerts[0], 71000.0)]
+
+
+def test_base_price_saved_and_validated(store):
+    a = store.add(1, "BTCUSDT", ABOVE, 66000, base_price=60000)
+    assert a.base_price == 60000.0
+    assert store.all()[0].base_price == 60000.0
+    assert store.add(1, "BTCUSDT", ABOVE, 1).base_price is None
+    with pytest.raises(ValueError):
+        store.add(1, "BTCUSDT", ABOVE, 1, base_price=0)
+    assert store.free_slots(1) == AlertsStore.MAX_PER_CHAT - 2
+
+
+def test_migrates_database_without_base_price(tmp_path):
+    import sqlite3
+
+    path = tmp_path / "old.db"
+    conn = sqlite3.connect(path)
+    conn.executescript(
+        "CREATE TABLE alerts (id INTEGER PRIMARY KEY AUTOINCREMENT, chat_id INTEGER NOT NULL, "
+        "symbol TEXT NOT NULL, direction TEXT NOT NULL, price REAL NOT NULL, created_at TEXT NOT NULL);"
+        "INSERT INTO alerts (chat_id, symbol, direction, price, created_at) "
+        "VALUES (1, 'BTCUSDT', 'above', 70000, '2026-01-01');"
+    )
+    conn.commit()
+    conn.close()
+
+    s = AlertsStore(path)
+    old = s.all()[0]
+    assert (old.symbol, old.base_price) == ("BTCUSDT", None)
+    assert s.add(1, "ETHUSDT", BELOW, 2000, base_price=2500).base_price == 2500.0
+    s.close()

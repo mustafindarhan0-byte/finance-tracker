@@ -57,3 +57,12 @@ def test_format_alerts():
     text = fmt.format_alerts([Alert(7, 1, "BTCUSDT", ABOVE, 70000, "")])
     assert "#7" in text and "≥" in text
     assert "сработало" in fmt.format_triggered(Alert(7, 1, "BTCUSDT", ABOVE, 70000, ""), 70100)
+
+
+def test_format_alert_with_base_price():
+    a = Alert(3, 1, "BTCUSDT", ABOVE, 66000, "", base_price=60000)
+    assert "(+10% от 60" in fmt.format_alert(a)
+    assert fmt.fmt_rule_pct(-5.5) == "−5.5%" and fmt.fmt_rule_pct(10) == "+10%"
+    assert "вырос на +10.50%" in fmt.format_triggered(a, 66300)
+    below = Alert(4, 1, "BTCUSDT", "below", 54000, "", base_price=60000)
+    assert "упал на -10.00%" in fmt.format_triggered(below, 54000)

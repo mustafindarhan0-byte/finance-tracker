@@ -11,16 +11,55 @@ from bot.__main__ import RedactTokenFilter, build_application
 from bot.alerts_store import ABOVE, BELOW, AlertsStore
 from bot.binance_client import BinanceUnavailableError, InvalidSymbolError, parse_ticker_24h
 from bot.config import Settings
-from bot.handlers import UsageError, check_alerts, parse_alert_args, parse_interval
+from bot.handlers import (
+    AlertRequest,
+    UsageError,
+    check_alerts,
+    parse_alert_args,
+    parse_interval,
+    parse_track_args,
+)
 from conftest import TICKER_BTC
 
 
 def test_parse_alert_args():
-    assert parse_alert_args(["btc", "above", "70000"]) == ("BTCUSDT", ABOVE, 70000.0)
-    assert parse_alert_args(["ETH", "ниже", "2500,5"]) == ("ETHUSDT", BELOW, 2500.5)
-    for bad in (["btc"], ["btc", "sideways", "1"], ["btc", "above", "abc"], ["btc", "below", "-1"]):
+    assert parse_alert_args(["btc", "above", "70000"]) == AlertRequest("BTCUSDT", ABOVE, price=70000.0)
+    assert parse_alert_args(["ETH", "ниже", "2500,5"]) == AlertRequest("ETHUSDT", BELOW, price=2500.5)
+    bad_cases = (
+        ["btc"], ["btc", "sideways", "1"], ["btc", "above", "abc"], ["btc", "below", "-1"],
+        ["btc", "10%"], ["btc", "+0%"], ["btc", "-100%"], ["btc", "+x%"], ["btc", "+10%", "-5"],
+        ["btc", "above"],
+    )
+    for bad in bad_cases:
         with pytest.raises(UsageError):
             parse_alert_args(bad)
+
+
+def test_parse_alert_percent():
+    up = parse_alert_args(["btc", "+10%"])
+    assert (up.direction, up.percent, up.base) == (ABOVE, 10.0, None)
+    assert up.target(80000) == (pytest.approx(88000), 80000)
+
+    down = parse_alert_args(["btc", "-10%", "84000"])
+    assert (down.direction, down.percent, down.base) == (BELOW, -10.0, 84000.0)
+    assert down.target(99999) == (pytest.approx(75600), 84000)  # от цены покупки, не от текущей
+
+    assert AlertRequest("BTCUSDT", ABOVE, price=1.0).target(5) == (1.0, None)
+
+
+def test_parse_track_args():
+    assert parse_track_args(["btc"]) == ("BTCUSDT", None, 10.0, 10.0)
+    assert parse_track_args(["btc", "84000"]) == ("BTCUSDT", 84000.0, 10.0, 10.0)
+    assert parse_track_args(["btc", "84000", "15%"]) == ("BTCUSDT", 84000.0, 15.0, 15.0)
+    assert parse_track_args(["btc", "84000", "+15%", "-5%"]) == ("BTCUSDT", 84000.0, 15.0, 5.0)
+    assert parse_track_args(["btc", "5%"]) == ("BTCUSDT", None, 5.0, 5.0)
+    bad_cases = (
+        [], ["btc", "10%", "84000"], ["btc", "1", "2"], ["btc", "1%", "2%", "3%"],
+        ["btc", "84000", "10%", "100%"], ["btc", "0%"], ["btc", "abc"],
+    )
+    for bad in bad_cases:
+        with pytest.raises(UsageError):
+            parse_track_args(bad)
 
 
 def test_parse_interval():
@@ -222,3 +261,47 @@ def test_alert_lifecycle(env):
     assert "удалено" in call(handlers.unalert, [str(first)], *env).texts[0]
     assert "не найдено" in call(handlers.unalert, [str(first)], *env).texts[0]
     assert "Удалено уведомлений: 1" in call(handlers.unalert, ["all"], *env).texts[0]
+
+
+def test_alert_percent_from_current_price(env):
+    store, _ = env
+    text = call(handlers.alert, ["btc", "+10%"], *env).texts[0]
+    alert = store.all()[0]
+    assert alert.direction == ABOVE and alert.base_price == 67123.45
+    assert alert.price == pytest.approx(67123.45 * 1.1)
+    assert "+10% от 67" in text
+
+
+def test_track_creates_rise_and_fall(env):
+    store, _ = env
+    text = call(handlers.track, ["btc", "60000", "10%", "5%"], *env).texts[0]
+    rise, fall = store.all()
+    assert (rise.direction, rise.base_price) == (ABOVE, 60000.0)
+    assert rise.price == pytest.approx(66000)
+    assert (fall.direction, fall.base_price) == (BELOW, 60000.0)
+    assert fall.price == pytest.approx(57000)
+    assert "рост на +10%" in text and "падение на −5%" in text
+    assert "уже выполнено" in text  # текущая 67123 > 66000
+
+    text = call(handlers.track, ["btc"], *env).texts[0]
+    assert "(текущая)" in text and len(store.all()) == 4
+    assert "уже выполнено" not in text
+
+
+def test_track_respects_limit(env):
+    store, _ = env
+    for _ in range(AlertsStore.MAX_PER_CHAT - 1):
+        store.add(FakeChat.id, "BTCUSDT", ABOVE, 1e9)
+    assert "лимит" in call(handlers.track, ["btc"], *env).texts[0]
+    assert len(store.all()) == AlertsStore.MAX_PER_CHAT - 1  # ни одного «половинчатого» уведомления
+
+
+def test_check_alerts_reports_change_from_buy_price():
+    store = AlertsStore()
+    store.add(1, "BTCUSDT", ABOVE, 66000, base_price=60000)
+    store.add(1, "BTCUSDT", BELOW, 54000, base_price=60000)
+    bot = FakeBot()
+    asyncio.run(check_alerts(make_context(store, FakeClient({"BTCUSDT": 66600.0}), bot)))
+    assert len(bot.sent) == 1
+    assert "вырос на +11.00% от 60" in bot.sent[0][1]
+    assert [a.direction for a in store.all()] == [BELOW]

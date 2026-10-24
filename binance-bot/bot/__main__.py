@@ -49,6 +49,8 @@ def setup_logging(settings: Settings) -> None:
     )
     # httpx на уровне INFO пишет URL запросов к Telegram, а в них — токен бота
     logging.getLogger("httpx").setLevel(logging.WARNING)
+    # иначе каждую минуту по две строки о запуске проверки уведомлений
+    logging.getLogger("apscheduler").setLevel(logging.WARNING)
     redact = RedactTokenFilter(settings.telegram_token)
     for handler in logging.getLogger().handlers:
         handler.addFilter(redact)

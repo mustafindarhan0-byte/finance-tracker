@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import functools
 import logging
+from dataclasses import dataclass
 from html import escape
 from typing import Awaitable, Callable
 
@@ -40,6 +41,9 @@ HELP_TEXT = (
     "Боллинджер, уровни, итог тренда)\n"
     "/chart &lt;SYMBOL&gt; [interval] — график цены с индикаторами\n"
     "/alert &lt;SYMBOL&gt; &lt;above|below&gt; &lt;price&gt; — уведомить о достижении цены\n"
+    "/alert &lt;SYMBOL&gt; &lt;+N%|-N%&gt; [цена] — уведомить о росте/падении на N%\n"
+    "/track &lt;SYMBOL&gt; [цена покупки] [рост%] [падение%] — следить за покупкой: "
+    "уведомить и о росте, и о падении (по умолчанию ±10%)\n"
     "/alerts — список уведомлений\n"
     "/unalert &lt;id|all&gt; — удалить уведомление\n\n"
     "<b>Символ</b>: BTC, btcusdt, ETH/BTC — без котировки подставляется USDT.\n"
@@ -48,7 +52,9 @@ HELP_TEXT = (
     "<code>/price BTC</code>\n"
     "<code>/analyze ETH 1d</code>\n"
     "<code>/chart SOLUSDT 1h</code>\n"
-    "<code>/alert BTC above 75000</code>\n\n"
+    "<code>/alert BTC above 75000</code>\n"
+    "<code>/alert BTC +10%</code>\n"
+    "<code>/track BTC 84000 10%</code>\n\n"
     "Бот использует только публичные данные Binance и ничего не покупает и не продаёт. "
     "Аналитика не является финансовым советом."
 )
@@ -59,6 +65,7 @@ BOT_COMMANDS = [
     BotCommand("analyze", "Технический анализ пары"),
     BotCommand("chart", "График с индикаторами"),
     BotCommand("alert", "Создать ценовое уведомление"),
+    BotCommand("track", "Следить за покупкой: рост/падение на N%"),
     BotCommand("alerts", "Мои уведомления"),
     BotCommand("unalert", "Удалить уведомление"),
     BotCommand("help", "Справка"),
@@ -126,22 +133,110 @@ def parse_interval(args: list[str], index: int = 1) -> str:
     return interval
 
 
-def parse_alert_args(args: list[str]) -> tuple[str, str, float]:
-    usage = "/alert BTC above 75000"
+def _parse_number(raw: str, what: str = "Цена") -> float:
+    try:
+        value = float(raw.replace(",", ".").replace("_", ""))
+    except ValueError:
+        raise UsageError(f"{what} «{escape(raw)}» не похожа на число.") from None
+    if not 0 < value < float("inf"):
+        raise UsageError(f"{what} должна быть положительным числом.")
+    return value
+
+
+def _parse_percent(raw: str) -> float | None:
+    """'+10%' -> 10.0, '-5,5%' -> -5.5; без знака % возвращает None."""
+    if not raw.endswith("%"):
+        return None
+    try:
+        return float(raw[:-1].replace(",", "."))
+    except ValueError:
+        raise UsageError(f"Процент «{escape(raw)}» не похож на число.") from None
+
+
+@dataclass(frozen=True)
+class AlertRequest:
+    """Разобранная /alert: либо абсолютная цена, либо процент от базовой цены."""
+
+    symbol: str
+    direction: str
+    price: float | None = None
+    percent: float | None = None  # со знаком: +10 — рост, −10 — падение
+    base: float | None = None  # цена покупки; None — текущая цена
+
+    def target(self, current: float) -> tuple[float, float | None]:
+        """(целевая цена, базовая цена) — для процентной цели база = цена покупки или текущая."""
+        if self.percent is None:
+            return self.price, None
+        base = self.base if self.base is not None else current
+        return base * (1 + self.percent / 100), base
+
+
+ALERT_USAGE = (
+    "Форматы:\n"
+    "<code>/alert BTC above 75000</code> — цена выше 75000\n"
+    "<code>/alert BTC below 60000</code> — цена ниже 60000\n"
+    "<code>/alert BTC +10%</code> — рост на 10% от текущей цены\n"
+    "<code>/alert BTC -10% 84000</code> — падение на 10% от цены 84000"
+)
+
+
+def parse_alert_args(args: list[str]) -> AlertRequest:
+    if len(args) not in (2, 3):
+        raise UsageError(ALERT_USAGE)
+    symbol = parse_symbol(args, "/alert BTC above 75000")
+
+    percent = _parse_percent(args[1])
+    if percent is not None:
+        if args[1][0] not in "+-":
+            raise UsageError("Укажите знак: <code>+10%</code> — рост, <code>-10%</code> — падение.")
+        if percent == 0 or percent <= -100 or percent > 10_000:
+            raise UsageError("Процент должен быть от −99.99% до +10000% и не равен нулю.")
+        base = _parse_number(args[2], "Цена покупки") if len(args) == 3 else None
+        return AlertRequest(symbol, ABOVE if percent > 0 else BELOW, percent=percent, base=base)
+
     if len(args) != 3:
-        raise UsageError(f"Формат: <code>/alert &lt;SYMBOL&gt; &lt;above|below&gt; &lt;price&gt;</code>\n"
-                         f"Пример: <code>{usage}</code>")
-    symbol = parse_symbol(args, usage)
+        raise UsageError(ALERT_USAGE)
     direction = _DIRECTION_ALIASES.get(args[1].lower())
     if direction is None:
-        raise UsageError("Направление должно быть <code>above</code> (выше) или <code>below</code> (ниже).")
-    try:
-        price = float(args[2].replace(",", ".").replace("_", ""))
-    except ValueError:
-        raise UsageError(f"Цена «{escape(args[2])}» не похожа на число.") from None
-    if not price > 0 or price == float("inf"):
-        raise UsageError("Цена должна быть положительным числом.")
-    return symbol, direction, price
+        raise UsageError(
+            "Направление должно быть <code>above</code> (выше) или <code>below</code> (ниже).\n\n"
+            + ALERT_USAGE
+        )
+    return AlertRequest(symbol, direction, price=_parse_number(args[2]))
+
+
+TRACK_DEFAULT_PERCENT = 10.0
+
+
+def parse_track_args(args: list[str]) -> tuple[str, float | None, float, float]:
+    """/track SYMBOL [цена_покупки] [рост%] [падение%] -> (symbol, entry, up, down)."""
+    usage = "/track BTC 84000 10%"
+    if not 1 <= len(args) <= 4:
+        raise UsageError(
+            "Формат: <code>/track &lt;SYMBOL&gt; [цена покупки] [рост%] [падение%]</code>\n"
+            f"Пример: <code>{usage}</code>"
+        )
+    symbol = parse_symbol(args, usage)
+    entry: float | None = None
+    percents: list[float] = []
+    for raw in args[1:]:
+        percent = _parse_percent(raw)
+        if percent is None:
+            if entry is not None or percents:
+                raise UsageError(f"Сначала цена покупки, потом проценты. Пример: <code>{usage} 5%</code>")
+            entry = _parse_number(raw, "Цена покупки")
+        else:
+            percents.append(abs(percent))
+    if len(percents) > 2:
+        raise UsageError("Можно указать максимум два процента: рост и падение.")
+
+    up = percents[0] if percents else TRACK_DEFAULT_PERCENT
+    down = percents[1] if len(percents) > 1 else up
+    if not 0 < up <= 10_000:
+        raise UsageError("Процент роста должен быть больше 0 и не больше 10000%.")
+    if not 0 < down < 100:
+        raise UsageError("Процент падения должен быть больше 0 и меньше 100%.")
+    return symbol, entry, up, down
 
 
 # ---------------------------------------------------------------- команды
@@ -229,25 +324,48 @@ async def chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
+def _limit_error() -> UsageError:
+    return UsageError(f"Достигнут лимит {AlertsStore.MAX_PER_CHAT} уведомлений. Удалите лишние: /alerts")
+
+
 @command
 async def alert(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    symbol, direction, target = parse_alert_args(context.args)
-    current = await _client(context).price(symbol)  # заодно проверяет, что пара существует
+    req = parse_alert_args(context.args)
+    current = await _client(context).price(req.symbol)  # заодно проверяет, что пара существует
+    target, base = req.target(current)
     try:
-        new = _store(context).add(update.effective_chat.id, symbol, direction, target)
+        new = _store(context).add(update.effective_chat.id, req.symbol, req.direction, target, base)
     except OverflowError:
-        raise UsageError(
-            f"Достигнут лимит {AlertsStore.MAX_PER_CHAT} уведомлений. Удалите лишние: /alerts"
-        ) from None
+        raise _limit_error() from None
 
-    text = (
-        f"✅ Уведомление #{new.id} создано: {escape(symbol)} "
-        f"{fmt.direction_text(direction)} {fmt.fmt_price(target)}\n"
-        f"Сейчас: {fmt.fmt_price(current)}"
-    )
+    text = f"✅ Уведомление создано: {fmt.format_alert(new)}\nСейчас: {fmt.fmt_price(current)}"
     if is_triggered(new, current):
         text += "\nУсловие уже выполнено — уведомление придёт при ближайшей проверке."
     await _reply(update, text)
+
+
+@command
+async def track(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    symbol, entry, up, down = parse_track_args(context.args)
+    current = await _client(context).price(symbol)
+    base = entry if entry is not None else current
+    store, chat_id = _store(context), update.effective_chat.id
+    if store.free_slots(chat_id) < 2:
+        raise _limit_error()
+
+    rise = store.add(chat_id, symbol, ABOVE, base * (1 + up / 100), base)
+    fall = store.add(chat_id, symbol, BELOW, base * (1 - down / 100), base)
+    lines = [
+        f"📌 Слежу за <b>{escape(symbol)}</b> от цены {fmt.fmt_price(base)}"
+        + (" (текущая)" if entry is None else ""),
+        f"🟢 #{rise.id} рост на {fmt.fmt_rule_pct(up)} → {fmt.fmt_price(rise.price)}",
+        f"🔴 #{fall.id} падение на {fmt.fmt_rule_pct(-down)} → {fmt.fmt_price(fall.price)}",
+        f"Сейчас: {fmt.fmt_price(current)} ({fmt.fmt_pct((current / base - 1) * 100)} от базы)",
+    ]
+    if is_triggered(rise, current) or is_triggered(fall, current):
+        lines.append("Одно из условий уже выполнено — уведомление придёт при ближайшей проверке.")
+    lines.append("Каждое уведомление сработает один раз. Отменить: /unalert &lt;id&gt;")
+    await _reply(update, "\n".join(lines))
 
 
 @command
@@ -325,6 +443,7 @@ def register_handlers(app: Application) -> None:
     app.add_handler(CommandHandler("analyze", analyze_command))
     app.add_handler(CommandHandler("chart", chart))
     app.add_handler(CommandHandler("alert", alert))
+    app.add_handler(CommandHandler("track", track))
     app.add_handler(CommandHandler("alerts", alerts_command))
     app.add_handler(CommandHandler("unalert", unalert))
     app.add_handler(MessageHandler(filters.COMMAND, unknown))

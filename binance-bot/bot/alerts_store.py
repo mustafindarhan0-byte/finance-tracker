@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS alerts (
     symbol      TEXT    NOT NULL,
     direction   TEXT    NOT NULL CHECK (direction IN ('above', 'below')),
     price       REAL    NOT NULL CHECK (price > 0),
-    created_at  TEXT    NOT NULL
+    created_at  TEXT    NOT NULL,
+    base_price  REAL
 );
 CREATE INDEX IF NOT EXISTS idx_alerts_chat ON alerts (chat_id);
 """
@@ -37,6 +38,8 @@ class Alert:
     direction: str
     price: float
     created_at: str
+    # Цена, от которой считался процент (цена покупки или цена на момент создания)
+    base_price: float | None = None
 
 
 def is_triggered(alert: Alert, price: float) -> bool:
@@ -66,6 +69,9 @@ class AlertsStore:
         self._lock = threading.Lock()
         with self._lock, self._conn:
             self._conn.executescript(_SCHEMA)
+            columns = {row[1] for row in self._conn.execute("PRAGMA table_info(alerts)")}
+            if "base_price" not in columns:  # база, созданная до появления процентов
+                self._conn.execute("ALTER TABLE alerts ADD COLUMN base_price REAL")
 
     def close(self) -> None:
         with self._lock:
@@ -75,22 +81,35 @@ class AlertsStore:
     def _row(row: sqlite3.Row) -> Alert:
         return Alert(**dict(row))
 
-    def add(self, chat_id: int, symbol: str, direction: str, price: float) -> Alert:
+    def add(
+        self,
+        chat_id: int,
+        symbol: str,
+        direction: str,
+        price: float,
+        base_price: float | None = None,
+    ) -> Alert:
         if direction not in DIRECTIONS:
             raise ValueError(f"direction должен быть одним из {DIRECTIONS}")
         if price <= 0:
             raise ValueError("Цена должна быть больше нуля")
+        if base_price is not None and base_price <= 0:
+            raise ValueError("Базовая цена должна быть больше нуля")
         if self.count_for_chat(chat_id) >= self.MAX_PER_CHAT:
             raise OverflowError(f"Не больше {self.MAX_PER_CHAT} уведомлений на чат")
         created = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        base = float(base_price) if base_price is not None else None
         with self._lock, self._conn:
             cur = self._conn.execute(
-                "INSERT INTO alerts (chat_id, symbol, direction, price, created_at) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (chat_id, symbol, direction, float(price), created),
+                "INSERT INTO alerts (chat_id, symbol, direction, price, created_at, base_price) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (chat_id, symbol, direction, float(price), created, base),
             )
             alert_id = cur.lastrowid
-        return Alert(alert_id, chat_id, symbol, direction, float(price), created)
+        return Alert(alert_id, chat_id, symbol, direction, float(price), created, base)
+
+    def free_slots(self, chat_id: int) -> int:
+        return max(0, self.MAX_PER_CHAT - self.count_for_chat(chat_id))
 
     def count_for_chat(self, chat_id: int) -> int:
         with self._lock:
