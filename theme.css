@@ -704,7 +704,7 @@ button.calendar-day::before{content:'';position:absolute;inset:-2px}
 /* ── Glow: частицы, стекло, свет (SPEC_glow) ── */
 /* G1 — фон: размытое фото города + дрейфующие пятна света */
 .bg-photo,.bg-lights{position:fixed;inset:0;pointer-events:none;z-index:0}
-.bg-photo{inset:-40px;background:#000 url(bg.jpg) center/cover no-repeat;filter:blur(2px) brightness(.46) contrast(1.05);transform:translate3d(var(--px,0px),var(--py,0px),0) scale(1.06);transition:transform 1.2s var(--ease-out)}
+.bg-photo{inset:-16px;background:#000 url(bg.jpg) center/cover no-repeat;filter:brightness(.46) contrast(1.05);transform:translate3d(var(--px,0px),var(--py,0px),0);transition:transform 1.2s var(--ease-out)}
 .bg-lights i{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55;will-change:transform}
 .bg-lights i:nth-child(1){width:46vmax;height:46vmax;left:-12vmax;top:-18vmax;background:radial-gradient(circle,rgba(226,234,240,.20),transparent 65%);animation:drift1 52s ease-in-out infinite alternate}
 .bg-lights i:nth-child(2){width:40vmax;height:40vmax;right:-14vmax;top:8vmax;background:radial-gradient(circle,rgba(150,205,180,.16),transparent 65%);animation:drift2 61s ease-in-out infinite alternate}
