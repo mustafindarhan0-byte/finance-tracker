@@ -1,6 +1,10 @@
 node_modules/
-.claude/*
-!.claude/skills/
+.claude/
 HANDOFF.md
 assets_src/seed-v1.json
 assets_src/
+# local agent tooling (code map, project rules, skills) — not published
+CODEMAP.md
+CLAUDE.md
+tools/codemap.cjs
+tools/mock-kit.js
