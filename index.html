@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-auth-compat.js" integrity="sha384-5I6kB//hXDU3+uF6P5whMNsiMpLfjPrRMnO628LkoLTV1F4roavOGYGkaES3TPAa" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-check-compat.js" integrity="sha384-B/AP4FGRp30uqxiGDJ1XO7TvHcPxaZEPR798W+ASc3xztnppTUQe2E0ThTTM2+FH" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore-compat.js" integrity="sha384-x/Sc6BbQTFJ8Xok/nKTwZ6hrjKCAPuoiUBD0gRRS0yNLtHZiq2MpDvGVEGBUQefs" crossorigin="anonymous"></script>
-<script src="fx.js?v=44"></script>
+<script src="fx.js?v=45"></script>
 <style>
 :root{
   --bg:#0a0a0f;--bg2:#161620;--bg3:#262436;
@@ -313,7 +313,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   .budget-ring{filter:drop-shadow(0 0 16px rgba(255,255,255,.4))}
 }
 </style>
-<link rel="stylesheet" href="theme.css?v=44">
+<link rel="stylesheet" href="theme.css?v=45">
 </head>
 <body>
 <div class="bg-photo" aria-hidden="true"></div>
@@ -3647,8 +3647,14 @@ function formatTaskDate(s){
 }
 // ── Tasks screen ──
 let editingTaskId=null,tasksLaterOpen=false,habitsEditing=false;
+async function fixUndatedTasks(){
+  const fixes=(tasksCache||[]).map(undatedTaskFix).filter(Boolean);
+  for(const u of fixes){cachePut(tasksCache,u);try{await dbPut('tasks',u)}catch(e){console.warn('undated fix',e)}}
+  return fixes.length;
+}
 async function refreshTasks(){
   await Promise.all([getTasks(),getHabits(),getChecks(),getTaskLog(),getCol('journal')]);
+  await fixUndatedTasks();
   renderTasks();
 }
 function cmpTasks(a,b){
@@ -3812,19 +3818,48 @@ function parseQuickDate(w){
   }
   return null;
 }
+// «ноября», «нояб», «Ноябрь», «дек.» → 1–12
+function quickMonth(w){
+  const k=String(w||'').toLowerCase().replace(/\.$/,'');
+  const P=[/^янв/,/^фев/,/^мар/,/^апр/,/^ма[йя]$/,/^июн/,/^июл/,/^авг/,/^сен/,/^окт/,/^ноя/,/^дек/];
+  for(let i=0;i<12;i++)if(P[i].test(k))return i+1;
+  return 0;
+}
+// «3 ноября» (+ год): ближайшая такая дата не раньше сегодня; несуществующее число (31 ноября) → последний день месяца
+function quickDayMonth(d,mo,y,t){
+  if(!(d>=1&&d<=31)||!(mo>=1&&mo<=12))return null;
+  const fit=yy=>`${yy}-${pad2(mo)}-${pad2(Math.min(d,new Date(yy,mo,0).getDate()))}`;
+  if(y)return fit(y);
+  let yy=+t.slice(0,4),c=fit(yy);
+  if(c<t)c=fit(yy+1);
+  return c;
+}
 function parseQuickTask(text){
   const words=text.trim().split(/\s+/).filter(Boolean);
   let list='inbox',due='',time='',gotList=false,gotDate=false,gotTime=false;
   while(words.length>1){
     const w=words[words.length-1],lw=w.toLowerCase();
-    let m,ok=false;
+    let m,ok=false,eat=1;
     if(!gotTime&&(m=w.match(/^([01]?\d|2[0-3]):([0-5]\d)$/))){time=pad2(+m[1])+':'+m[2];gotTime=ok=true}
     else if(!gotList&&lw[0]==='#'&&QUICK_LISTS[lw.slice(1)]){list=QUICK_LISTS[lw.slice(1)];gotList=ok=true}
-    else if(!gotDate){const d=parseQuickDate(lw);if(d){due=d;gotDate=ok=true}}
+    else if(!gotDate&&words.length>3&&/^\d{4}г?\.?$/.test(lw)&&quickMonth(words[words.length-2])&&/^\d{1,2}$/.test(words[words.length-3])){
+      due=quickDayMonth(+words[words.length-3],quickMonth(words[words.length-2]),parseInt(lw,10),today());if(due){gotDate=ok=true;eat=3}}
+    else if(!gotDate&&words.length>2&&quickMonth(lw)&&/^\d{1,2}$/.test(words[words.length-2])){
+      due=quickDayMonth(+words[words.length-2],quickMonth(lw),0,today());if(due){gotDate=ok=true;eat=2}}
+    else if(!gotDate&&parseQuickDate(lw)){due=parseQuickDate(lw);gotDate=ok=true}
+    // «в 20:00», «до 30 ноября», «к пятнице» — предлог перед уже разобранной датой или временем
+    else if((gotDate||gotTime)&&['в','во','к','ко','до','на'].includes(lw)&&words.length>2)ok=true;
     if(!ok)break;
-    words.pop();
+    words.splice(words.length-eat,eat);
   }
   return{title:words.join(' ').trim(),list,due,time,tagged:gotList};
+}
+// Задачи, сохранённые до того, как разбор понимал «3 ноября»: дата осталась в названии, а срока нет — переносим её в срок (один раз)
+function undatedTaskFix(t){
+  if(!t||t.done||t.due||t.repeat)return null;
+  const q=parseQuickTask(t.title||'');
+  if(!q.due||!q.title)return null;
+  return{...t,title:q.title,due:q.due,time:t.time||q.time};
 }
 async function addQuickTask(){
   const input=document.getElementById('task-quick');
@@ -5278,6 +5313,7 @@ let statusAvatar=null,heroPrev=null,introPending=false,heroAssemble=true,questPr
 let firstRunState=null,statusMoney=null;
 async function refreshStatus(){
   await Promise.all([getTasks(),getHabits(),getChecks(),getTaskLog(),getCol('xpLog'),getCol('journal')]);
+  await fixUndatedTasks();
   statusAvatar=await getSetting('avatar');
   try{firstRunState=typeof firstRunChecklistState==='function'?await firstRunChecklistState():null}catch(e){firstRunState=null}
   try{const txs=await getTxs(),vals={};for(const k of BANK_KEYS)vals[k]=await bankBalance(k,txs);statusMoney={spend:todaySpend(txs,today()),bank:bankTotals(vals)}}catch(e){statusMoney=null}

@@ -59,7 +59,7 @@ vm.runInContext(code+`
 ;KEYWORDS_REF=KEYWORDS;this.M={cmdParse,cmdNoAmountHint,cmdEnterAction,cmdDateValue,cmdDatePick,cmdDateLabel,cmdFixAmountToken,
   taskActionKind,taskTapAction,workoutOpenDecision,statusTileTarget,allocBudgetQuestion,findRecordedSalary,saveTx,bankBalance,
   allocConfirm,setCmdType:t=>{cmdType=t},setOverride:o=>{cmdCatOverride=o},
-  todaySpend,cmdKindLabel,weekAhead,setForce:(f,l)=>{cmdForce=f;cmdList=l||null},
+  todaySpend,cmdKindLabel,weekAhead,parseQuickTask,undatedTaskFix,setForce:(f,l)=>{cmdForce=f;cmdList=l||null},
   setPlan:p=>{allocPlanState=p}};`,ctx);
 const M=ctx.M;
 
@@ -232,6 +232,20 @@ await (async()=>{
  ok(w.days[1].items.some(i=>i.title==='Взвеситься'&&i.repeat&&!i.real)&&w.days[1].items.some(i=>i.title==='Тренировка C'&&i.real),'R3 daily repeat gives tomorrow too (not a real instance)',w.days[1].items);
  ok(w.past.done===2&&w.past.planned===4,'R3 past days: 2 done, 2 failed (13.10, 15.10)',w.past);
  ok(w.later.some(e=>e.title==='Потом')&&w.later.length<=5,'R3 later = up to 5 things in the 7 days after Sunday',w.later);}
+
+// ── dates in words (T0 = 17.10.2026): «3 ноября», «31 ноября», «до 5 дек», «в 20:00», year rollover, old undated tasks
+{const Q=t=>{const r=M.parseQuickTask(t);return r.title+'|'+r.due+'|'+r.time};
+ ok(Q('Брекеты 3 ноября 20:00')==='Брекеты|2026-11-03|20:00','«3 ноября 20:00» → date + time',Q('Брекеты 3 ноября 20:00'));
+ ok(Q('КПД закрыть 31 Ноября')==='КПД закрыть|2026-11-30|','«31 Ноября» (no such day, capital letter) → last day of November',Q('КПД закрыть 31 Ноября'));
+ ok(Q('созвон 3 ноября в 20:00')==='созвон|2026-11-03|20:00','«3 ноября в 20:00» — the preposition goes too',Q('созвон 3 ноября в 20:00'));
+ ok(Q('сдать отчёт до 5 дек')==='сдать отчёт|2026-12-05|','short month + «до»',Q('сдать отчёт до 5 дек'));
+ ok(Q('поездка 10 января')==='поездка|2027-01-10|','a date already past this year → next year',Q('поездка 10 января'));
+ ok(Q('отпуск 5 мая 2027')==='отпуск|2027-05-05|','explicit year',Q('отпуск 5 мая 2027'));
+ ok(Q('прочитать 3 главы')==='прочитать 3 главы||'&&Q('3 ноября')==='3 ноября||','no month word → no date; a title is never empty',[Q('прочитать 3 главы'),Q('3 ноября')]);
+ ok(Q('встреча 03.11')==='встреча|2026-11-03|'&&Q('тренировка #зал вт 18:00')==='тренировка|2026-10-20|18:00','old formats still work (03.11, weekday, #list)',[Q('встреча 03.11'),Q('тренировка #зал вт 18:00')]);
+ const fx=M.undatedTaskFix({id:'a',title:'Брекеты 3 ноября',time:'20:00',due:'',done:false,repeat:null});
+ ok(fx&&fx.title==='Брекеты'&&fx.due==='2026-11-03'&&fx.time==='20:00','an old undated task gets its date out of the title',fx);
+ ok(M.undatedTaskFix({title:'КПД 31 ноября',due:'',done:true})===null&&M.undatedTaskFix({title:'КПД 31 ноября',due:'2026-11-01'})===null&&M.undatedTaskFix({title:'вода',due:''})===null&&M.undatedTaskFix({title:'отчёт 5 дек',due:'',repeat:{type:'daily'}})===null,'done / dated / repeating / dateless titles are left alone');}
 
 console.log(`status_cmd: ${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);
