@@ -787,3 +787,6 @@ body{font-family:var(--font-text)}
 .plan-go{background:rgba(255,255,255,.04)!important;border:1px solid var(--glass-line)!important}
 .plan-line .settings-btn,.plan-new{border-radius:12px!important}
 .bank-card{background:linear-gradient(160deg,rgba(255,255,255,.08),rgba(255,255,255,.02))!important;border:1px solid var(--glass-line)!important}
+/* G3 — фото героя остаётся запасным вариантом: видно, пока частиц нет (не собрались / ошибка), прячется, когда они есть */
+.hero.pts-on .hero-fig{display:none}
+.hero:not(.pts-on) .hero-pts{opacity:0}

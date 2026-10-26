@@ -280,7 +280,8 @@ const fine=()=>!!(window.matchMedia&&matchMedia('(pointer:fine)').matches);
 const wide=()=>!!(window.matchMedia&&matchMedia('(min-width:1024px)').matches);
 function hpLoad(src){return new Promise(res=>{const im=new Image();im.onload=()=>res(im);im.onerror=()=>res(null);im.src=src})}
 async function hpBuild(src){
-  const W=HP.W,H=HP.H,im=await hpLoad(src);
+  const tok=HP.tok=(HP.tok||0)+1,W=HP.W,H=HP.H,im=await hpLoad(src);
+  if(tok!==HP.tok||!W||!H)return false; // пока грузилась картинка, началась новая сборка — побеждает новая
   const NF=wide()?12000:3400,NT=wide()?2600:800,NS=wide()?120:60;
   // фигура: высота 96 % окна, по центру, низом к низу; выборка на сетке ≤ 220 px высотой
   let fig=[];
@@ -290,6 +291,10 @@ async function hpBuild(src){
     x.drawImage(im,0,0,sw,sh);const d=x.getImageData(0,0,sw,sh).data,lum=new Float32Array(sw*sh);
     const ss=(a,b,v)=>{const t=Math.min(1,Math.max(0,(v-a)/(b-a)));return t*t*(3-2*t)};
     const def=/figure\.jpg$/.test(src);
+    // своё фото на светлом фоне: человек темнее фона — берём темноту, а не яркость, чтобы точки легли на человека
+    let edge=0,en=0;
+    for(let i=0,p=0;i<sw*sh;i++,p+=4){const u=(i%sw)/sw,v=Math.floor(i/sw)/sh;if(u<.06||u>.94||v<.06){edge+=(.2126*d[p]+.7152*d[p+1]+.0722*d[p+2])/255;en++}}
+    const invert=!def&&en>0&&edge/en>.5;
     for(let i=0,p=0;i<lum.length;i++,p+=4){
       const u=(i%sw)/sw,v=Math.floor(i/sw)/sh,l=(.2126*d[p]+.7152*d[p+1]+.0722*d[p+2])/255;
       if(def){
@@ -299,7 +304,7 @@ async function hpBuild(src){
         lum[i]=Math.max(ss(.3,.72,l)*(v>.76?.55:1),inside?.3*ss(.06,.14,l):0)*(u>.12&&u<.88?1:0);
       }else{
         const ex=(u-.5)/.42,ey=(v-.55)/.52,mask=Math.max(0,1-Math.sqrt(ex*ex+ey*ey));
-        lum[i]=Math.min(1,Math.max(0,(l-.1)/.75))*Math.min(1,mask*1.8);
+        lum[i]=Math.min(1,Math.max(0,((invert?1-l:l)-.1)/.75))*Math.min(1,mask*1.8);
       }
     }
     const scale=H*.96/sh,ox=W/2-sw*scale/2,oy=H-sh*scale;
@@ -323,7 +328,8 @@ async function hpBuild(src){
     HP.dl[i]=p.k===0?(1-p.y/H)*.55+rnd()*.25:rnd()*.5;
     HP.x[i]=HP.sx[i];HP.y[i]=HP.sy[i];
   }
-  HP.ready=true;
+  HP.ready=true;HP.ok=fig.length>50;
+  return true;
 }
 function hpSize(host){
   const r=host.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1),W=Math.round(r.width),H=Math.round(r.height);
@@ -339,7 +345,8 @@ function hpSize(host){
 function hpFrame(now){
   if(!HP.run)return;
   const vis=HP.wrap.isConnected&&HP.wrap.offsetParent!==null&&!document.hidden;
-  if(!vis){HP.run=false;return}
+  // герой в странице, но не виден (другой экран, фон) — заглянуть позже, а не остановиться навсегда
+  if(!vis){HP.run=false;if(HP.wrap.isConnected)setTimeout(()=>{if(!HP.run&&HP.wrap.isConnected&&!RM()){HP.run=true;requestAnimationFrame(hpFrame)}},500);return}
   if(HP.ready)hpDraw(now);
   requestAnimationFrame(hpFrame);
 }
@@ -389,8 +396,16 @@ window.fxHeroMount=async function(host,src,opts){
     HP.wrap.addEventListener('pointerleave',()=>{HP.mx=HP.my=-1e5});
   }
   if(HP.wrap.parentNode!==host)host.appendChild(HP.wrap);
-  const changed=hpSize(host),key=src+'|'+HP.W+'x'+HP.H;
-  if(key!==HP.key||changed){HP.key=key;HP.src=src;HP.ready=false;await hpBuild(src);opts.assemble=opts.assemble!==false}
+  if(HP.ok)host.classList.add('pts-on'); // фото-запасной вариант прячется, только когда точки уже есть
+  const changed=hpSize(host);
+  if(!HP.W||!HP.H){ // окно героя ещё без размера (Статус скрыт / приложение в фоне) — попробовать позже
+    const n=(opts.tries||0)+1;
+    if(n<40)setTimeout(()=>{if(host.isConnected)window.fxHeroMount(host,src,{...opts,tries:n})},250);
+    return;
+  }
+  const key=src+'|'+HP.W+'x'+HP.H;
+  if(key!==HP.key||changed){HP.key=key;HP.src=src;HP.ready=false;HP.ok=false;if(!(await hpBuild(src)))return;opts.assemble=opts.assemble!==false}
+  if(HP.wrap.parentNode)HP.wrap.parentNode.classList.toggle('pts-on',!!HP.ok);
   if(opts.assemble)HP.assembleAt=performance.now();
   if(RM()){hpDraw(performance.now()+1e6);return}
   if(!HP.run){HP.run=true;requestAnimationFrame(hpFrame)}
