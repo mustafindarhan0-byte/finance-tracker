@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-auth-compat.js" integrity="sha384-5I6kB//hXDU3+uF6P5whMNsiMpLfjPrRMnO628LkoLTV1F4roavOGYGkaES3TPAa" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-check-compat.js" integrity="sha384-B/AP4FGRp30uqxiGDJ1XO7TvHcPxaZEPR798W+ASc3xztnppTUQe2E0ThTTM2+FH" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore-compat.js" integrity="sha384-x/Sc6BbQTFJ8Xok/nKTwZ6hrjKCAPuoiUBD0gRRS0yNLtHZiq2MpDvGVEGBUQefs" crossorigin="anonymous"></script>
-<script src="fx.js?v=45"></script>
+<script src="fx.js?v=46"></script>
 <style>
 :root{
   --bg:#0a0a0f;--bg2:#161620;--bg3:#262436;
@@ -313,7 +313,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   .budget-ring{filter:drop-shadow(0 0 16px rgba(255,255,255,.4))}
 }
 </style>
-<link rel="stylesheet" href="theme.css?v=45">
+<link rel="stylesheet" href="theme.css?v=46">
 </head>
 <body>
 <div class="bg-photo" aria-hidden="true"></div>
@@ -767,6 +767,9 @@ const ICON_PATHS={
   quests:'<path d="M21 11V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6M12 12h9M12 16h6M16 8h3" stroke="currentColor" stroke-width="2"/>',
   body:'<path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="currentColor" stroke="none"/>',
   money:'<path d="M20 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/><path d="M20 7V5.5A1.5 1.5 0 0 0 18.5 4H6"/><circle cx="17" cy="13.5" r="1.3" fill="currentColor" stroke="none"/>',
+  shopping:'<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+  transfer:'<path d="M4 8h14"/><path d="m14 4 4 4-4 4"/><path d="M20 16H6"/><path d="m10 12-4 4 4 4"/>',
+  cash:'<rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9.5v.01M18 14.5v.01"/>',
   food:'<path d="M7 3v8a2 2 0 0 0 2 2v8"/><path d="M11 3v8a2 2 0 0 1-2 2"/><path d="M9 3v5"/><path d="M17 21V3c-2.2 1.2-3 3.6-3 6.5V14h3"/>',
   groceries:'<path d="M9 8V6a3 3 0 0 1 6 0v2"/><path d="M5 8h14l-1.3 11.2a2 2 0 0 1-2 1.8H8.3a2 2 0 0 1-2-1.8L5 8Z"/>',
   transport:'<path d="M5 17h14"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M5 13l1.4-4.6A2 2 0 0 1 8.3 7h7.4a2 2 0 0 1 1.9 1.4L19 13H5Z"/>',
@@ -827,6 +830,9 @@ const CATS={
     {id:'gifts',name:'Подарки',icon:'gifts'},
     {id:'subscriptions',name:'Подписки',icon:'subscriptions'},
     {id:'debts',name:'Рассрочки',icon:'card'},
+    {id:'shopping',name:'Покупки',icon:'shopping'},
+    {id:'transfers',name:'Переводы',icon:'transfer'},
+    {id:'cash',name:'Наличные',icon:'cash'},
     {id:'other_exp',name:'Другое',icon:'other_exp'}
   ],
   income:[
@@ -860,18 +866,21 @@ function personBadge(desc){
 }
 
 const KEYWORDS={
-  food:['кофе','кофейня','чай','обед','ужин','завтрак','ланч','бургер','пицца','суши','роллы','шаурма','кебаб','сникерс','шоколад','мороженое','кафе','ресторан','столовая','бизнес-ланч','перекус','фастфуд','кулинария','макдональдс','kfc','burger king','popeyes','пирожок','выпечка','латте','капучино','cappuccino','американо','эспрессо','espresso','раф','торт','десерт','блины','wolt','glovo','яндекс еда','yandex.eda','yandex.delivery','доставка еды','донер','doner','лаваш','самса','манты','плов','бешбармак','наурыз','хот-дог','сэндвич','sandwich','coffee','cafe','catering','food','beans','drinkit','starbucks','costa'],
-  groceries:['магазин','продукты','молоко','хлеб','яйца','мясо','курица','рыба','овощ','фрукт','сыр','масло','крупа','рис','макароны','вода','сок','magnum','small','metro','арбуз','картошка','помидор','банан','яблок','кефир','йогурт','колбаса','сахар','мука','соль','специи','консервы','чипсы','печенье','базар','рынок','супермаркет','минимаркет','minimarket','маркет','lido','zamzam','abc_market','inmart','galmart','yandex.lavka'],
+  food:['кофе','кофейня','чай','обед','ужин','завтрак','ланч','бургер','пицца','суши','роллы','шаурма','кебаб','сникерс','шоколад','мороженое','кафе','ресторан','столовая','бизнес-ланч','перекус','фастфуд','кулинария','макдональдс','kfc','burger king','popeyes','пирожок','выпечка','латте','капучино','cappuccino','американо','эспрессо','espresso','раф','торт','десерт','блины','wolt','glovo','яндекс еда','yandex.eda','yandex.delivery','доставка еды','донер','doner','лаваш','самса','манты','плов','бешбармак','наурыз','хот-дог','сэндвич','sandwich','coffee','cafe','catering','food','beans','drinkit','starbucks','costa','pampushka','dodo','додо','picca','pizza','stolovaya','dining','азбука питания','confection','кондитер','ice cream','tatti','bingxue','coffee','cafe','bakery','пекарн','доставка еды','glovo','wolt','yandex eda','яндекс еда'],
+  groceries:['магазин','продукты','молоко','хлеб','яйца','мясо','курица','рыба','овощ','фрукт','сыр','масло','крупа','рис','макароны','вода','сок','magnum','small','metro','арбуз','картошка','помидор','банан','яблок','кефир','йогурт','колбаса','сахар','мука','соль','специи','консервы','чипсы','печенье','базар','рынок','супермаркет','минимаркет','minimarket','маркет','lido','zamzam','abc_market','inmart','galmart','yandex.lavka','minimarket','минимаркет','gomart','darmart','m-mart','max mart','ekonom','homeway','galmart','toimart','anvar','супермаркет','supermarket'],
   transport:['такси','uber','яндекс такси','indriver','bolt','бензин','метро','автобус','газ','заправка','парковка','мойка','сто','ремонт авто','шиномонтаж','каско','штраф','бус','трамвай','самокат','каршеринг','поезд','жд','билет','авиабилет','перелёт','avtobys','onay','itaxi','yandex.go','азс','sinooil','qazaq air','авиакомпания','lrt','travel'],
-  home:['аренда','квартира','коммунальные','квартплата','электричество','свет','интернет','уборка','мебель','ремонт','сантехник','электрик','ипотека','домофон'],
-  health:['аптека','лекарства','врач','больница','стоматолог','анализы','клиника','clinic','витамин','таблетк','массаж','окулист','терапевт','хирург','узи','мрт','вакцина','линзы','очки','barber','farmacia','фарм'],
-  clothes:['одежда','обувь','футболк','джинс','куртк','кроссовк','ботинк','рубашк','плать','zara','h&m','nike','adidas','шапка','носк','костюм','пальто','свитер','худи','шорт','юбк','золотое яблоко'],
-  fun:['кино','театр','концерт','бар','клуб','боулинг','бильярд','игра','steam','playstation','xbox','музыка','фильм','парк','зоопарк','аттракцион','квест','караоке','дискотека','вечеринка','пиво','вино','алкоголь','коктейль'],
+  home:['аренда','квартира','коммунальные','квартплата','электричество','свет','интернет','уборка','мебель','ремонт','сантехник','электрик','ипотека','домофон','ерц','астана ерц','stroymarket','строймаркет','стройматериал','leroy','хозтовар','водоканал','астанаэнергосбыт','энергосбыт','казахтелеком'],
+  health:['аптека','лекарства','врач','больница','стоматолог','анализы','клиника','clinic','витамин','таблетк','массаж','окулист','терапевт','хирург','узи','мрт','вакцина','линзы','очки','barber','farmacia','фарм','dentist','dental','bas dent','стомат','prime med','дармед','медцентр','med center','медицинск','лаборатор','invitro','инвитро','олимп','kdl'],
+  clothes:['одежда','обувь','футболк','джинс','куртк','кроссовк','ботинк','рубашк','плать','zara','h&m','nike','adidas','шапка','носк','костюм','пальто','свитер','худи','шорт','юбк','золотое яблоко','boutique','бутик','pull ear','pull&bear','lc waikiki','mango','bershka','stradivarius','defacto','ostin'],
+  fun:['кино','театр','концерт','бар','клуб','боулинг','бильярд','игра','steam','playstation','xbox','музыка','фильм','парк','зоопарк','аттракцион','квест','караоке','дискотека','вечеринка','пиво','вино','алкоголь','коктейль','kinopark','кинопарк','kinoplexx','chaplin','topbilet','ticketon','kassir','events','eventst','afisha'],
   telecom:['связь','телефон','мобильный','теле2','tele2','билайн','мтс','activ','altel','kcell','beeline','тариф','симка','мегафон'],
-  education:['курсы','книга','учебник','обучение','тренинг','udemy','coursera','репетитор','школа','университет','семинар','мастер-класс','вебинар','hackthebox'],
+  education:['курсы','книга','учебник','обучение','тренинг','udemy','coursera','репетитор','школа','университет','семинар','мастер-класс','вебинар','hackthebox','qalam','канцтовар','книжный','meloman','меломан'],
   gifts:['подарок','подарк','цветы','цветов','букет','сувенир','открытка','день рождения','свадьба','юбилей'],
   debts:['кредит','рассрочк','погашение кредита'],
-  subscriptions:['netflix','spotify','youtube premium','apple music','icloud','google one','chatgpt','claude','adobe','антивирус','vpn','подписка','premium','pro','plus'],
+  shopping:['ispace','goldapple','gold apple','diona','technodom','технодом','sulpak','сулпак','mechta','alser','wildberries','ozon','lamoda','kaspi магазин','белый ветер','dns-shop','электроника'],
+  transfers:['перевод с карты на карту','перевод с карты','перевод на карту','перевод клиенту','перевод по номеру','получатель:','на карту','p2p'],
+  cash:['банкомат','atm withdrawal','cash withdrawal','снятие наличных','снятие в банкомате','выдача наличных'],
+  subscriptions:['netflix','spotify','youtube premium','apple music','icloud','google one','chatgpt','claude','adobe','антивирус','vpn','подписка','premium','pro','plus','apple.com/bill','google play','yandex plus','яндекс плюс','kaspi подписка'],
   salary:['зарплата','зп','аванс','оклад','премия','заработн','зачисл'],
   freelance:['фриланс','подработка','проект','заказ','халтура','гонорар'],
   gift_income:['перевод от','помощь от','возврат','кэшбэк','cashback']
@@ -1428,12 +1437,31 @@ function classifyByMCC(desc){
 // "Имя И." — a P2P transfer recipient's name, as banks show it. Never a merchant, so skip
 // keyword matching entirely: a short keyword (e.g. "бар", "рис") can otherwise collide with a
 // name by coincidence (e.g. "Хожиакбар У.", "Томирис Т.").
+const CARD_MASK_RE=/\d{4,6}\*{3,}\d{4}|\*\d{4}\b/;
 const PERSON_NAME_RE=/^[\p{Lu}][\p{Ll}]+\s+[\p{Lu}]\.?$/u;
 
+// Re-sort «Другое» after the dictionary grows: only operations still in «Другое» and never taught by hand (learnedMap)
+const RECAT_VERSION=1;
+async function recatTx(t){
+  if(!t||(t.category!=='other_exp'&&t.category!=='other_inc'))return null;
+  const d=String(t.description||'').trim();if(!d||learnedMap[d.toLowerCase()])return null;
+  const c=await classify(d,t.type);
+  return c&&c!==t.category?{...t,category:c}:null;
+}
+async function recategorizeOther(){
+  if(((await getSetting('recatVersion'))||0)>=RECAT_VERSION)return 0;
+  const txs=await getTxs(),ups=[];
+  for(const t of txs){const u=await recatTx(t);if(u)ups.push(u)}
+  for(let i=0;i<ups.length;i+=450){const b=fsDb.batch();ups.slice(i,i+450).forEach(u=>batchPut(b,'transactions',u));commitBatch(b)}
+  ups.forEach(u=>cachePut(txCache,u));if(ups.length)dirtyTx();
+  await saveSetting('recatVersion',RECAT_VERSION);
+  return ups.length;
+}
 async function classify(desc,type){
   const lower=desc.toLowerCase();
   if(learnedMap[lower]&&(!type||CAT_TYPE[learnedMap[lower]]===type))return learnedMap[lower];
-  if(PERSON_NAME_RE.test(desc.trim()))return null;
+  // a person («Иван П.») or a masked card number («400000******0000») — a transfer, not «Другое»
+  if(PERSON_NAME_RE.test(desc.trim())||CARD_MASK_RE.test(desc))return type==='income'?null:'transfers';
   let best=null,bestLen=0;
   for(const[cat,words]of Object.entries(KEYWORDS)){
     if(type&&CAT_TYPE[cat]!==type)continue;
@@ -5912,6 +5940,7 @@ async function startApp(){
     if(cur){currency=cur;document.getElementById('currency-sel').value=currency}
     learned.forEach(l=>{learnedMap[l.keyword]=l.category});
     registerGoalCategories(goals);
+    try{const n=await recategorizeOther();if(n){toast('Разложил по категориям: '+nWord(n,W_OPS));refreshActive()}}catch(e){console.warn('recat',e)}
   })();
   document.getElementById('smart-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();handleSmartInput()}});
   buildMoneyTabs();moveLamp();
