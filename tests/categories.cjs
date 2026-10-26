@@ -24,7 +24,16 @@ const ok=(c,n,x)=>{if(c)pass++;else{fail++;console.log('FAIL',n,x!==undefined?JS
     ['кофе','food'],['такси','transport']
   ];
   for(const [d,want] of cases){const got=await E(d);ok(got===want,`«${d}» → ${want}`,got)}
-  ok(await C.classify('Иван П.','income')===null,'money from a person stays «Другое» on the income side (not a transfer category)');
+  ok(await C.classify('Иван П.','income')==='transfers_in','money from a person is an incoming transfer');
+  // statement fallback: nothing stays in «Другое»
+  const S=(d,ty,a)=>C.classify(d,ty,a,true);
+  ok(await S('ИП НЕИЗВЕСТНЫЙ','expense',1500)==='food'&&await S('TOO \"НЕИЗВЕСТНО\" ASTANA KZ','expense',2900)==='food','an unknown shop up to 3 000 ₸ → Еда');
+  ok(await S('ИП НЕИЗВЕСТНЫЙ','expense',12990)==='shopping'&&await S('OKAY,ASTANA,KZ','expense',4000)==='shopping','an unknown shop above 3 000 ₸ → Покупки');
+  ok(await S('Иван Петров Сергеевич','expense',5000)==='transfers','a full name → transfer');
+  ok(await S('В Kaspi Банкомате','income',220000)==='transfers_in'&&await S('Поступление перевода','income',42500)==='transfers_in'&&await S('Пополнение','income',874)==='transfers_in'&&await S('ИВАН П.,  Freedom Bank','income',10000)==='transfers_in','incoming money from people / banks / cash-in → Переводы');
+  ok(await S('Возврат денег','income',24000)==='refund'&&await S('IP ZAMZAM,ASTANA,KZ','income',1000)==='refund','money back from a shop → Возвраты и бонусы');
+  ok(await C.classify('ИП НЕИЗВЕСТНЫЙ','expense',1500)===null,'manual input keeps «Другое» for the unknown (fallback is for statements only)');
+  ok(await S('Аппарат самообслуживания','expense',870)==='food'&&await S('TOO ZERDE PHARMA,ASTANA','expense',860)==='health','vending → Еда, pharmacy → Здоровье');
   ok(await E('ИП НЕИЗВЕСТНЫЙ')===null,'an unknown merchant stays unclassified');
   ok(await E('STUDENT CARD')!=='health','«student» is not a dentist');
   // re-sort of «Другое»
