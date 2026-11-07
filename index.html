@@ -1400,6 +1400,7 @@ async function undoTx(id){
   document.getElementById('toast').classList.remove('show');
   toast('Отменено');
   checkAchievements();
+  if(typeof refreshActive==='function')refreshActive();
 }
 
 function showWarning(msg,color){
@@ -1410,7 +1411,8 @@ function showWarning(msg,color){
 
 // ── Classifier ──
 function parseInput(text){
-  text=text.trim();if(!text)return null;
+  // «обед 2000 тг», «кофе 500₸», «₸ 1500 такси» — the currency word is not part of the description
+  text=String(text||'').replace(/(\d)\s*(?:₸|тг|тнг|kzt)\.?(?=\s|$)/gi,'$1').replace(/(^|\s)(?:₸|тг|тнг|kzt)\.?(?=\s|$)/gi,'$1').trim();if(!text)return null;
   let m=text.match(/^(.+?)\s+(\d+(?:\s\d{3})*(?:[.,]\d+)?)\s*$/);
   if(m)return{desc:m[1].trim(),amount:parseAmt(m[2])};
   m=text.match(/^(\d+(?:\s\d{3})*(?:[.,]\d+)?)\s+(.+)$/);
@@ -1418,7 +1420,7 @@ function parseInput(text){
   if(/^[\d\s.,]+$/.test(text))return{desc:'',amount:parseAmt(text)};
   return null;
 }
-function parseAmt(s){return parseFloat(s.replace(/\s/g,'').replace(',','.'))}
+function parseAmt(s){s=String(s).replace(/\s/g,'');if(/^[1-9]\d{0,2}(?:[.,]\d{3})+$/.test(s))s=s.replace(/[.,]/g,'');return parseFloat(s.replace(',','.'))} // «1,500» / «1.500» = 1500
 
 const CAT_TYPE={};
 Object.entries(CATS).forEach(([type,cats])=>cats.forEach(c=>CAT_TYPE[c.id]=type));
@@ -1473,6 +1475,13 @@ const PERSON_FULL_RE=/^[\p{Lu}][\p{Ll}]+(\s+[\p{Lu}][\p{Ll}]+){1,2}$/u;
 // classify(desc, type[, amount, fromStatement]): dictionary → MCC → for a statement row nothing is left in «Другое»:
 // money from a person or a bank is a transfer, from a shop a refund / bonus; an unknown shop is food up to 3 000 ₸
 // (coffee, lunch, a snack — what small «ИП» in the statements mostly are), a purchase above that
+// short keywords (≤ 4 letters) match a word start plus at most a 2-letter ending: «бар» → «бары», not «барбер»; «клуб» → «клубе», not «клубника»
+const KW_RE=new Map();
+function kwHit(lower,w){
+  if(w.length>4)return lower.includes(w);
+  let re=KW_RE.get(w);if(!re){re=new RegExp('(^|[^0-9a-zа-яё])'+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'[0-9a-zа-яё]{0,2}($|[^0-9a-zа-яё])','i');KW_RE.set(w,re)}
+  return re.test(lower);
+}
 async function classify(desc,type,amount,fromStatement){
   const lower=desc.toLowerCase();
   if(learnedMap[lower]&&(!type||CAT_TYPE[learnedMap[lower]]===type))return learnedMap[lower];
@@ -1482,7 +1491,7 @@ async function classify(desc,type,amount,fromStatement){
   for(const[cat,words]of Object.entries(KEYWORDS)){
     if(type&&CAT_TYPE[cat]!==type)continue;
     for(const w of words){
-      if(lower.includes(w)&&w.length>bestLen){best=cat;bestLen=w.length;}
+      if(w.length>bestLen&&kwHit(lower,w)){best=cat;bestLen=w.length;}
     }
   }
   if(best)return best;
@@ -1993,7 +2002,7 @@ async function saveGoal(){
 }
 async function addToGoal(id){
   const amount=await sheetPrompt({title:'Пополнить копилку',label:'Сколько добавить?',placeholder:'Например, 10000',inputmode:'decimal',ok:'Пополнить'});if(amount===null)return;
-  const val=parseFloat(amount);
+  const val=parseAmt(String(amount));
   if(isNaN(val)||val<=0)return toast('Введи сумму больше нуля');
   await contributeToGoal(id,val);refreshGoals();toast('Копилка пополнена');
 }
@@ -2707,7 +2716,7 @@ async function addSelectedStmt(){
   isAddingStmt=true;
   toast(`Добавляем ${nWord(toAdd.length,W_OPS)}…`);
   try{
-    const goalAdds={},seenRow={};
+    const goalAdds={},seenRow={},haveIds=new Set((await getTxs()).map(t=>t.id));
     for(let i=0;i<toAdd.length;i+=450){
       const chunk=toAdd.slice(i,i+450);
       const batch=fsDb.batch();
@@ -2716,8 +2725,11 @@ async function addSelectedStmt(){
         const catId=item.cat||await classify(item.descFull||item.desc,type,item.amount,true)||(type==='income'?'other_inc':'other_exp');
         if(item.catTouched)learnCategory(item.descFull||item.desc,catId);
         const base=(stmtBank||'csv')+'|'+item.date+'|'+type+'|'+Math.round(item.amount*100)+'|'+(item.descFull||item.desc);
-        const n=(seenRow[base]=(seenRow[base]||0)+1);
-        const tx={id:'st_'+(await sha256Hex(base+'|'+n)).slice(0,24),type,amount:item.amount,category:catId,description:item.desc,date:item.date,createdAt:Date.now(),source:'statement'};
+        let n=(seenRow[base]=(seenRow[base]||0)+1),id='st_'+(await sha256Hex(base+'|'+n)).slice(0,24);
+        // the same fare twice a day: an earlier import may hold «…|1» already — take the next free number
+        while(haveIds.has(id)){n=seenRow[base]=n+1;id='st_'+(await sha256Hex(base+'|'+n)).slice(0,24)}
+        haveIds.add(id);
+        const tx={id,type,amount:item.amount,category:catId,description:item.desc,date:item.date,createdAt:Date.now(),source:'statement'};
         if(stmtBank)tx.bank=stmtBank;
         lastImport.ids.push(tx.id);
         if(catId.startsWith('goal_'))goalAdds[catId.slice(5)]=(goalAdds[catId.slice(5)]||0)+item.amount;
@@ -2769,7 +2781,9 @@ async function bankBalance(k,txs){
 async function setBankBalance(k,v,at){
   if(!settingsCache)await getSetting('currency');
   const b=fsDb.batch();
-  batchSetting(b,'bal_'+k,v);batchSetting(b,'balAt_'+k,Math.min(at||Date.now(),Date.now()));batchSetting(b,'balMode_'+k,at?'date':'time');
+  // «по сегодня»: the period end is still ahead, so the snapshot is «now» and later manual entries count on top
+  const now=Date.now(),byDate=!!at&&at<now;
+  batchSetting(b,'bal_'+k,v);batchSetting(b,'balAt_'+k,byDate?at:now);batchSetting(b,'balMode_'+k,byDate?'date':'time');
   commitBatch(b);
 }
 // "… по 08.10.2026" / "с 10.10.2026 по 17.10.2026" / "по 15.10.25" → end of that day (ms); manual entries made later are added on top
@@ -4721,7 +4735,7 @@ function renderDebts(){
 async function saveDebt(){
   const g=id=>document.getElementById(id).value;
   const name=g('dbt-name').trim(),total=parseFloat(g('dbt-total')),remaining=parseFloat(g('dbt-remaining')),monthly=parseFloat(g('dbt-monthly')),payDay=parseInt(g('dbt-day'),10);
-  if(!name||!(total>0)||!(remaining>=0)||!(monthly>0)||!(payDay>=1&&payDay<=31))return toast('Заполни все поля: название, суммы и день платежа (1–31)');
+  if(!name||!(total>0)||!(remaining>0)||!(monthly>0)||!(payDay>=1&&payDay<=31))return toast('Заполни все поля: название, суммы и день платежа (1–31)');
   const d={id:uid(),name,bank:g('dbt-bank'),total,remaining,remaining0:remaining,monthly,payDay,createdAt:Date.now(),closed:false};
   await colPut('debts',d);
   const t={id:uid(),title:'Платёж: '+name,list:'money',due:nextPayDate(payDay),time:'10:00',repeat:{type:'monthly',day:payDay},done:false,doneAt:null,createdAt:Date.now(),source:'debt',debtId:d.id};
@@ -4813,10 +4827,11 @@ function allocPlan(S,scheme,goals,debts){
   const debtSum=debts.filter(d=>!d.closed).reduce((s,d)=>s+Math.min(d.monthly,d.remaining),0);
   if(debtSum>0)take('Рассрочки (платят свои задачи)',debtSum,{kind:'debt'});
   take('Жизнь',scheme.life||0,{kind:'life'});
+  const planned={};
   for(const c of scheme.chain){
     const g=goals.find(x=>x.id===c.goalId);if(!g)continue;
-    const want=c.mode==='fixed'?(c.amount||0):Math.max(0,g.targetAmount-g.currentAmount);
-    take(g.name,want,{kind:'goal',goalId:g.id});
+    const want=c.mode==='fixed'?(c.amount||0):Math.max(0,g.targetAmount-g.currentAmount-(planned[g.id]||0));
+    planned[g.id]=(planned[g.id]||0)+take(g.name,want,{kind:'goal',goalId:g.id});
   }
   return{parts,rest:left};
 }

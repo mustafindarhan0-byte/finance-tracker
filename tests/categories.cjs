@@ -42,6 +42,7 @@ const ok=(c,n,x)=>{if(c)pass++;else{fail++;console.log('FAIL',n,x!==undefined?JS
   ok(await C.recatTx({id:3,type:'expense',category:'other_exp',description:'ИП НЕИЗВЕСТНЫЙ'})===null,'still unknown → stays');
   ctx.learnedMap['банкомат magnit']='other_exp';
   ok(await C.recatTx({id:4,type:'expense',category:'other_exp',description:'Банкомат Magnit'})===null,'a description taught by hand is respected');
+  for(const d of ['фотограф','клубника','барбершоп','газета','чайник','Светлане долг','PROTEIN SHOP ASTANA KZ'])ok(await C.classify(d,'expense')===null,'short keyword inside a longer word does not match: '+d,await C.classify(d,'expense'));
   console.log(`categories: ${pass} passed, ${fail} failed`);
   process.exit(fail?1:0);
 })();
