@@ -156,7 +156,7 @@ async function runLevel(){
   for(const f of frames){num.style.textShadow=f;await sleep(70)}
   num.style.textShadow='none';
   // рассыпание → сборка новой цифры из пикселей (canvas)
-  const cv=mk('lvl-cv','',ov),W=cv.width=Math.min(window.innerWidth,420),H=cv.height=260,ctx=cv.getContext('2d');
+  const cv=ov.appendChild(Object.assign(document.createElement('canvas'),{className:'lvl-cv'})),W=cv.width=Math.min(window.innerWidth,420),H=cv.height=260,ctx=cv.getContext('2d');
   function sample(txt){
     const o=document.createElement('canvas');o.width=W;o.height=H;const c=o.getContext('2d');
     c.fillStyle='#fff';c.font='700 190px Handjet,monospace';c.textAlign='center';c.textBaseline='middle';c.fillText(txt,W/2,H/2);
