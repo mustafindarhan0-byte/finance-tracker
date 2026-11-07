@@ -89,7 +89,7 @@ const P=v=>M.parseKg(v);
 ok(eq(P('62,5'),{ok:true,val:62.5})&&eq(P(' 80 '),{ok:true,val:80})&&eq(P('62.'),{ok:true,val:62}),'15 valid weights incl. comma');
 ok(eq(P(''),{ok:true,val:null}),'16 empty weight → null');
 ok(['abc','6,2,5','-5','1e3','62кг','NaN','600'].every(v=>P(v).ok===false),'17 garbage / out of range rejected');
-ok(eq(M.parseRepsVal('8'),{ok:true,val:8})&&eq(M.parseRepsVal(''),{ok:true,val:null})&&['8.5','x','-1','1000','101'].every(v=>M.parseRepsVal(v).ok===false),'18 reps parsing');
+ok(eq(M.parseRepsVal('8'),{ok:true,val:8})&&eq(M.parseRepsVal(''),{ok:true,val:null})&&['8.5','x','-1','1000','601'].every(v=>M.parseRepsVal(v).ok===false)&&M.parseRepsVal('120').val===120,'18 reps parsing (seconds of a plank up to 600)');
 
 // ── summary / volume ──
 const S=M.workoutSummary({entries:[{exId:'squat',weight:60,reps:[10,10,8]},{exId:'pull',weight:null,reps:[8,6]},{exId:'bench',weight:40,reps:[null,null,null]},{exId:'row',weight:NaN,reps:[10,NaN,null]}]});

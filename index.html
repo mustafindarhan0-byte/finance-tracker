@@ -3615,7 +3615,8 @@ async function completeTaskInner(id,opts){
   const rec=taskUndo[log.id];rec.undos=[];
   for(const hk of taskCompleteHooks){try{const u=await hk(t,log,opts);if(u)rec.undos.push(u)}catch(e){console.warn('task hook',e)}}
   checkAchievements();
-  toastUndoTask(`${icoInline('tasks')}${escapeHtml(t.title)}${nd?' &rarr; '+escapeHtml(formatTaskDate(nd)):''}`,log.id);
+  if(opts&&opts.noUndo)toast(t.title+(nd?' → '+formatTaskDate(nd):''));
+  else toastUndoTask(`${icoInline('tasks')}${escapeHtml(t.title)}${nd?' &rarr; '+escapeHtml(formatTaskDate(nd)):''}`,log.id);
 }
 function toastUndoTask(msg,logId){
   clearTimeout(undoTimer);
@@ -4411,7 +4412,7 @@ function cmdEnterAction(st,armed){
 }
 const isSalaryTask=t=>!!t&&(t.kind==='salary'||t.title==='Распределить зарплату');
 // Tasks that are actions: a workout (workoutPlan) or the salary allocation
-function taskActionKind(t){if(!t)return null;if(t.workoutPlan)return'workout';if(isSalaryTask(t))return'salary';return null}
+function taskActionKind(t){if(!t)return null;if(t.workoutPlan&&(typeof planById!=='function'||planById(t.workoutPlan)))return'workout';if(isSalaryTask(t))return'salary';return null}
 // where: 'row' (tap on the task) | 'check' (its checkbox) → 'workout' | 'salary' | 'edit' | 'complete' | null
 function taskTapAction(t,where){
   if(!t||t.done)return null;
@@ -4869,7 +4870,7 @@ async function allocConfirm(){
 // ── Module 5: workouts and body weight ──
 let wk=null,wkCur=0,wkSummary=null;
 const wcol=n=>(colCache[n]&&colCache[n].data)||[];
-const WK_MAX_KG=500,WK_MAX_REPS=100;
+const WK_MAX_KG=500,WK_MAX_REPS=600; // reps, or seconds for a hold like the plank
 const isKg=v=>typeof v==='number'&&isFinite(v)&&v>=0;
 const isRep=v=>typeof v==='number'&&Number.isInteger(v)&&v>=0;
 const fmtKg=v=>isKg(v)?fmtNum(v):'';
@@ -4896,6 +4897,17 @@ function wkClean(w){
   return w;
 }
 function wkFirstOpen(w){const i=(w.entries||[]).findIndex(e=>!wkAllSets(e));return i<0?0:i}
+// Re-order a stored workout's entries to the plan as it is now: each plan exercise gets its own entry (by exId, in order
+// for repeats); a new exercise gets an empty entry; entries of removed exercises stay at the end (their sets are kept).
+function wkAlign(w,plan,suggest){
+  if(!plan)return w;
+  const pool=(w.entries||[]).map(e=>({e,used:false}));
+  const ent=plan.exercises.map(ex=>{const p=pool.find(x=>!x.used&&x.e.exId===ex.id);if(p){p.used=true;return p.e}
+    return{exId:ex.id,weight:suggest?suggest(ex):null,reps:Array(Math.max(1,ex.sets|0)).fill(null)}});
+  pool.filter(x=>!x.used).forEach(x=>ent.push(x.e));
+  w.entries=ent;return w;
+}
+function wkOpenIdx(w,plan){const n=plan?plan.exercises.length:(w.entries||[]).length;const i=(w.entries||[]).slice(0,n).findIndex(e=>!wkAllSets(e));return i<0?0:i}
 // Most recent finished workout's entry for the exercise that passes `pred` (default: at least one set logged)
 function lastDoneEntry(exId,pred){
   const p=pred||(e=>(e.reps||[]).some(isRep));
@@ -4937,7 +4949,7 @@ async function refreshBody(){
 function planById(id){return wcol('workoutPlans').find(p=>p.id===id)}
 // Today's workout task first, then the oldest overdue one, then the nearest upcoming
 function pendingWorkoutTask(){
-  const t0=today(),ts=(tasksCache||[]).filter(t=>t.workoutPlan&&!t.done&&t.due).sort((a,b)=>a.due.localeCompare(b.due)||(a.time||'').localeCompare(b.time||''));
+  const t0=today(),ts=(tasksCache||[]).filter(t=>t.workoutPlan&&!t.done&&t.due&&planById(t.workoutPlan)).sort((a,b)=>a.due.localeCompare(b.due)||(a.time||'').localeCompare(b.time||''));
   return ts.find(t=>t.due===t0)||ts.find(t=>t.due<t0)||ts.find(t=>t.due>t0)||null;
 }
 // Exercise catalog for programs: the starter A/B/C exercises + the ones the muscle map shows as missing
@@ -4973,8 +4985,10 @@ function closePlanEdit(){planEdit=null;exPicker=null;renderBody()}
 function planEditField(i,k,v){
   const ex=planEdit&&planEdit.exercises[+i];if(!ex)return;
   const n=k==='step'?parseFloat(String(v).replace(',','.')):parseInt(v,10);
-  if(!(n>=0&&n<=(k==='step'?50:100)))return renderBody();
-  ex[k]=n;if(k==='repsMin'&&ex.repsMax<n)ex.repsMax=n;if(k==='repsMax'&&ex.repsMin>n)ex.repsMin=n;
+  const lim={sets:[1,10],step:[0,50],repsMin:[1,WK_MAX_REPS],repsMax:[1,WK_MAX_REPS]}[k]||[0,100];
+  if(!(n>=lim[0]&&n<=lim[1]))return renderBody();
+  ex[k]=n;let fixed=false;if(k==='repsMin'&&ex.repsMax<n){ex.repsMax=n;fixed=true}if(k==='repsMax'&&ex.repsMin>n){ex.repsMin=n;fixed=true}
+  if(fixed)renderBody();
 }
 function planEditName(v){if(planEdit)planEdit.name=String(v).trim().slice(0,40)||planEdit.name}
 function planEditRemove(i){if(planEdit){planEdit.exercises.splice(+i,1);renderBody()}}
@@ -5015,8 +5029,11 @@ async function savePlanEdit(start){
 }
 async function deletePlan(){
   const p=planEdit;if(!p||p.isNew)return closePlanEdit();
-  const ok=await sheetConfirm({title:'Удалить программу',text:'Программа «'+p.name+'» удалится. История тренировок останется.',ok:'Удалить',danger:true});
+  await getTasks();
+  const linked=(tasksCache||[]).filter(t=>t.workoutPlan===p.id&&!t.done);
+  const ok=await sheetConfirm({title:'Удалить программу',text:'Программа «'+p.name+'» удалится. История тренировок останется.'+(linked.length?' Задачи этой программы ('+linked.length+') станут обычными задачами.':''),ok:'Удалить',danger:true});
   if(!ok)return;
+  for(const t of linked){const u={...t,workoutPlan:null};cachePut(tasksCache,u);await dbPut('tasks',u)}
   await colDel('workoutPlans',p.id);planEdit=null;exPicker=null;toast('Программа удалена');renderBody();
 }
 function exPickerHtml(mode){
@@ -5052,12 +5069,12 @@ function planEditorHtml(){
 async function startWorkout(planId,taskId){
   const plan=planById(planId);if(!plan)return toast('План тренировки не найден');
   wk={id:uid(),planId,taskId:taskId||null,date:today(),at:Date.now(),done:false,
-    entries:plan.exercises.map(ex=>({exId:ex.id,weight:suggestWeight(ex),reps:Array(ex.sets).fill(null)}))};
+    entries:plan.exercises.map(ex=>({exId:ex.id,weight:suggestWeight(ex),reps:Array(Math.max(1,ex.sets|0)).fill(null)}))};
   wkCur=0;wkSummary=null;await colPut('workouts',wk);renderBody();
 }
 function resumeWorkout(id){
   const w=wcol('workouts').find(x=>x.id===id&&!x.done);if(!w)return refreshBody();
-  wk=wkClean(w);wkCur=wkFirstOpen(w);wkSummary=null;renderBody();
+  const plan=planById(w.planId);wk=wkAlign(wkClean(w),plan,suggestWeight);wkCur=wkOpenIdx(wk,plan);wkSummary=null;renderBody();
 }
 async function dropWorkout(id){
   const w=wcol('workouts').find(x=>x.id===id&&!x.done);if(!w)return renderBody();
@@ -5072,7 +5089,7 @@ async function openWorkoutTask(taskId){
   if(!planById(t.workoutPlan))return toast('План тренировки «'+t.workoutPlan+'» не найден — измени задачу');
   const d=workoutOpenDecision(wk,wcol('workouts'),taskId,today());
   if(d.act==='start')return startWorkout(t.workoutPlan,taskId);
-  if(d.id){const w=wcol('workouts').find(x=>x.id===d.id);if(w){wk=wkClean(w);wkCur=wkFirstOpen(w);wkSummary=null}}
+  if(d.id){const w=wcol('workouts').find(x=>x.id===d.id);if(w){const plan=planById(w.planId);wk=wkAlign(wkClean(w),plan,suggestWeight);wkCur=wkOpenIdx(wk,plan);wkSummary=null}}
   if(d.act==='busy')toast('Сначала заверши начатую тренировку');
   renderBody();
 }
@@ -5125,7 +5142,7 @@ async function finishWorkout(){
   if(!s.sets&&(!await sheetConfirm({title:'Завершить без подходов?',text:'Ни один подход не заполнен. Тренировка всё равно засчитается.',ok:'Завершить',cancel:'Продолжить'})||!wk))return;
   const w=wk;wk=null;
   w.done=true;w.at=Date.now();await colPut('workouts',w);
-  if(w.taskId){await getTasks();if(tasksCache.some(t=>t.id===w.taskId&&!t.done))await completeTask(w.taskId,{noXp:true})}
+  if(w.taskId){await getTasks();if(tasksCache.some(t=>t.id===w.taskId&&!t.done))await completeTask(w.taskId,{noXp:true,noUndo:true})}
   const xe=await awardXp('workout_'+w.id,'body',60,'workout');
   checkSkills();
   checkAchievements();
@@ -5196,7 +5213,7 @@ const EXERCISE_MUSCLES={
   deadlift:{p:['hamstrings','glutes','lowerBack'],s:['traps','forearms','quads']},hammer:{p:['biceps'],s:['forearms']}
 };
 // unknown exercise (custom plan): guess by name, else the plan may carry ex.muscles = {p:[…], s:[…]}
-const MUSCLE_WORDS=[[/присед|squat/i,'squat'],[/жим.*лёж|жим.*леж|bench/i,'bench'],[/наклон/i,'incline'],[/тяга.*наклон|row/i,'bbrow'],[/румын|становая|rdl|deadlift/i,'rdl'],[/подтяг|блок|pull/i,'pullup'],[/выпад|lunge/i,'lunge'],[/жим ног|leg press/i,'legpress'],[/жим.*сто|армейск|ohp/i,'ohp'],[/брус|dips/i,'dips'],[/планк|plank/i,'plank'],[/пресс|скручив/i,'abs'],[/бицепс|трицепс/i,'arms'],[/гантел.*сид/i,'dbpress']];
+const MUSCLE_WORDS=[[/присед|squat/i,'squat'],[/жим.*лёж|жим.*леж|bench/i,'bench'],[/тяга.*наклон|row/i,'bbrow'],[/жим.*наклон|наклонн|incline/i,'incline'],[/румын|становая|rdl|deadlift/i,'rdl'],[/подтяг|блок|pull/i,'pullup'],[/выпад|lunge/i,'lunge'],[/жим ног|leg press/i,'legpress'],[/жим.*сто|армейск|ohp/i,'ohp'],[/брус|dips/i,'dips'],[/планк|plank/i,'plank'],[/пресс|скручив/i,'abs'],[/бицепс|трицепс/i,'arms'],[/гантел.*сид/i,'dbpress']];
 const CALF_NECK_WORDS=[[/икр|носк|calf/i,{p:['calves'],s:[]}],[/шея|шеи|neck/i,{p:['neck'],s:['traps']}],[/шраг|трапец|shrug/i,{p:['traps'],s:['forearms']}],[/косы|русск|скруч.*бок/i,{p:['obliques'],s:['abs']}]];
 function exerciseMuscles(ex){
   if(!ex)return{p:[],s:[]};
@@ -5314,7 +5331,7 @@ function liftBest(workouts,exId,reps){
   return w;
 }
 function repsBest(workouts,exId){
-  let r=0;for(const wo of workouts||[]){if(!wo.done)continue;for(const en of wo.entries||[])if(en.exId===exId)(en.reps||[]).forEach(x=>{if(x>r)r=x})}
+  let r=0;for(const wo of workouts||[]){if(!wo.done)continue;for(const en of wo.entries||[])if(en.exId===exId&&!(en.weight>0))(en.reps||[]).forEach(x=>{if(x>r)r=x})}
   return r;
 }
 function volumeWeeks(workouts,plans,sets,today_){
