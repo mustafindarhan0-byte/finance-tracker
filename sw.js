@@ -1,11 +1,11 @@
-const CACHE_NAME = 'finance-v48';
+const CACHE_NAME = 'finance-v49';
 // App files: all must cache, or the install fails (an incomplete offline copy is worse than the previous one)
 const LOCAL_ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './theme.css?v=48',
-  './fx.js?v=48',
+  './theme.css?v=49',
+  './fx.js?v=49',
   './figure.jpg',
   './bg.jpg',
   './boot.jpg',
