@@ -11,6 +11,7 @@ function daysBetween(a,b){return Math.round((parseLocalDate(b)-parseLocalDate(a)
 function isoWeekday(s){const w=parseLocalDate(s).getDay();return w===0?7:w}
 function weekStart(d){return addDays(d,-(isoWeekday(d)-1))}
 const fmtNum=n=>String(n).replace('.',',');
+${(src.match(/function plural\([^\n]*\n/)||[''])[0]}
 ${src.slice(i,j)};this.B={MUSCLES,EXERCISE_MUSCLES,exerciseMuscles,muscleLoad,muscleRecovery,muscleVerdict,bodyPolys,BODY_SHAPES,SKILL_TREES,evaluateSkillTree,bestStreak,avgBodyWeight,volumeWeeks};`,ctx);
 const B=ctx.B;let pass=0,fail=0;
 const ok=(c,n)=>{if(c)pass++;else{fail++;console.log('FAIL',n)}};

@@ -1705,7 +1705,7 @@ async function refreshHistory(){
   labelPeriodTabs();
   const txs=historyFilteredTxs(filterPeriod([...(await getTxs())],historyPeriod)).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt);
   const list=document.getElementById('history-list');
-  if(!txs.length){list.innerHTML=`<div class="empty-state"><span class="icon-wrap">${ico('doc',40)}</span>Операций за этот период нет</div>`;return}
+  if(!txs.length){list.innerHTML=`<div class="empty-state"><span class="icon-wrap">${ico('doc',40)}</span>${historySearch.trim()?'По запросу «'+escapeHtml(historySearch.trim())+'» ничего не нашлось':'Операций за этот период нет'}</div>`;return}
   const groups={};txs.forEach(t=>{(groups[t.date]=groups[t.date]||[]).push(t)});
   let html='';
   for(const[date,items]of Object.entries(groups)){
@@ -1734,7 +1734,7 @@ async function renderHistoryCalendar(){
   const startOffset=(firstOfMonth.getDay()+6)%7;
   const daysInMonth=new Date(y,mo,0).getDate();
   const txDaysSet=new Set(txs.filter(t=>t.date.startsWith(historyCalMonth)).map(t=>t.date));
-  document.getElementById('cal-month-label').textContent=firstOfMonth.toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
+  const ml=firstOfMonth.toLocaleDateString('ru-RU',{month:'long',year:'numeric'});document.getElementById('cal-month-label').textContent=ml.charAt(0).toUpperCase()+ml.slice(1);
   const weekdays=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
   document.getElementById('cal-weekdays').innerHTML=weekdays.map(w=>`<div class="calendar-weekday" aria-hidden="true">${w}</div>`).join('');
   const todayStr=today();
@@ -1769,7 +1769,21 @@ async function exportHistoryFiltered(){
   a.href=url;a.download=`finance-${historyBank||'all'}-${today()}.json`;a.click();URL.revokeObjectURL(url);
   toast(`Экспортировано: ${nWord(txs.length,W_OPS)}`);
 }
-async function deleteTx(id){if(!await sheetConfirm({title:'Удалить операцию?',ok:'Удалить',danger:true}))return;await goalRollback(id);await dbDel('transactions',id);txCacheRemove(id);refreshHistory();toast('Операция удалена')}
+const deletedTx={};
+async function deleteTx(id){if(!await sheetConfirm({title:'Удалить операцию?',ok:'Удалить',danger:true}))return;
+  const t=(await getTxs()).find(x=>x.id===id);if(t)deletedTx[id]=t;
+  await goalRollback(id);await dbDel('transactions',id);txCacheRemove(id);refreshHistory();
+  clearTimeout(undoTimer);const el=document.getElementById('toast');
+  el.innerHTML=`Операция удалена${t?` <button type="button" class="toast-undo" data-id="${escapeHtml(id)}" onclick="restoreTx(this.dataset.id)">Отменить</button>`:''}`;
+  el.classList.add('show');undoTimer=setTimeout(()=>el.classList.remove('show'),3500);
+}
+async function restoreTx(id){
+  const t=deletedTx[id];if(!t)return;delete deletedTx[id];
+  document.getElementById('toast').classList.remove('show');
+  await dbPut('transactions',t);if(txCache&&!txCache.some(x=>x.id===id))txCache.push(t);
+  if(t.category&&t.category.startsWith('goal_'))await contributeToGoal(t.category.slice(5),t.amount);
+  toast('Операция возвращена');refreshActive();checkAchievements();
+}
 
 // ── Stats ──
 async function refreshStats(){
@@ -1928,11 +1942,11 @@ async function renderHomeBudgetRing(){
   if(!general){card.hidden=true;return}
   const month=today().slice(0,7);
   const spent=(await getTxs()).filter(t=>t.type==='expense'&&t.date.startsWith(month)).reduce((s,t)=>s+t.amount,0);
-  const pct=Math.min(100,Math.round(spent/general.limit*100));
+  const real=Math.round(spent/general.limit*100),pct=Math.min(100,real);
   const arc=pct>=100?'#FF5A5F,#FF5A5F':pct>=80?'#E9C46A,#E9C46A':'#F2F2EF,#F2F2EF';
   card.hidden=false;
   document.getElementById('home-budget-ring').style.background=`conic-gradient(from 0deg,${arc.split(',')[0]} 0%,${arc.split(',')[1]} ${pct}%,var(--bg3) ${pct}%)`;
-  document.getElementById('home-budget-ring-pct').textContent=pct+'%';
+  document.getElementById('home-budget-ring-pct').textContent=real+'%';
   document.getElementById('home-budget-ring-amounts').textContent=`${fmtCur(spent)} / ${fmtCur(general.limit)}`;
 }
 async function refreshBudgets(){
@@ -1944,7 +1958,7 @@ async function refreshBudgets(){
   const monthExp=allTxs.filter(t=>t.type==='expense'&&t.date.startsWith(month));
   list.innerHTML=budgets.sort((a,b)=>a.key==='general'?-1:1).map(b=>{
     const spent=b.key==='general'?monthExp.reduce((s,t)=>s+t.amount,0):monthExp.filter(t=>t.category===b.key).reduce((s,t)=>s+t.amount,0);
-    const pct=Math.min(100,Math.round(spent/b.limit*100));
+    const real=Math.round(spent/b.limit*100),pct=Math.min(100,real);
     const color=pct>=100?'#FF5A5F':pct>=80?'#E9C46A':'#F2F2EF';
     const icon=b.key==='general'?'wallet':getCat(b.key).icon;
     const name=b.key==='general'?'Общий лимит':getCat(b.key).name;
@@ -4686,7 +4700,7 @@ async function cmdSaveInner(st){
   fxFlash(document.getElementById('cmd-field'));
   try{
     if(st.kind==='journal'){await addJournal(st.text,st.sphere);toast('Журнал: '+st.text)}
-    else if(st.kind==='task'){const t=await createTask(st);toast('Задача: '+t.title+(t.due?' · '+formatTaskDate(t.due):''))}
+    else if(st.kind==='task'){const t=await createTask(st);toast('Задача: '+t.title+(t.due?' · '+formatTaskDate(t.due):'')+(t.time?' · '+t.time:''))}
     else{
       currentType=st.type;
       // date chip: only the operation date moves; createdAt stays «now», so bank snapshots (time mode) count it as before
@@ -5147,7 +5161,7 @@ function wkHint(msg){
 }
 function wkCaption(ex,en){
   const last=lastWeightedEntry(ex.id),d=(isKg(en.weight)&&last)?+(en.weight-last.weight).toFixed(2):null;
-  const cap=ex.step===0?'своим весом':d==null?(last?'в прошлый раз '+fmtNum(last.weight)+' кг':'первая запись — введи вес'):(d>0?`сегодня +${fmtNum(d)} кг`:d<0?`сегодня ${fmtNum(d)} кг`:'как в прошлый раз');
+  const cap=ex.step===0?'своим весом':d==null?(last?'в прошлый раз '+fmtNum(last.weight)+' кг':isKg(en.weight)?'первая запись':'первая запись — введи вес'):(d>0?`сегодня +${fmtNum(d)} кг`:d<0?`сегодня ${fmtNum(d)} кг`:'как в прошлый раз');
   return String(ex.name).toLowerCase()+', '+cap;
 }
 function wkListHtml(plan){
@@ -5388,7 +5402,7 @@ function evaluateSkillTree(tree,data){
       const hab=(data.habits||[]).find(x=>c.habit.test(x.name||''));
       value=hab?bestStreak((data.checks||[]).filter(k=>k.habitId===hab.id).map(k=>k.date)):0;target=c.days;met=value>=target;
       label=hab?`${value} / ${target} дней`:'нет привычки «Белок»';
-    }else if(c.type==='volume'){value=volumeWeeks(data.workouts,data.plans,c.sets,data.today);target=c.weeks;met=value>=target;label=`${value} / ${target} недель`}
+    }else if(c.type==='volume'){value=volumeWeeks(data.workouts,data.plans,c.sets,data.today);target=c.weeks;met=value>=target;label=`${value} / ${target} ${plural(target,['неделя','недели','недель'])}`}
     else if(c.type==='later'){label='откроется в фазе «Подготовка»'}
     const reqOk=(n.requires||[]).every(r=>data.done[r]||(out[r]&&out[r].state==='done'));
     const state=data.done[n.id]?'done':(!reqOk?'locked':(met&&c.type!=='later'?'done':'open'));
@@ -5963,10 +5977,17 @@ function dfirBuildBoard(S){
   for(let y=100;y<=BH-20;y+=20)dfirEl('line',{x1:0,x2:y%100?4:9,y1:y,y2:y,stroke:'rgba(255,255,255,.3)'},Sv);
   const pos=[];
   rows.forEach((row,r)=>row.forEach((n,i)=>{const dir=r%2?-1:1;pos[partIdx(n)]={x:X[dir>0?i:2-i],y:Y[r]}}));
+  // «Финал»: on the side of the last node away from the previous one; below it when that side has no room
+  const lp=pos[P.parts.length-1],pv=pos[P.parts.length-2],roomR=lp.x+NW+265<=BW,roomL=lp.x-265>=0;
+  let side=pv&&pv.y===lp.y?(pv.x<lp.x?'r':'l'):(roomR?'r':'l');
+  if((side==='r'&&!roomR)||(side==='l'&&!roomL))side='d';
+  const fin=side==='r'?{a:[lp.x+NW,lp.y],b:[lp.x+NW+135,lp.y],bx:lp.x+NW+135,by:lp.y-20}
+    :side==='l'?{a:[lp.x,lp.y],b:[lp.x-135,lp.y],bx:lp.x-265,by:lp.y-20}
+    :{a:[lp.x+NW/2,lp.y+NH/2],b:[lp.x+NW/2,lp.y+NH/2+70],bx:lp.x+NW/2-65,by:lp.y+NH/2+70};
   const pads=[],segs=[];
   P.parts.forEach((p,k)=>{
     const a0=pos[k],nx=pos[k+1];let a,b;
-    if(!nx){const right=a0.x===X[0];a=right?[a0.x+NW,a0.y]:[a0.x,a0.y];b=right?[a0.x+NW+135,a0.y]:[a0.x-135,a0.y]}
+    if(!nx){a=fin.a;b=fin.b}
     else if(a0.y===nx.y){a=a0.x<nx.x?[a0.x+NW,a0.y]:[a0.x,a0.y];b=a0.x<nx.x?[nx.x,nx.y]:[nx.x+NW,nx.y]}
     else{a=[a0.x+NW/2,a0.y+NH/2];b=[nx.x+NW/2,nx.y-NH/2]}
     const vert=a[0]===b[0],cnt=p.blocks.length;segs[k]={a,b};
@@ -5994,14 +6015,18 @@ function dfirBuildBoard(S){
   // nodes
   P.parts.forEach((p,k)=>{const d=document.createElement('div');d.className='dfs-node'+(p.done?' on':'');d.style.left=pos[k].x+'px';d.style.top=(pos[k].y-NH/2)+'px';d.title=p.name;d.innerHTML=dfirNodeHtml(p);B.appendChild(d)});
   // finale + month
-  const last=P.parts.length-1,lp=pos[last],right=lp.x===X[0],fx=right?lp.x+NW+135:lp.x-135-130;
-  dfirEl('rect',{x:fx,y:yE-20,width:130,height:40,fill:'#020202',stroke:'rgba(255,255,255,.3)','stroke-dasharray':'3 3'},Sv);
-  dfirT(Sv,fx+65,yE+4,'ФИНАЛ · '+P.total,{'text-anchor':'middle',fill:P.current?'#8a8a8a':'#fff'});
+  dfirEl('rect',{x:fin.bx,y:fin.by,width:130,height:40,fill:'#020202',stroke:'rgba(255,255,255,.3)','stroke-dasharray':'3 3'},Sv);
+  dfirT(Sv,fin.bx+65,fin.by+24,'ФИНАЛ · '+P.total,{'text-anchor':'middle',fill:P.current?'#8a8a8a':'#fff'});
+  // the month panel: the free rest of the last row, or a full-width strip under the board
   const m=document.createElement('div');m.className='dfs-month';
-  const mx=right?fx+150:20,mw=right?BW-20-mx:fx-40;
-  Object.assign(m.style,{left:mx+'px',top:(yE-64)+'px',width:mw+'px',height:'128px'});m.innerHTML=dfirMonthHead(P)+'<svg></svg>';B.appendChild(m);
+  let BHf=BH,mx=side==='r'?fin.bx+150:20,mw=side==='r'?BW-20-mx:side==='l'?fin.bx-40:0,my=yE-64;
+  // a one-row chain: the callout hangs under the last row, so the month strip goes under the callout
+  const callBottom=cur&&callRow===rows.length-1?Y[callRow]+NH/2+50+callH:0;
+  if(callBottom&&my<callBottom+20)mw=0;
+  if(mw<300){mx=20;mw=BW-40;my=Math.max(yE+NH/2,fin.by+40,callBottom)+40;const h=BHf=my+128+50;B.style.height=h+'px';Sv.setAttribute('viewBox',`0 0 ${BW} ${h}`)}
+  Object.assign(m.style,{left:mx+'px',top:my+'px',width:mw+'px',height:'128px'});m.innerHTML=dfirMonthHead(P)+'<svg></svg>';B.appendChild(m);
   dfirMonthSvg(m.querySelector('svg'),P.month,mw-30,84);
-  dfirT(Sv,20,BH-8,`DFIR-${P.total} · ${P.parts.length} ЧАСТЕЙ / ${P.blocks.length} БЛОКОВ / ${P.total} ТЕМ · ПРОЙДЕНО ${pad3(P.doneCount)}`,{fill:'#4a4a4a'});
+  dfirT(Sv,20,BHf-8,`DFIR-${P.total} · ${P.parts.length} ЧАСТЕЙ / ${P.blocks.length} БЛОКОВ / ${P.total} ТЕМ · ПРОЙДЕНО ${pad3(P.doneCount)}`,{fill:'#4a4a4a'});
   if(!cp)return;
   // «вы здесь» and the callout
   if(cp.vert){dfirEl('rect',{x:cp.x+26,y:cp.y-10,width:74,height:20,fill:'#ff2a2a'},Sv);dfirT(Sv,cp.x+63,cp.y+4,'ВЫ ЗДЕСЬ',{'text-anchor':'middle',fill:'#000','font-weight':600})}
@@ -6131,7 +6156,7 @@ async function dfirUpload(list){
       for(let i=0;i<xp.length;i+=400){const b=fsDb.batch();xp.slice(i,i+400).forEach(e=>{batchPut(b,'xpLog',e);cachePut(arr,e)});commitBatch(b)}
       notifyLevelChange(before,await levelsNow());
     }
-    const msg=`Оглавление: ${nWord(dfirFlat(plan.chain).length,['тема','темы','тем'])} · тексты: ${queued?plan.texts.length+' отправлено':written+' новых или обновлено'}${plan.skipped?`, ${plan.skipped} без изменений`:''} · перенесено отметок: ${plan.marks.length}`;
+    const msg=`Оглавление: ${nWord(dfirFlat(plan.chain).length,['тема','темы','тем'])} · тексты: ${queued?plan.texts.length+' отправлено':nWord(written,['новый или обновлённый','новых или обновлённых','новых или обновлённых'])}${plan.skipped?`, ${plan.skipped} без изменений`:''} · перенесено отметок: ${plan.marks.length}`;
     toast(queued?`Тексты в очереди: сохранятся, когда появится связь. ${msg}`:err?`Тексты сохранились не все (${written} из ${plan.texts.length}): ${errText(err)}`:msg);
   }catch(e){console.warn('dfir upload',e);toast('Папка не загрузилась. '+errText(e))}
   finally{dfirUploading=false;await refreshDfir();refreshStatusIfVisible()}
@@ -6169,7 +6194,7 @@ async function dfirTopicToggle(n,on){
     clearTimeout(undoTimer);const el=document.getElementById('toast');
     el.innerHTML=`Тема ${dfirNNN(n)} пройдена · +${DFIR_TOPIC_XP} <button type="button" class="toast-undo" onclick="dfirTopicToggle(${n},false)">Отменить</button>`;
     el.classList.add('show');undoTimer=setTimeout(()=>el.classList.remove('show'),3500)}
-  else await dfirUnmark(n);
+  else{await dfirUnmark(n);toast(`Тема ${dfirNNN(n)}: отметка снята`)}
   dfirAfterMark(n);
 }
 function dfirAfterMark(n){
@@ -6281,7 +6306,7 @@ async function renderWeek(){
   const big=(n,l)=>`<div class="wk-stat spot"><div class="wk-num disp" data-n="${n}">${n}</div><div class="wk-lbl">${l}</div></div>`;
   let lastDay='';
   el.innerHTML=`${weekNavHtml(ws,we)}
-    <div class="wk-grid">${big(tasksDone+'/'+tasksPlanned,'задачи')}${big(hPct+'%','привычки')}${big(wo.length+'/'+woPlanned,'тренировки')}${big(fmt(Math.round(spentSum/1000))+'к','траты, ₸')}</div>
+    <div class="wk-grid">${big(tasksDone+'/'+tasksPlanned,'задачи')}${big(hPct+'%','привычки')}${big(wo.length+'/'+woPlanned,'тренировки')}${big(spentSum<10000?fmt(Math.round(spentSum)):fmt(Math.round(spentSum/1000))+'к','траты, ₸')}</div>
     <div class="card"><div class="card-title">Опыт за неделю</div><div class="wk-xp">${Object.keys(SPHERES).map(s=>`<span style="--c:var(--${s})"><i></i>${SPHERES[s]} ${xp[s]>=0?'+':''}${xp[s]}</span>`).join('')}</div></div>
     <div class="card"><div class="card-title">Таймлайн</div>${tl.length?tl.map(e=>{const h=e.date!==lastDay?`<div class="tl-day">${WD_SHORT[isoWeekday(e.date)-1]}, ${e.date.slice(8,10)}.${e.date.slice(5,7)}</div>`:'';lastDay=e.date;return h+`<div class="jr-row"><span class="jr-time">${e.journal||e.at>0&&!String(e.text).startsWith('Достижение')?hhmm(e.at):''}</span><span class="jr-dot" style="--c:${sphereColor(e.sphere)}"></span><span class="jr-text">${escapeHtml(e.text)}</span></div>`}).join(''):'<div class="cmd-hint">На этой неделе событий нет</div>'}</div>
     <button type="button" class="save-btn primary" onclick="copyWeek()">Копировать для Claude</button><pre id="week-fallback" class="wk-fallback" hidden></pre>`;

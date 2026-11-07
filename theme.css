@@ -271,6 +271,7 @@ body.fx-paused *,body.fx-paused::after{animation-play-state:paused!important}
 .debt-cap{color:var(--fog);font-size:12px}
 .debt-meta{display:flex;justify-content:space-between;gap:8px;color:var(--fog);font-size:12px;margin-top:4px;flex-wrap:wrap}
 #debt-form input,#debt-form select,#alloc-body input[type=number],.al-row select{width:100%;padding:10px;margin-bottom:8px}
+#bw-input{min-height:44px;padding:10px}
 .al-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
 .al-row input,.al-row select{margin-bottom:0!important;min-width:0}
 .al-label{display:block;color:var(--fog);font-size:12px;margin-bottom:6px}
@@ -513,8 +514,8 @@ input,select,textarea{font-size:16px}
 .settings-input,.search-input,.currency-select,.add-form input,.add-form select,.bank-edit-row input,.stmt-cat,.habit-row .currency-select,
 #debt-form input,#debt-form select,#alloc-body input,#alloc-body select,.al-row input,.al-row select,.cmd-date-pick input,.sheet .sheet-input{font-size:16px}
 /* цели касания ≥ 44×44: видимый размер прежний, невидимая зона нажатия вокруг маленьких кнопок */
-.task-check,.del-btn,.header-btn,.calendar-nav-btn,.cmd-part,.link-btn,.settings-btn,.goal-action-btn,.sphere-legend-item,.stmt-batch-bar button,.toast-undo{position:relative}
-.task-check::after,.del-btn::after,.header-btn::after,.calendar-nav-btn::after,.cmd-part::after,.link-btn::after,.settings-btn::after,.goal-action-btn::after,.sphere-legend-item::after,.stmt-batch-bar button::after,.toast-undo::after{
+.task-check,.del-btn,.header-btn,.calendar-nav-btn,.cmd-part,.link-btn,.settings-btn,.goal-action-btn,.sphere-legend-item,.stmt-batch-bar button,.toast-undo,.smart-send{position:relative}
+.task-check::after,.del-btn::after,.header-btn::after,.calendar-nav-btn::after,.cmd-part::after,.link-btn::after,.settings-btn::after,.goal-action-btn::after,.sphere-legend-item::after,.stmt-batch-bar button::after,.toast-undo::after,.smart-send::after{
   content:'';position:absolute;left:50%;top:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%)}
 .period-tab,.cmd-bank,.cmd-date,.cmd-flip,.stmt-cat,.stmt-matched summary,.header-action{min-height:44px}
 .tmpl-chip{min-height:44px;display:inline-flex;align-items:center}
