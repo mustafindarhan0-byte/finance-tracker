@@ -4220,7 +4220,7 @@ function dfirMdBlocks(lines,titles,top){
     if((m=/^(#{1,6})\s+(.*)$/.exec(l))){
       flush();i++;
       if(top&&m[1].length===1&&!out.length)continue; // the file's own «# 24. Title» repeats the reader header
-      const h=Math.min(6,m[1].length+1);out.push(`<h${h}>${dfirInline(m[2],titles)}</h${h}>`);continue;
+      const h=Math.max(2,m[1].length);out.push(`<h${h}>${dfirInline(m[2],titles)}</h${h}>`);continue;
     }
     if(/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(l)){flush();out.push('<hr>');i++;continue}
     if(/^\s*\|/.test(l)&&i+1<lines.length&&/^\s*\|?\s*:?-{2,}/.test(lines[i+1])){
@@ -5717,7 +5717,7 @@ async function resetAvatar(){await saveSetting('avatar',null);statusAvatar=null;
 
 // ── DFIR screen: storage, marks, upload, screen, reader (SPEC_dfir) ──
 // Texts are read one document at a time when a topic opens — never through getCol/dbAll (that would pull every text on start).
-const DFIR_BATCH_DOCS=400,DFIR_BATCH_BYTES=3.5*1024*1024;
+const DFIR_BATCH_DOCS=60,DFIR_BATCH_BYTES=900*1024;
 async function dfirChain(){const v=await getSetting('dfirChain');return v&&Array.isArray(v.parts)&&v.parts.length?v.parts:null}
 async function dfirTextGet(n){
   const ref=docRef('dfirTopics',dfirNNN(n));let snap;
@@ -5731,7 +5731,7 @@ async function dfirTextsPut(list,onProgress){
   while(i<list.length){
     const b=fsDb.batch();let bytes=0,k=0;
     while(i<list.length&&k<DFIR_BATCH_DOCS&&(k===0||bytes+list[i].text.length*2<DFIR_BATCH_BYTES)){bytes+=list[i].text.length*2;batchPut(b,'dfirTopics',list[i]);i++;k++}
-    await withTimeout(b.commit(),60000);
+    await withTimeout(b.commit(),90000);
     if(onProgress)onProgress(i,list.length);
   }
 }
@@ -6086,7 +6086,7 @@ async function dfirUpload(list){
       for(let i=0;i<xp.length;i+=400){const b=fsDb.batch();xp.slice(i,i+400).forEach(e=>{batchPut(b,'xpLog',e);cachePut(arr,e)});commitBatch(b)}
       notifyLevelChange(before,await levelsNow());
     }
-    const msg=`Оглавление: ${nWord(dfirFlat(plan.chain).length,['тема','темы','тем'])} · тексты: ${written} новых или обновлено${plan.skipped?`, ${plan.skipped} без изменений`:''} · перенесено отметок: ${plan.marks.length}`;
+    const msg=`Оглавление: ${nWord(dfirFlat(plan.chain).length,['тема','темы','тем'])} · тексты: ${queued?plan.texts.length+' отправлено':written+' новых или обновлено'}${plan.skipped?`, ${plan.skipped} без изменений`:''} · перенесено отметок: ${plan.marks.length}`;
     toast(queued?`Тексты в очереди: сохранятся, когда появится связь. ${msg}`:err?`Тексты сохранились не все (${written} из ${plan.texts.length}): ${errText(err)}`:msg);
   }catch(e){console.warn('dfir upload',e);toast('Папка не загрузилась. '+errText(e))}
   finally{dfirUploading=false;await refreshDfir();refreshStatusIfVisible()}
