@@ -1063,7 +1063,7 @@ canvas.dfv-noise{position:absolute;inset:0;width:100%;height:100%;mix-blend-mode
   --glow2:0 0 4px rgba(255,255,255,.35),0 0 12px rgba(255,255,255,.12);
   --mono:'Geist Mono',ui-monospace,monospace;--sans:'Geist',system-ui,sans-serif;--pix:'Handjet','Geist Mono',monospace;
   --df-fig:url(figure.jpg);
-  background:var(--bg);color:var(--fg);position:relative;z-index:2;min-height:100vh;font-family:var(--sans);font-size:13px;line-height:1.35;overflow-x:hidden}
+  background:var(--bg);color:var(--fg);position:relative;z-index:2;min-height:100vh;font-family:var(--sans);font-size:13px;line-height:1.35;overflow-x:clip}
 #view-dfir{padding:0 0 120px}
 #view-dfir-topic{padding:0 0 120px}
 @media (min-width:1024px){#view-dfir{padding-top:0;padding-bottom:40px}#view-dfir-topic{padding-top:28px;padding-bottom:60px}}
@@ -1087,9 +1087,9 @@ canvas.dfv-noise{position:absolute;inset:0;width:100%;height:100%;mix-blend-mode
 .dft-md code{font:13px/1.4 var(--mono);background:rgba(255,255,255,.07);padding:1px 5px;border-radius:3px;color:#f0f0f0}
 .dft-md pre{margin:12px 0;padding:12px 14px;background:#000;border:1px solid var(--ln);overflow-x:auto;-webkit-overflow-scrolling:touch}
 .dft-md pre code{background:none;padding:0;font-size:12.5px;line-height:1.5;white-space:pre}
-.dft-md .df-table{margin:12px 0;overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--ln)}
+.dft-md .df-table{overflow-wrap:normal;word-break:normal;margin:12px 0;overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--ln)}
 .dft-md table{border-collapse:collapse;min-width:100%;font-size:13.5px;line-height:1.45}
-.dft-md th,.dft-md td{border-bottom:1px solid var(--ln);padding:7px 10px;text-align:left;vertical-align:top}
+.dft-md th,.dft-md td{min-width:120px;border-bottom:1px solid var(--ln);padding:7px 10px;text-align:left;vertical-align:top}
 .dft-md th{font:500 11px/1.3 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mid);background:rgba(255,255,255,.03)}
 .dft-md blockquote{margin:12px 0;padding:2px 0 2px 14px;border-left:2px solid var(--ln2);color:var(--mid)}
 .dft-md hr{border:0;border-top:1px solid var(--ln);margin:22px 0}

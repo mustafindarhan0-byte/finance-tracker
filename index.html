@@ -1233,7 +1233,8 @@ async function joinExistingSpace(){
 async function syncNow(){
   dirtyTx();settingsCache=null;dirtyTasks();
   const active=document.querySelector('.nav-btn.active')?.dataset.view||'home';
-  if(active==='quests')await refreshTasks();
+  if(curView==='dfir'&&typeof refreshDfir==='function')await refreshDfir();
+  else if(active==='quests')await refreshTasks();
   else if(active==='status')await refreshStatus();
   else if(active==='body')await refreshBody();
   else if(active==='home')await refreshDashboard();
@@ -4188,19 +4189,22 @@ function dfirStreak(dates,today){
 // Markdown of a topic → safe HTML (no dependencies; every piece of text goes through escapeHtml).
 // titles: {n: title} of the chain — [[NNN name]] becomes a link to topic n when it exists.
 function dfirInline(s,titles){
-  const code=[];
-  s=String(s).replace(/`([^`]+)`/g,(_,c)=>{code.push(c);return`\u0000${code.length-1}\u0000`});
-  s=escapeHtml(s);
+  // finished HTML (code, links, topic links) is stashed as placeholders, so emphasis never runs inside a tag or an href
+  const keep=[],put=h=>{keep.push(h);return`\u0000${keep.length-1}\u0000`};
+  s=String(s).replace(/\u0000/g,'');
+  s=s.replace(/`([^`]+)`/g,(_,c)=>put(`<code>${escapeHtml(c)}</code>`));
   s=s.replace(/\[\[([^\]|]+?)(?:\|([^\]]+))?\]\]/g,(_,t,alias)=>{
-    const m=/^(\d{3})\s/.exec(t),n=m?+m[1]:null,label=(alias||t).trim();
-    return n&&titles&&titles[n]!=null?`<a href="#" class="df-wl" data-topic="${n}">${label}</a>`:`<span class="df-wl-x">${label}</span>`;
+    const m=/^(\d{3})\s/.exec(t),n=m?+m[1]:null,label=escapeHtml((alias||t).trim());
+    return put(n&&titles&&titles[n]!=null?`<a href="#" class="df-wl" data-topic="${n}">${label}</a>`:`<span class="df-wl-x">${label}</span>`);
   });
   s=s.replace(/!\[([^\]]*)\]\([^)]*\)/g,'$1');
-  s=s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,(_,t,u)=>/^https?:\/\//i.test(u)?`<a href="${u}" target="_blank" rel="noopener noreferrer">${t}</a>`:t);
+  s=s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,(_,t,u)=>/^https?:\/\//i.test(u)?put(`<a href="${escapeHtml(u)}" target="_blank" rel="noopener noreferrer">`)+t+put('</a>'):t);
+  s=escapeHtml(s);
   s=s.replace(/\*\*([^*]+?)\*\*/g,'<b>$1</b>').replace(/__([^_]+?)__/g,'<b>$1</b>');
   s=s.replace(/(^|[^*\w])\*([^*\s](?:[^*]*?[^*\s])?)\*(?![*\w])/g,'$1<i>$2</i>');
-  return s.replace(/\u0000(\d+)\u0000/g,(_,i)=>`<code>${escapeHtml(code[+i])}</code>`);
+  return s.replace(/\u0000(\d+)\u0000/g,(_,i)=>keep[+i]);
 }
+const DFIR_CALLOUTS=['note','info','tip','hint','important','warning','caution','danger','error','bug','question','faq','help','example','quote','abstract','summary','success','failure','todo'];
 function dfirMdBlocks(lines,titles,top){
   const out=[],LI=/^(\s*)([-*+]|\d+[.)])\s+(.*)$/;let para=[],i=0;
   const flush=()=>{if(para.length){out.push(`<p>${dfirInline(para.join(' '),titles)}</p>`);para=[]}};
@@ -4230,9 +4234,9 @@ function dfirMdBlocks(lines,titles,top){
       while(i<lines.length&&/^\s*>/.test(lines[i]))buf.push(lines[i++].replace(/^\s*>\s?/,''));
       const c=/^\[!(\w+)\]([-+]?)\s*(.*)$/.exec(buf[0]||'');
       if(c){
-        const type=c[1].toLowerCase(),body=dfirMdBlocks(buf.slice(1),titles,false),title=c[3]?dfirInline(c[3],titles):escapeHtml(type);
-        out.push(c[2]?`<details class="df-call df-${escapeHtml(type)}"${c[2]==='+'?' open':''}><summary>${title}</summary>${body}</details>`
-          :`<div class="df-call df-${escapeHtml(type)}"><div class="df-call-t">${title}</div>${body}</div>`);
+        const raw=c[1].toLowerCase(),type=DFIR_CALLOUTS.includes(raw)?raw:'note',body=dfirMdBlocks(buf.slice(1),titles,false),title=c[3]?dfirInline(c[3],titles):escapeHtml(raw);
+        out.push(c[2]?`<details class="df-call df-c-${type}"${c[2]==='+'?' open':''}><summary>${title}</summary>${body}</details>`
+          :`<div class="df-call df-c-${type}"><div class="df-call-t">${title}</div>${body}</div>`);
       }else out.push(`<blockquote>${dfirMdBlocks(buf,titles,false)}</blockquote>`);
       continue;
     }
@@ -4260,7 +4264,7 @@ function dfirMd(md,titles){return dfirMdBlocks(dfirFront(md).body.split('\n'),ti
 // Picked folder → what to write. files: [{path, text}] (only .md / progress.json are read); textsMeta: {n: hash} already
 // stored; returns {chain, texts:[{id, n, title, text, len, hash}], skipped, marks:[xpLog entries], blocks:[xpLog entries]}
 // or {error:'noOutline'}. Marks come from progress.json once (ids already in xpLog are skipped).
-function dfirPlanUpload(files,chainOld,textsMeta,xpLog){
+function dfirPlanUpload(files,chainOld,textsMeta,xpLog,imported){
   const ok=f=>!String(f.path).replace(/\\/g,'/').split('/').slice(0,-1).some(s=>DFIR_SKIP_DIRS.includes(s)||s.startsWith('.'));
   const base=f=>String(f.path).replace(/\\/g,'/').split('/').pop();
   const depth=f=>String(f.path).replace(/\\/g,'/').split('/').length;
@@ -4290,7 +4294,7 @@ function dfirPlanUpload(files,chainOld,textsMeta,xpLog){
   })));
   const have=new Set((xpLog||[]).map(e=>String(e.id))),marks=[];
   const progF=files.filter(f=>ok(f)&&base(f)==='progress.json').sort((a,b)=>depth(a)-depth(b))[0];
-  if(progF){
+  if(progF&&!imported){
     let pj=null;try{pj=JSON.parse(progF.text)}catch(e){}
     const dn=pj&&pj.done&&typeof pj.done==='object'?pj.done:{};
     Object.keys(dn).map(Number).sort((a,b)=>a-b).forEach(n=>{
@@ -4300,7 +4304,7 @@ function dfirPlanUpload(files,chainOld,textsMeta,xpLog){
   }
   const done=dfirDoneMap([...(xpLog||[]),...marks]);
   const blocks=dfirBlockXpNeeded(chain,done,xpLog).add.map(b=>({id:b.id,date:b.date,at:parseLocalDate(b.date).getTime()+43200001,sphere:'dfir',amount:DFIR_BLOCK_XP,source:'dfirBlock'}));
-  return{chain,outline:!!(parsed&&parsed.length),texts,skipped,marks,blocks};
+  return{chain,outline:!!(parsed&&parsed.length),texts,skipped,marks,blocks,imported:!!imported||!!progF};
 }
 
 // ── Journal & command line ([+]) ──
@@ -5735,12 +5739,18 @@ async function dfirTextsPut(list,onProgress){
 async function dfirSyncBlocks(){
   const chain=await dfirChain();if(!chain)return;
   const log=await getCol('xpLog'),need=dfirBlockXpNeeded(chain,dfirDoneMap(log),log);
-  for(const b of need.add)await awardXp(b.id,'dfir',DFIR_BLOCK_XP,'dfirBlock');
+  for(const b of need.add)await dfirXpPut(b.id,DFIR_BLOCK_XP,'dfirBlock',b.date);
   for(const id of need.del)await revokeXp(id);
+}
+// fixed amounts (no return bonus): the screen promises +50 / +100
+async function dfirXpPut(id,amount,source,date){
+  const before=await levelsNow();
+  await colPut('xpLog',{id,date:date||today(),at:Date.now(),sphere:'dfir',amount,source});
+  notifyLevelChange(before,await levelsNow());refreshStatusIfVisible();
 }
 async function dfirMark(n){
   const id='dfirt_'+n;if((await getCol('xpLog')).some(e=>e.id===id))return false;
-  await awardXp(id,'dfir',DFIR_TOPIC_XP,'dfirTopic');await dfirSyncBlocks();return true;
+  await dfirXpPut(id,DFIR_TOPIC_XP,'dfirTopic');await dfirSyncBlocks();return true;
 }
 async function dfirUnmark(n){await revokeXp('dfirt_'+n);await dfirSyncBlocks()}
 
@@ -5762,11 +5772,11 @@ async function refreshDfir(){
   for(let k=0;k<150&&!dfirShown();k++)await new Promise(r=>setTimeout(r,20));
   if(!dfirShown())return;
   const t=today();
-  dfirState={chain,t,avatar:av||null,metro:dfirMetro(),prog:chain?dfirProgress(chain,log,t):null,streak:dfirStreak([...dfirDoneMap(log).values()],t)};
+  dfirState={chain,t,avatar:av||null,metro:dfirMetro(),sph:null,prog:chain?dfirProgress(chain,log,t):null,streak:dfirStreak([...dfirDoneMap(log).values()],t)};
   renderDfir();
 }
 function dfirBlockOf(chain,n){for(const p of chain)for(const b of p.blocks)if(b.n===n)return{...b,part:p};return null}
-function dfirHours(topics){const m=topics.reduce((s,t)=>s+(t.minutes||0),0);if(!m)return'';return m<90?`≈ ${m} мин`:`≈ ${Math.round(m/60*2)/2} ч`.replace('.',',')}
+function dfirHours(topics){const m=topics.reduce((s,t)=>s+(Number(t.minutes)||0),0);if(!m)return'';return m<90?`≈ ${m} мин`:`≈ ${Math.round(m/60*2)/2} ч`.replace('.',',')}
 function dfirHeroHtml(S){
   const P=S.prog,cur=P&&P.current,blk=cur&&dfirBlockOf(S.chain,cur.block),desk=isDesktop();
   // only a picture data URL (the avatar from «Фото героя») or a plain file name may go into url(...)
@@ -5994,7 +6004,7 @@ function dfirStart(){
   const tc=document.getElementById('dfv-tc');
   if(tc){const P=dfirState.prog,base=P&&P.current?P.current.n:0;let f=0;const tick=()=>{const s=Math.floor(f/25);tc.textContent=`00:${pad2(base%100)}:${pad2(Math.floor(s/60)%60)}:${pad2(s%60)}`.slice(0,8)+':'+pad2(f%25)};tick();if(!RM)dfirFx.iv.push(setInterval(()=>{f++;tick()},40))}
   const cv=document.getElementById('dfk-radar');
-  if(cv){const loop=t=>{if(!dfirFx.on)return;dfirSphere(cv,t,RM);if(!RM)dfirFx.raf=requestAnimationFrame(loop)};loop(performance.now())}
+  if(cv){let last=-1e9;const gap=dfirMetro()?33:0,loop=t=>{if(!dfirFx.on)return;if(t-last>=gap){last=t;dfirSphere(cv,t,RM)}if(!RM)dfirFx.raf=requestAnimationFrame(loop)};loop(performance.now())}
 }
 let dfirPts=null;
 function dfirSphere(cv,t,RM){
@@ -6002,7 +6012,8 @@ function dfirSphere(cv,t,RM){
   const dpr=Math.min(2,window.devicePixelRatio||1);if(cv.width!==Math.round(S*dpr)){cv.width=Math.round(S*dpr);cv.height=Math.round(S*dpr)}
   const cx=cv.getContext('2d'),GA=Math.PI*(3-Math.sqrt(5)),deg=Math.PI/180;
   if(!dfirPts||dfirPts.length!==N){dfirPts=[];for(let i=0;i<N;i++){const y=1-2*(i+.5)/N,r=Math.sqrt(1-y*y),th=i*GA;dfirPts.push([Math.cos(th)*r,y,Math.sin(th)*r])}}
-  const flat=dfirFlat(dfirState.chain),idx=new Map(flat.map((x,i)=>[x.n,i])),PASSED=new Set([...P.done.keys()].map(n=>idx.get(n))),CUR=P.current?idx.get(P.current.n):-1;
+  if(!dfirState.sph){const idx=new Map(dfirFlat(dfirState.chain).map((x,i)=>[x.n,i]));dfirState.sph={PASSED:new Set([...P.done.keys()].map(n=>idx.get(n))),CUR:P.current?idx.get(P.current.n):-1}}
+  const {PASSED,CUR}=dfirState.sph,lite=dfirState.metro;
   const K=.9,c=S/2,R=S*.285*K,arc=(r,a0,a1)=>{cx.beginPath();cx.arc(c,c,r,a0,a1)};
   const txt=(s,x,y,font,col,al)=>{cx.font=font;cx.fillStyle=col;cx.textAlign=al||'center';cx.textBaseline='middle';cx.fillText(s,x,y)};
   cx.setTransform(dpr,0,0,dpr,0,0);cx.clearRect(0,0,S,S);
@@ -6016,7 +6027,7 @@ function dfirSphere(cv,t,RM){
   let curP=null;
   for(const [x,y,z,i] of proj){const f=(z+1)/2;
     if(i===CUR){curP=[x,y];continue}
-    if(PASSED.has(i)){cx.fillStyle=`rgba(255,255,255,${.55+.45*f})`;cx.shadowColor='#fff';cx.shadowBlur=8;cx.beginPath();cx.arc(x,y,2*(.7+.4*f),0,7);cx.fill();cx.shadowBlur=0}
+    if(PASSED.has(i)){cx.fillStyle=`rgba(255,255,255,${.55+.45*f})`;if(!lite){cx.shadowColor='#fff';cx.shadowBlur=8}cx.beginPath();cx.arc(x,y,2*(.7+.4*f),0,7);cx.fill();cx.shadowBlur=0}
     else{const fr=z>0;cx.fillStyle=`rgba(255,255,255,${fr?.16+.5*f*f:.035+.08*f})`;cx.beginPath();cx.arc(x,y,fr?.9+f:.6,0,7);cx.fill()}}
   arc(R+4,0,Math.PI*2);cx.strokeStyle='rgba(255,255,255,.28)';cx.stroke();
   const hr=S*.1*K;cx.fillStyle='rgba(3,3,3,.86)';arc(hr,0,Math.PI*2);cx.fill();cx.strokeStyle='rgba(255,255,255,.55)';cx.stroke();
@@ -6060,14 +6071,15 @@ async function dfirUpload(list){
     const files=[];for(const f of want)files.push({path:path(f),text:await f.text()});
     const [chainOld,log]=await Promise.all([dfirChain(),getCol('xpLog')]),meta={};
     dfirFlat(chainOld||[]).forEach(t=>{if(t.h&&t.has)meta[t.n]=t.h});
-    const plan=dfirPlanUpload(files,chainOld,meta,log);
+    const imported=!!(await getSetting('dfirChain')||{}).imported,plan=dfirPlanUpload(files,chainOld,meta,log,imported);
     if(plan.error){toast(`В папке нет «${DFIR_OUTLINE_FILE}». Выбери папку DFIR Base целиком`);return}
     let written=0,err=null;
     try{await dfirTextsPut(plan.texts,i=>{written=i;toast(`Тексты: ${i} из ${plan.texts.length}`)})}catch(e){err=e}
-    if(err){const old=new Map(dfirFlat(chainOld||[]).map(t=>[t.n,t]));
+    const queued=!!err&&errCode(err)==='timeout';
+    if(err&&!queued){const old=new Map(dfirFlat(chainOld||[]).map(t=>[t.n,t]));
       plan.texts.slice(written).forEach(x=>{const t=dfirFlat(plan.chain).find(y=>y.n===x.n),o=old.get(x.n);
         for(const p of plan.chain)for(const b of p.blocks)for(const y of b.topics)if(y.n===x.n){y.has=!!(o&&o.has);if(o&&o.h)y.h=o.h;else delete y.h}})}
-    await saveSetting('dfirChain',{v:1,uploadedAt:Date.now(),parts:plan.chain});
+    await saveSetting('dfirChain',{v:1,uploadedAt:Date.now(),imported:plan.imported,parts:plan.chain});
     const xp=[...plan.marks,...plan.blocks];
     if(xp.length){
       const before=await levelsNow(),arr=await getCol('xpLog');
@@ -6075,7 +6087,7 @@ async function dfirUpload(list){
       notifyLevelChange(before,await levelsNow());
     }
     const msg=`Оглавление: ${nWord(dfirFlat(plan.chain).length,['тема','темы','тем'])} · тексты: ${written} новых или обновлено${plan.skipped?`, ${plan.skipped} без изменений`:''} · перенесено отметок: ${plan.marks.length}`;
-    toast(err?`Тексты сохранились не все (${written} из ${plan.texts.length}): ${errText(err)}`:msg);
+    toast(queued?`Тексты в очереди: сохранятся, когда появится связь. ${msg}`:err?`Тексты сохранились не все (${written} из ${plan.texts.length}): ${errText(err)}`:msg);
   }catch(e){console.warn('dfir upload',e);toast('Папка не загрузилась. '+errText(e))}
   finally{dfirUploading=false;await refreshDfir();refreshStatusIfVisible()}
 }
@@ -6101,7 +6113,7 @@ function dfirTopicRender(root,{t,blk,prev,next,body}){
   const dm=e?formatDateShort(e.date).replace(/^(Сегодня|Вчера)/,w=>w.toLowerCase()):'';
   root.innerHTML=`<div class="dft-head"><button type="button" class="dft-back" onclick="switchView('dfir')">← DFIR</button><span class="dft-crumb">Блок ${pad2(blk.n)} · ${escapeHtml(blk.name)}</span></div>
   <h1 class="dft-title"><span class="dft-n">${dfirNNN(t.n)}</span>${escapeHtml(t.title)}</h1>
-  <div class="dft-meta">${t.minutes?`≈ ${t.minutes} мин · `:''}${e?`пройдена ${escapeHtml(dm)}`:`+${DFIR_TOPIC_XP} опыта`}</div>
+  <div class="dft-meta">${Number(t.minutes)>0?`≈ ${Number(t.minutes)} мин · `:''}${e?`пройдена ${escapeHtml(dm)}`:`+${DFIR_TOPIC_XP} опыта`}</div>
   <article class="dft-md" id="dft-md">${body}</article>
   <div class="dft-foot">${e?`<button type="button" class="dft-unmark" onclick="dfirTopicToggle(${t.n},false)">Пройдена ${escapeHtml(dm)} · снять отметку</button>`
     :`<button type="button" class="dfs-go" onclick="dfirTopicToggle(${t.n},true)"><span>Пройдено</span><small>+${DFIR_TOPIC_XP}</small></button>`}

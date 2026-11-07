@@ -127,7 +127,7 @@ eq((md.match(/<ul><li>/g)||[]).length>=1&&(md.match(/<li>/g)||[]).length,7,'4 п
 ok(/<ul><li><b>SID<\/b> пользователя;<\/li><li>группы;<\/li><li>привилегии;<\/li><li>уровень целостности.<\/li><\/ul>/.test(md),'список из 4 пунктов');
 ok(/<pre class="df-code" data-lang="powershell"><code>whoami \/priv &lt;script&gt;/.test(md),'блок кода с языком');
 ok(/<table><thead><tr><th>Поле<\/th><th>Значение<\/th><\/tr><\/thead><tbody><tr><td>a<\/td><td>&lt;script/.test(md)&&(md.match(/<tr>/g)||[]).length===3,'таблица 3×2');
-eq((md.match(/<details class="df-call df-question"><summary>/g)||[]).length,2,'2 <details> с <summary>');
+eq((md.match(/<details class="df-call df-c-question"><summary>/g)||[]).length,2,'2 <details> с <summary>');
 ok(md.includes('data-topic="20">020 Процессы и потоки</a>'),'[[020 …]] → ссылка на тему 20');
 ok(md.includes('data-topic="20">процессы</a>'),'[[x|подпись]] показывает подпись');
 ok(md.includes('<span class="df-wl-x">03 Реестр</span>'),'[[03 Реестр]] → обычный текст');
@@ -135,7 +135,12 @@ ok(/<a href="https:\/\/example.com" target="_blank" rel="noopener noreferrer">&l
 ok(!/href="javascript/i.test(md)&&md.includes(' и x'),'javascript: → обычный текст');
 ok(md.includes('<b>жирный</b>')&&md.includes('<i>курсив</i>'),'жирный и курсив');
 ok(md.includes('<code>&lt;script&gt;alert(1)&lt;/script&gt;</code>'),'инлайн-код экранирован');
-ok(/<div class="df-call df-note"><div class="df-call-t">note<\/div><p>Заметка.<\/p><\/div>/.test(md),'выноска note');
+ok(/<div class="df-call df-c-note"><div class="df-call-t">note<\/div><p>Заметка.<\/p><\/div>/.test(md),'выноска note');
+ok(X.dfirMd('> [!table] x\n> y',titles).includes('class="df-call df-c-note"'),'неизвестный тип выноски → note, без чужих классов');
+{const l=X.dfirMd('[x](https://docs.python.org/3/ref.html#object.__init__) и *[t](https://x.org/a*) курсив*',titles);
+ ok(l.includes('href="https://docs.python.org/3/ref.html#object.__init__"')&&!/href="[^"]*<|href="[^"]*&lt;/.test(l),'выделение не попадает в href: '+l);
+ ok(!/href="[^"]*<code>/.test(X.dfirMd('[t](https://e.org/`q`)',titles)),'код не попадает в href');
+ const it=X.dfirMd('*[t](https://x.org/a*) курсив*',titles);ok(!/href="[^"]*<\/?i>/.test(it),'курсив не попадает в href: '+it);}
 ok(/<ol><li>раз<\/li><li>два<ul><li>вложенный<\/li><\/ul><\/li><\/ol>/.test(md),'вложенный список');
 const open=X.dfirMd('Текст\n\n```\nкод без конца\n\n## Не заголовок',titles);
 ok(/<pre class="df-code"><code>код без конца\n\n## Не заголовок<\/code><\/pre>$/.test(open),'незакрытый блок кода закрывается в конце: '+open);
@@ -164,6 +169,9 @@ ok(!X.dfirFlat(p1.chain).find(t=>t.n===66).has,'у темы 66 текста не
 const log2=[...p1.marks,...p1.blocks],meta={};X.dfirFlat(p1.chain).forEach(t=>{if(t.h)meta[t.n]=t.h});
 const p2=X.dfirPlanUpload(files,p1.chain,meta,log2);
 eq([p2.texts.length,p2.skipped,p2.marks.length,p2.blocks.length],[0,2,0,0],'повторная загрузка — пустой план');
+ok(p1.imported,'план помечает, что progress.json перенесён');
+const unmarked=log2.filter(e=>e.id!=='dfirt_15'&&e.id!=='dfirb_2');
+eq(X.dfirPlanUpload(files,p1.chain,meta,unmarked,true).marks,[],'снятая отметка не возвращается при повторной загрузке');
 const p3=X.dfirPlanUpload([{path:'03 Блок/020 Процессы.md',text:'# 20. Процессы\n\nновый текст'}],p1.chain,meta,log2);
 ok(!p3.outline&&p3.texts.length===1&&p3.texts[0].n===20,'только папка блока: оглавление из сохранённого, изменённый текст');
 ok(X.dfirFlat(p3.chain).find(t=>t.n===24).has,'старый флаг has сохраняется');
