@@ -20,7 +20,11 @@ ok(K('Digit2',{overlay:true})===null,'nothing over an open window');
 // D1 side panel markup
 const nav=src.slice(src.indexOf('<nav class="bottom-nav"'),src.indexOf('</nav>'));
 const btns=nav.match(/<button class="nav-btn[^>]*>[\s\S]*?<\/button>/g)||[];
-ok(btns.length===6,'5 sections + settings in the nav',btns.length);
+ok(btns.length===7,'5 sections + DFIR (desktop only) + settings in the nav',btns.length);
+ok(btns.filter(b=>!/side-only|side-settings/.test(b)).length===5&&/class="nav-btn side-only" data-view="dfir"/.test(nav),'DFIR is a side-panel row only: the phone keeps 4 tabs + [+]');
+{const c={};vm.createContext(c);vm.runInContext("const MONEY_VIEWS=['home','history','stats','plans'],MONEY_CHILD={statement:'history'},PLAN_ALIAS={debts:'debts',alloc:'alloc'};"+fnSrc('navKeyOf')+';this.N=navKeyOf',c);
+ ok(c.N('dfir')==='dfir'&&c.N('dfir-topic')==='dfir'&&c.N('stats')==='money','navKeyOf: dfir and its topic screen light the DFIR row')}
+ok(src.includes("let key=navKeyOf(name,settingsFrom);if(key==='dfir'&&!isDesktop())key='status';"),'on the phone DFIR lights «Статус»');
 ok(btns.every(b=>/class="nav-label">[^<]+</.test(b)&&/aria-label="[^"]+"/.test(b)),'every nav button has a label and aria-label');
 ok(/class="side-head side-only"/.test(nav)&&/class="side-foot side-only"/.test(nav)&&/id="side-date"/.test(nav),'side head (brand, date) and foot (keys, sync, settings)');
 

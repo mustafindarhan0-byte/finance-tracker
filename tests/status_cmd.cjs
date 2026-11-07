@@ -141,7 +141,7 @@ ok(eq(M.workoutOpenDecision(null,ws,'w',T0),{act:'resume',id:'b'}),'35 open work
 ok(eq(M.workoutOpenDecision(null,ws,'y',T0),{act:'busy',id:'c'})&&eq(M.workoutOpenDecision(null,[ws[3]],'w',T0),{act:'start'}),'36 another open workout today → busy; none → start');
 
 // ── status tiles ──
-ok(eq(M.statusTileTarget('money'),{view:'money'})&&eq(M.statusTileTarget('dfir'),{view:'quests',tab:'today',list:'dfir'})&&eq(M.statusTileTarget('body'),{view:'body'})&&M.statusTileTarget('x')===null,'37 tile targets');
+ok(eq(M.statusTileTarget('money'),{view:'money'})&&eq(M.statusTileTarget('dfir'),{view:'dfir'})&&eq(M.statusTileTarget('body'),{view:'body'})&&M.statusTileTarget('x')===null,'37 tile targets');
 
 // ── salary allocation ──
 const f=n=>n+' ₸';

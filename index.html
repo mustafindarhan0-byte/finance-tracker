@@ -386,6 +386,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <!-- BODY -->
 <div id="view-body" class="view"><div class="container" id="body-root"></div></div>
 
+<!-- DFIR (SPEC_dfir) -->
+<div id="view-dfir" class="view"><div id="dfir-root"></div><input type="file" id="dfir-folder" webkitdirectory directory multiple hidden onchange="dfirUpload(this.files)"></div>
+<div id="view-dfir-topic" class="view"><div class="container dft-wrap" id="dfir-topic-root"></div></div>
+
 <!-- HOME -->
 <div id="view-home" class="view">
 <div class="container">
@@ -749,6 +753,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div class="side-head side-only"><div class="side-brand">▸ СИСТЕМА</div><div class="side-date" id="side-date"></div></div>
   <button class="nav-btn active" data-view="status" onclick="switchView('status',this)" aria-label="Статус"><span class="icon"><svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg></span><span class="nav-label">Статус</span></button>
   <button class="nav-btn" data-view="quests" onclick="switchView('quests',this)" aria-label="Квесты"><span class="icon"><svg width="24" height="24" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm4.7 7.7-5.4 5.6a1 1 0 0 1-1.4 0l-2.6-2.6a1 1 0 1 1 1.4-1.4l1.9 1.9 4.7-4.9a1 1 0 0 1 1.4 1.4Z"/></svg></span><span class="nav-label">Квесты</span></button>
+  <button class="nav-btn side-only" data-view="dfir" onclick="switchView('dfir',this)" aria-label="DFIR"><span class="icon"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M12 0C12.9 7.6 16.4 11.1 24 12 16.4 12.9 12.9 16.4 12 24 11.1 16.4 7.6 12.9 0 12 7.6 11.1 11.1 7.6 12 0Z"/></svg></span><span class="nav-label">DFIR</span></button>
   <button class="nav-btn nav-add" data-view="add" onclick="openCmd()" aria-label="Добавить"><span class="icon"><svg viewBox="0 0 24 24"><path d="M10.5 4h3v6.5H20v3h-6.5V20h-3v-6.5H4v-3h6.5z"/></svg></span><span class="nav-label">Записать</span></button>
   <button class="nav-btn" data-view="body" onclick="switchView('body',this)" aria-label="Тело"><span class="icon"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M2 9.5h2.2v5H2zM19.8 9.5H22v5h-2.2zM5 7h2.4v10H5zM16.6 7H19v10h-2.4zM7.4 11h9.2v2H7.4z"/></svg></span><span class="nav-label">Тело</span></button>
   <button class="nav-btn" data-view="money" onclick="switchView('money',this)" aria-label="Деньги"><span class="icon"><svg width="24" height="24" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20ZM7.5 8h9v2h-3.5v6h-2v-6H7.5Z"/></svg></span><span class="nav-label">Деньги</span></button>
@@ -4419,7 +4424,7 @@ function workoutOpenDecision(cur,workouts,taskId,t0){
   return todays?{act:'busy',id:todays.id}:{act:'start'};
 }
 // Status sphere tiles → screens
-function statusTileTarget(s){return s==='money'?{view:'money'}:s==='dfir'?{view:'quests',tab:'today',list:'dfir'}:s==='body'?{view:'body'}:null}
+function statusTileTarget(s){return s==='money'?{view:'money'}:s==='dfir'?{view:'dfir'}:s==='body'?{view:'body'}:null}
 // Overwrite question for the general monthly budget (null = nothing to ask)
 function allocBudgetQuestion(oldLimit,newLimit,f){
   if(!(oldLimit>0)||Math.round(oldLimit*100)===Math.round(newLimit*100))return null;
@@ -5494,6 +5499,7 @@ const PLAN_ALIAS={debts:'debts',alloc:'alloc'}; // old view names still accepted
 // settings has no tab of its own: it lights the tab of the screen it was opened from
 function navKeyOf(n,from){
   if(n==='settings')return from&&from!=='settings'?navKeyOf(from):'status';
+  if(n==='dfir-topic')return'dfir';
   return MONEY_VIEWS.includes(n)||MONEY_CHILD[n]||PLAN_ALIAS[n]?'money':n==='add'?'quests':n;
 }
 const reducedMotion=()=>window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -5521,7 +5527,8 @@ function switchView(name,btn){
   fxViewTransition(()=>{
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
     document.getElementById('view-'+name).classList.add('active');
-    const key=navKeyOf(name,settingsFrom);
+    // DFIR has no bottom tab on the phone: «Статус» stays lit there (SPEC_dfir DF9)
+    let key=navKeyOf(name,settingsFrom);if(key==='dfir'&&!isDesktop())key='status';
     document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===key));
     moveLamp();updateMoneyTabs(MONEY_CHILD[name]||name);window.scrollTo(0,0);
     requestAnimationFrame(()=>fitAll(document.getElementById('view-'+name)));
@@ -5536,6 +5543,7 @@ function switchView(name,btn){
   if(name==='status'){heroAssemble=true;refreshStatus()}
   if(name==='quests'){refreshTasks();requestAnimationFrame(()=>setQuestTab(questTab))}
   if(name==='body')refreshBody();
+  if(name==='dfir')refreshDfir();else if(typeof dfirStop==='function')dfirStop();
   if(name==='home')refreshDashboard();
   if(name==='history')refreshHistory();
   if(name==='stats')refreshStats();
@@ -5735,6 +5743,386 @@ async function dfirMark(n){
   await awardXp(id,'dfir',DFIR_TOPIC_XP,'dfirTopic');await dfirSyncBlocks();return true;
 }
 async function dfirUnmark(n){await revokeXp('dfirt_'+n);await dfirSyncBlocks()}
+
+// ── screen (DF7): эфир + схема (на телефоне ветка метро) + сфера; данные — dfirProgress / dfirStreak ──
+let dfirState=null,dfirAllBlock=false,dfirFx={on:false,raf:0,iv:[]},dfirUploading=false;
+const DFIR_STAR='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0C12.9 7.6 16.4 11.1 24 12 16.4 12.9 12.9 16.4 12 24 11.1 16.4 7.6 12.9 0 12 7.6 11.1 11.1 7.6 12 0Z"/></svg>';
+const DFIR_FLAKE='<svg viewBox="-10 -10 20 20" width="20" height="20" aria-hidden="true"><g stroke="currentColor" stroke-width="1.4" stroke-linecap="square" fill="none"><path d="M0-9V9M-7.8-4.5L7.8 4.5M-7.8 4.5L7.8-4.5"/><path d="M-2.5-7L0-4.5 2.5-7M-2.5 7L0 4.5 2.5 7"/></g></svg>';
+const dfirMetro=()=>!isDesktop();
+function dfirStop(){dfirFx.on=false;cancelAnimationFrame(dfirFx.raf);dfirFx.iv.forEach(clearInterval);dfirFx.iv=[]}
+// shown = the DFIR view is the active one (render it); visible = shown and the tab is in front (run the loops)
+function dfirShown(){const v=document.getElementById('view-dfir');return !!v&&v.classList.contains('active')}
+function dfirVisible(){return dfirShown()&&!document.hidden}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)dfirStop();else if(dfirVisible()&&dfirState)dfirStart()});
+async function refreshDfir(){
+  const root=document.getElementById('dfir-root');if(!root)return;
+  const [log,chain,av]=await Promise.all([getCol('xpLog'),dfirChain(),getSetting('avatar')]);
+  // the callout is measured for the board layout, so wait until the view is really shown (view transitions are async)
+  // timers, not frames: a hidden tab gets no animation frames
+  for(let k=0;k<150&&!dfirShown();k++)await new Promise(r=>setTimeout(r,20));
+  if(!dfirShown())return;
+  const t=today();
+  dfirState={chain,t,avatar:av||null,metro:dfirMetro(),prog:chain?dfirProgress(chain,log,t):null,streak:dfirStreak([...dfirDoneMap(log).values()],t)};
+  renderDfir();
+}
+function dfirBlockOf(chain,n){for(const p of chain)for(const b of p.blocks)if(b.n===n)return{...b,part:p};return null}
+function dfirHours(topics){const m=topics.reduce((s,t)=>s+(t.minutes||0),0);if(!m)return'';return m<90?`≈ ${m} мин`:`≈ ${Math.round(m/60*2)/2} ч`.replace('.',',')}
+function dfirHeroHtml(S){
+  const P=S.prog,cur=P&&P.current,blk=cur&&dfirBlockOf(S.chain,cur.block),desk=isDesktop();
+  // only a picture data URL (the avatar from «Фото героя») or a plain file name may go into url(...)
+  const fig=/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(S.avatar||'')?S.avatar:'figure.jpg';
+  let kick='',l1,l2,cap,ch='',tag='';
+  if(!S.chain){l1='Цепочка';l2='не загружена';cap=desk?'Загрузи папку DFIR Base: оглавление, тексты и отметки подтянутся сами.':'Загрузи папку DFIR Base на компьютере.'}
+  else if(!cur){l1='Цепочка';l2='пройдена';cap=`${P.doneCount} из ${P.total} тем.`}
+  else{
+    const w=blk.name.trim().split(/\s+/);l1=w[0];l2=w.slice(1).join(' ');
+    const hrs=dfirHours(blk.topics);
+    kick=`<b>Блок ${pad2(blk.n)}</b><span>Часть ${escapeHtml(blk.part.roman)} «${escapeHtml(blk.part.name)}»</span><span>${nWord(blk.topics.length,['тема','темы','тем'])}${hrs?' · '+hrs:''}</span>`;
+    cap=`— Сейчас в эфире: <span class="y">тема ${cur.n}</span>, ${escapeHtml(cur.title)}.`;
+    ch=`<div class="dfv-ch"><span>Канал</span><span class="num">${dfirNNN(cur.n)}</span><span class="nm"><span class="dt">· </span>${escapeHtml(cur.title)}</span></div>`;
+    tag=`<span>Тема ${dfirNNN(cur.n)} · ${escapeHtml(cur.title.length>30?cur.title.slice(0,29)+'…':cur.title)}</span><em>Блок ${pad2(blk.n)} · ${blk.doneInBlock??P.curBlock.doneInBlock}/${blk.topics.length}</em>`;
+  }
+  const L=Math.max(l1.length,(l2||'').length,1),hd=Math.min(120,Math.floor(600/(L*.46))),hm=Math.min(60,Math.floor(320/(L*.46)));
+  const d=parseLocalDate(S.t),dd=`${WD_SHORT[isoWeekday(S.t)-1]} ${pad2(d.getDate())}.${pad2(d.getMonth()+1)}.${d.getFullYear()}`;
+  const up=desk?`<button type="button" class="dfv-up" onclick="dfirPickFolder()"${dfirUploading?' disabled':''}>${dfirUploading?'Загрузка…':'Загрузить папку'}</button>`:'';
+  const bands=[['g',17,0,72],['g',19.5,20,80,6],['r',41.5,22,56,9],['r h',43.8,30,60],['r',46,10,62,4],['r h',48.2,40,42],['r',53,46,34,2],['g',63,8,90,8],['r h',30.5,52,30]].map(([c,t,l,w,h])=>`<i class="${c}" style="top:${t}%;left:${l}%;width:${w}%${h?`;height:${h}px`:''}"></i>`).join('');
+  const drips=[[6,44,0],[9.5,22,-.4],[16,58,-.9,1],[23,30,-.2],[78,18,-1.1,1],[88,36,-.6],[95,26,-1.4,1]].map(([l,h,dl,w])=>`<i style="left:${l}%;height:${h}%;animation-delay:${dl}s${w?';width:1px':''}"></i>`).join('');
+  return `<section class="dfv-frame" style="--df-fig:url('${fig}')" aria-label="Текущая тема">
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <filter id="dfv-smear" x="-100%" y="0" width="300%" height="100%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="42 0"/><feComponentTransfer><feFuncR type="linear" slope="1.5"/><feFuncG type="linear" slope="1.5"/><feFuncB type="linear" slope="1.5"/></feComponentTransfer></filter>
+    <filter id="dfv-red" color-interpolation-filters="sRGB"><feColorMatrix values="1.6 0 0 0 0  0 .08 0 0 0  0 0 .12 0 0  0 0 0 1 0"/></filter>
+    <filter id="dfv-cy" color-interpolation-filters="sRGB"><feColorMatrix values="0 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0"/></filter></defs></svg>
+  <div class="dfv-jit"><div class="dfv-city"></div><div class="dfv-stage"><div class="dfv-fig"></div><div class="dfv-fig ghost2"></div><div class="dfv-fig ghost"></div>
+    <div class="dfv-slice s4"><i></i></div><div class="dfv-slice s1"><i></i></div><div class="dfv-slice s2"><i></i></div><div class="dfv-slice s3"><i></i></div></div></div>
+  <div class="dfv-bands" aria-hidden="true">${bands}</div>
+  <canvas class="dfv-noise" id="dfv-noise" aria-hidden="true"></canvas>
+  <div class="dfv-stage"><svg class="dfv-grid" id="dfv-grid" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+    ${cur?`<div class="dfv-sq" aria-hidden="true"><b></b><b></b><b></b><b></b>${tag}</div>`:'<div class="dfv-sq" aria-hidden="true"><b></b><b></b><b></b><b></b></div>'}</div>
+  <div class="dfv-drips" aria-hidden="true">${drips}</div>
+  <div class="dfv-roll"></div><div class="dfv-scan"></div><div class="dfv-vign"></div>
+  <div class="dfv-osd">
+    <header class="dfv-top"><div>
+      <div class="dfv-rec"><span class="dot"></span><b>REC</b><span>· DFIR</span></div>${ch}
+      <div class="dfv-brand">${DFIR_STAR}Система / DFIR · цепочка ${P?P.total:520} тем</div></div>
+      <div class="dfv-tc"><div class="t" id="dfv-tc" aria-hidden="true">00:00:00:00</div><div class="d">${escapeHtml(dd)}</div>${P?`<span class="sp">${P.doneCount} / ${P.total} тем</span>`:''}${up}</div>
+    </header>
+    <div class="dfv-titles">
+      ${kick?`<div class="dfv-kick">${kick}</div>`:''}
+      <h1 class="dfv-h1" style="--h1d:${hd}px;--h1m:${hm}px"><span>${escapeHtml(l1)}</span>${l2?`<span>${escapeHtml(l2)}</span>`:''}</h1>
+      <div class="dfv-cap">${cap}</div>
+      ${!S.chain&&desk?`<button type="button" class="dfs-go dfv-first" onclick="dfirPickFolder()"><span>Загрузить папку</span><small>DFIR Base</small></button>`:''}
+    </div>
+  </div>
+</section>`;
+}
+// topics of the current block shown in the callout: 7 around the current one, or all with «Весь блок»
+function dfirCallHtml(S){
+  const P=S.prog,cur=P.current,blk=dfirBlockOf(S.chain,cur.block),done=P.done,i=blk.topics.findIndex(t=>t.n===cur.n);
+  const from=dfirAllBlock?0:Math.max(0,Math.min(i-2,blk.topics.length-7)),list=dfirAllBlock?blk.topics:blk.topics.slice(from,from+7);
+  const cells=blk.topics.map(t=>`<i class="${t.n===cur.n?'cur':done.has(t.n)?'on':''}"></i>`).join('');
+  const rows=list.map(t=>{const ok=done.has(t.n),c=t.n===cur.n;
+    return `<li class="${ok?'ok':c?'cur':''}${t.has?'':' nt'}"><button type="button" data-n="${t.n}" onclick="dfirOpenTopic(+this.dataset.n)" aria-label="Тема ${t.n}: ${escapeHtml(t.title)}${ok?', пройдена':c?', текущая':''}"><span class="n">${dfirNNN(t.n)}</span><span class="w"></span><span class="t">${escapeHtml(t.title)}</span><span class="s">${ok?'готово':c?'читаю':'+'+DFIR_TOPIC_XP}</span></button></li>`}).join('');
+  const hrs=dfirHours(blk.topics);
+  return `<div class="dfs-ch"><span class="here"><i></i>вы здесь</span><span>· блок ${pad2(blk.n)} / ${P.blocks.length}</span><span class="sp"></span><span class="pc">часть ${escapeHtml(blk.part.roman)}</span></div>
+  <div class="dfs-ct">${escapeHtml(blk.name)}</div>
+  <div class="dfs-cm"><span>${nWord(blk.topics.length,['тема','темы','тем'])}${hrs?' · '+hrs:''}</span>${blk.tools?blk.tools.split(/,\s*/).slice(0,4).map(x=>`<i>${escapeHtml(x)}</i>`).join(''):''}</div>
+  <div class="dfs-prog"><span>${pad2(P.curBlock.doneInBlock)}/${pad2(blk.topics.length)}</span><div class="dfs-cells" style="grid-template-columns:repeat(${blk.topics.length},1fr)">${cells}</div><b>${P.curBlock.pct} %</b></div>
+  <ul class="dfs-pins">${rows}</ul>
+  <div class="dfs-act"><button type="button" class="dfs-go" onclick="dfirOpenTopic(${cur.n})"><span><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3 1l14 8-14 8z"/></svg>Продолжить</span><small>тема ${dfirNNN(cur.n)}</small></button><button type="button" class="dfs-all" aria-expanded="${dfirAllBlock}" onclick="dfirToggleBlock()">${dfirAllBlock?'свернуть':'весь блок · '+blk.topics.length}</button></div>`;
+}
+function dfirToggleBlock(){dfirAllBlock=!dfirAllBlock;renderDfir()}
+function dfirNodeHtml(p){return `<div class="dfs-nh"><span>SYS·${escapeHtml(p.roman)}</span><span>${p.pct} %</span></div><div class="dfs-nl">${escapeHtml(p.name)}</div><div class="dfs-nb"><i style="width:${p.pct}%"></i></div>`}
+function dfirSideHtml(S){
+  const P=S.prog,st=S.streak,wk=[];
+  for(let k=11;k>=0;k--)wk.push(addDays(st.week,-7*k));
+  const bars=wk.map(w=>{const v=st.per[w]||0;return w===st.week?'<i class="now"></i>':`<i class="${st.countedWeeks.includes(w)?'on':st.frozenWeeks.includes(w)?'fz':''}" style="height:${Math.max(2,Math.min(30,v/5*30))}px"></i>`}).join('');
+  const used=DFIR_FREEZE_MAX-st.freezes;
+  const fz=Array.from({length:DFIR_FREEZE_MAX},(_,i)=>`<span class="fz${i>=st.freezes?' used':''}" role="img" aria-label="Заморозка ${i+1}: ${i>=st.freezes?'нет':'есть'}">${DFIR_FLAKE}</span>`).join('');
+  const dia='◆'.repeat(P.grade)+`<i>${'◆'.repeat(4-P.grade)}</i>`;
+  return `<div class="dfs-chip"><div class="dfs-kh"><span>U1 · сфера цепочки</span><b>${P.total} тем</b></div>
+    <div class="dfk-scope"><canvas id="dfk-radar" aria-label="Сфера из ${P.total} тем: пройдено ${P.doneCount}${P.current?', текущая '+dfirNNN(P.current.n):''}. Уровень DFIR ${P.level.level}, опыт ${Math.round(P.level.into)} из ${P.level.need}"></canvas></div>
+    <div class="dfk-strip"><div>Ранг<b>${escapeHtml(P.rank.split(',')[0])} <span class="dia">${dia}</span></b></div><div>Тем пройдено<b>${pad3(P.doneCount)}/${P.total}</b></div>
+      <div>Блок<b>${P.current?pad2(P.current.block):'—'}/${P.blocks.length}</b></div><div>След. ранг<b>${P.nextRank?escapeHtml(rankOf(P.nextRank).split(',')[0])+' · ур.'+P.nextRank:'—'}</b></div></div></div>
+  <div class="dfs-chip"><div class="dfs-kh"><span>U2 · серия</span><b>рекорд ${pad2(st.record)}</b></div>
+    <div class="dfs-row"><div class="dfs-big">${pad2(st.streak)}<small>нед</small></div><div class="dfs-wk" aria-hidden="true">${bars}</div></div>
+    <div class="dfs-sub">эта неделя <b>${st.thisWeek}/${DFIR_WEEK_GOAL}</b> · неделя засчитывается при ${DFIR_WEEK_GOAL} темах</div></div>
+  <div class="dfs-chip"><div class="dfs-kh"><span>U3 · заморозки</span><b>${st.freezes}/${DFIR_FREEZE_MAX}</b></div>
+    <div class="dfs-fz">${fz}<span class="dfs-sub">${used?nWord(used,['использована','использованы','использовано']):'все на месте'}<br>спасает пропущенную неделю</span></div></div>
+  <div class="dfs-month dfx-only-ph" id="dfs-month-ph">${dfirMonthHead(P)}<svg></svg></div>`;
+}
+const pad3=n=>String(n).padStart(3,'0');
+function dfirMonthHead(P){const sum=P.month.reduce((s,d)=>s+d.xp,0),days=P.month.filter(d=>d.xp>0).length;return `<div class="dfs-kh"><span>Опыт за месяц</span><b>+${fmt(sum)} · ${nWord(days,['день','дня','дней'])}</b></div>`}
+const DFIR_NS='http://www.w3.org/2000/svg';
+function dfirEl(t,a,p){const e=document.createElementNS(DFIR_NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e}
+function dfirT(p,x,y,s,a={}){const e=dfirEl('text',Object.assign({x,y,fill:'#8a8a8a','font-family':'Geist Mono','font-size':11,'letter-spacing':.6},a),p);e.textContent=s;return e}
+function dfirMonthSvg(svg,month,W,H){
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);svg.innerHTML='';
+  const N=month.length,bw=W/N,base=H-16,max=Math.max(50,...month.map(d=>d.xp)),peak=month.reduce((m,d,i)=>d.xp>month[m].xp?i:m,0);
+  dfirEl('line',{x1:0,x2:W,y1:base+.5,y2:base+.5,stroke:'rgba(255,255,255,.35)'},svg);
+  for(let j=1;j<=2;j++)dfirEl('line',{x1:0,x2:W,y1:base-j*(base-4)/2.5,y2:base-j*(base-4)/2.5,stroke:'rgba(255,255,255,.07)','stroke-dasharray':'2 3'},svg);
+  month.forEach((d,i)=>{const x=i*bw+bw/2;
+    if(d.xp){const h=d.xp/max*(base-22),red=i===peak;dfirEl('line',{x1:x,x2:x,y1:base,y2:base-h,stroke:red?'#ff2a2a':'#fff','stroke-width':Math.max(2,bw*.45)},svg);
+      if(d.xp>=max*.4)dfirT(svg,x,base-h-5,String(d.xp),{'text-anchor':'middle',fill:red?'#ff6a73':'#cfcfcf'})}
+    else dfirEl('rect',{x:x-1,y:base-2,width:2,height:2,fill:'rgba(255,255,255,.25)'},svg)});
+  dfirEl('line',{x1:(N-1)*bw+bw/2,x2:(N-1)*bw+bw/2,y1:0,y2:base,stroke:'#fff','stroke-dasharray':'2 2'},svg);
+  const lab=s=>s.slice(8,10)+'.'+s.slice(5,7);
+  [[lab(month[0].date),0,'start'],[lab(month[15].date),15,'middle'],[lab(month[N-1].date)+' · сегодня',N-1,'end']].forEach(([s,i,a])=>dfirT(svg,a==='start'?0:a==='end'?W:i*bw+bw/2,H,s,{'text-anchor':a}));
+}
+function renderDfir(){
+  dfirStop();
+  const root=document.getElementById('dfir-root'),S=dfirState;if(!root||!S)return;
+  if(!S.chain||!S.prog){root.innerHTML=dfirHeroHtml(S);dfirStart();return}
+  const P=S.prog;
+  root.innerHTML=dfirHeroHtml(S)+`<main class="dfx-main" id="dfx-main"><div>
+    <div class="dfs-board" id="dfs-board"><svg id="dfs-sv"></svg></div><div class="dfs-ph" id="dfs-ph"></div></div>
+    <aside class="dfx-side" aria-label="Уровень, серия, заморозки">${dfirSideHtml(S)}</aside></main>`;
+  if(dfirMetro())dfirBuildMetro(S);else dfirBuildBoard(S);
+  const mp=document.getElementById('dfs-month-ph');
+  if(mp&&getComputedStyle(mp).display!=='none'){const s=mp.querySelector('svg');dfirMonthSvg(s,P.month,s.getBoundingClientRect().width||315,70)}
+  dfirFit();dfirStart();
+}
+function dfirFit(){const m=document.getElementById('dfx-main'),r=document.getElementById('dfir-root');if(!m||!r)return;const w=r.clientWidth;m.style.zoom=!dfirMetro()&&w<1280?(w/1280).toFixed(4):''}
+addEventListener('resize',()=>{if(!dfirShown()||!dfirState)return;const metro=dfirMetro();if(metro!==dfirState.metro){dfirState.metro=metro;renderDfir()}else dfirFit()});
+// desktop: the chain as a circuit board. 3 nodes a row (snake), blocks = pads on the traces, the callout under the row of the current block
+function dfirBuildBoard(S){
+  const P=S.prog,B=document.getElementById('dfs-board'),Sv=document.getElementById('dfs-sv');S.metro=false;
+  const NW=190,NH=84,X=[20,345,670],BW=880,rows=[];
+  for(let k=0;k<P.parts.length;k+=3)rows.push(P.parts.slice(k,k+3).map(p=>p.n));
+  const partIdx=n=>P.parts.findIndex(p=>p.n===n);
+  // segment of part k: from its node to the next one (the last part runs to «Финал»)
+  const segOf=k=>{const r=Math.floor(k/3),i=k%3,lastInRow=i===rows[r].length-1;return{r,vert:lastInRow&&k<P.parts.length-1}};
+  const cur=P.current,curK=cur?partIdx(cur.part):-1,callRow=cur?segOf(curK).r:-1;
+  const call=document.createElement('div');call.className='dfs-call';
+  if(cur){call.innerHTML=dfirCallHtml(S);B.appendChild(call)}
+  const callH=cur?call.offsetHeight:0;
+  const Y=[70];
+  for(let r=0;r<rows.length-1;r++){
+    const cnt=P.parts[partIdx(rows[r][rows[r].length-1])].blocks.length;
+    let gap=Math.max(76,(cnt+1)*26);if(r===callRow)gap=Math.max(gap,callH+80);
+    Y.push(Y[r]+NH+gap);
+  }
+  const yE=Y[Y.length-1],BH=yE+NH/2+70;
+  B.style.height=BH+'px';Sv.setAttribute('viewBox',`0 0 ${BW} ${BH}`);
+  const defs=dfirEl('defs',{},Sv),gf=dfirEl('filter',{id:'dfs-gl',x:'-50%',y:'-50%',width:'200%',height:'200%'},defs);
+  dfirEl('feGaussianBlur',{stdDeviation:2.4,result:'b'},gf);const mg=dfirEl('feMerge',{},gf);dfirEl('feMergeNode',{in:'b'},mg);dfirEl('feMergeNode',{in:'SourceGraphic'},mg);
+  for(let y=100;y<=BH-20;y+=20)dfirEl('line',{x1:0,x2:y%100?4:9,y1:y,y2:y,stroke:'rgba(255,255,255,.3)'},Sv);
+  const pos=[];
+  rows.forEach((row,r)=>row.forEach((n,i)=>{const dir=r%2?-1:1;pos[partIdx(n)]={x:X[dir>0?i:2-i],y:Y[r]}}));
+  const pads=[],segs=[];
+  P.parts.forEach((p,k)=>{
+    const a0=pos[k],nx=pos[k+1];let a,b;
+    if(!nx){const right=a0.x===X[0];a=right?[a0.x+NW,a0.y]:[a0.x,a0.y];b=right?[a0.x+NW+135,a0.y]:[a0.x-135,a0.y]}
+    else if(a0.y===nx.y){a=a0.x<nx.x?[a0.x+NW,a0.y]:[a0.x,a0.y];b=a0.x<nx.x?[nx.x,nx.y]:[nx.x+NW,nx.y]}
+    else{a=[a0.x+NW/2,a0.y+NH/2];b=[nx.x+NW/2,nx.y-NH/2]}
+    const vert=a[0]===b[0],cnt=p.blocks.length;segs[k]={a,b};
+    const off=vert?[7,0]:[0,7];
+    dfirEl('line',{x1:a[0]+off[0],y1:a[1]+off[1],x2:b[0]+off[0],y2:b[1]+off[1],stroke:'rgba(255,255,255,.08)'},Sv);
+    dfirEl('line',{x1:a[0]-off[0],y1:a[1]-off[1],x2:b[0]-off[0],y2:b[1]-off[1],stroke:'rgba(255,255,255,.08)'},Sv);
+    dfirEl('line',{x1:a[0],y1:a[1],x2:b[0],y2:b[1],stroke:'rgba(255,255,255,.3)','stroke-width':1.4},Sv);
+    p.blocks.forEach((bl,i)=>{const f=(i+1)/(cnt+1);pads.push({...bl,x:a[0]+(b[0]-a[0])*f,y:a[1]+(b[1]-a[1])*f,vert,a,b})});
+  });
+  // passed path: along the traces up to the current block
+  const cp=cur?pads.find(x=>x.n===cur.block):null;
+  if(cp){
+    P.parts.forEach((p,k)=>{if(k<curK&&p.size&&p.done===p.size)dfirEl('path',{d:`M${segs[k].a[0]},${segs[k].a[1]}L${segs[k].b[0]},${segs[k].b[1]}`,stroke:'#fff','stroke-width':2.6,filter:'url(#dfs-gl)',fill:'none'},Sv)});
+    dfirEl('path',{d:`M${cp.a[0]},${cp.a[1]}L${cp.x},${cp.y}`,stroke:'#fff','stroke-width':2.6,filter:'url(#dfs-gl)',fill:'none'},Sv);
+    dfirEl('path',{d:`M${cp.x},${cp.y}L${cp.b[0]},${cp.b[1]}`,stroke:'rgba(255,255,255,.7)','stroke-width':1.4,'stroke-dasharray':'3 5',class:'dfs-flow',fill:'none'},Sv);
+  }
+  pads.forEach(b=>{const isCur=cp&&b.n===cp.n,done=b.closed;
+    if(isCur){dfirEl('circle',{cx:b.x,cy:b.y,r:7,fill:'none',stroke:'#ff2a2a','stroke-width':1.5,class:'dfs-ring'},Sv);
+      dfirEl('circle',{cx:b.x,cy:b.y,r:7,fill:'#ff2a2a'},Sv);dfirEl('rect',{x:b.x-10,y:b.y-10,width:20,height:20,fill:'none',stroke:'#ff2a2a'},Sv)}
+    else dfirEl('circle',{cx:b.x,cy:b.y,r:done?5.5:b.done?5:4.5,fill:done?'#fff':'#020202',stroke:done||b.done?'#fff':'rgba(255,255,255,.45)',filter:done?'url(#dfs-gl)':''},Sv);
+    const lab=pad2(b.n);
+    if(b.vert)dfirT(Sv,b.x+14,b.y+4,lab,{fill:isCur?'#ff2a2a':done?'#fff':'#7a7a7a'});
+    else dfirT(Sv,b.x,b.y-14,lab,{'text-anchor':'middle',fill:isCur?'#ff2a2a':done?'#fff':'#7a7a7a'});
+  });
+  // nodes
+  P.parts.forEach((p,k)=>{const d=document.createElement('div');d.className='dfs-node'+(p.done?' on':'');d.style.left=pos[k].x+'px';d.style.top=(pos[k].y-NH/2)+'px';d.title=p.name;d.innerHTML=dfirNodeHtml(p);B.appendChild(d)});
+  // finale + month
+  const last=P.parts.length-1,lp=pos[last],right=lp.x===X[0],fx=right?lp.x+NW+135:lp.x-135-130;
+  dfirEl('rect',{x:fx,y:yE-20,width:130,height:40,fill:'#020202',stroke:'rgba(255,255,255,.3)','stroke-dasharray':'3 3'},Sv);
+  dfirT(Sv,fx+65,yE+4,'ФИНАЛ · '+P.total,{'text-anchor':'middle',fill:P.current?'#8a8a8a':'#fff'});
+  const m=document.createElement('div');m.className='dfs-month';
+  const mx=right?fx+150:20,mw=right?BW-20-mx:fx-40;
+  Object.assign(m.style,{left:mx+'px',top:(yE-64)+'px',width:mw+'px',height:'128px'});m.innerHTML=dfirMonthHead(P)+'<svg></svg>';B.appendChild(m);
+  dfirMonthSvg(m.querySelector('svg'),P.month,mw-30,84);
+  dfirT(Sv,20,BH-8,`DFIR-${P.total} · ${P.parts.length} ЧАСТЕЙ / ${P.blocks.length} БЛОКОВ / ${P.total} ТЕМ · ПРОЙДЕНО ${pad3(P.doneCount)}`,{fill:'#4a4a4a'});
+  if(!cp)return;
+  // «вы здесь» and the callout
+  if(cp.vert){dfirEl('rect',{x:cp.x+26,y:cp.y-10,width:74,height:20,fill:'#ff2a2a'},Sv);dfirT(Sv,cp.x+63,cp.y+4,'ВЫ ЗДЕСЬ',{'text-anchor':'middle',fill:'#000','font-weight':600})}
+  else{dfirEl('rect',{x:cp.x-37,y:cp.y-56,width:74,height:20,fill:'#ff2a2a'},Sv);dfirT(Sv,cp.x,cp.y-42,'ВЫ ЗДЕСЬ',{'text-anchor':'middle',fill:'#000','font-weight':600});
+    dfirEl('path',{d:`M${cp.x-4},${cp.y-36}L${cp.x},${cp.y-30}L${cp.x+4},${cp.y-36}Z`,fill:'#ff2a2a'},Sv)}
+  const r=callRow,vertRight=r%2===0,top=Y[r]+NH/2+50;
+  const left=Math.round(Math.min(vertRight?135:260,Math.max(vertRight?20:150,cp.x-280)));
+  call.style.left=left+'px';call.style.top=top+'px';
+  if(cp.vert){call.style.setProperty('--ax','-99px');const ex=vertRight?left+600:left,yy=Math.min(Math.max(cp.y,top+20),top+callH-20);
+    dfirEl('path',{d:`M${cp.x+(vertRight?-10:10)},${cp.y}H${(cp.x+ex)/2}V${yy}H${ex}`,stroke:'#fff',fill:'none'},Sv)}
+  else{call.style.setProperty('--ax',Math.round(cp.x-left-7)+'px');dfirEl('line',{x1:cp.x,y1:cp.y+10,x2:cp.x,y2:top-6,stroke:'#fff'},Sv)}
+}
+// phone: the chain as a metro line; the part of the current block is open, the callout stands at the current block
+function dfirBuildMetro(S){
+  const P=S.prog,el=document.getElementById('dfs-ph'),cur=P.current;S.metro=true;let h='<div class="dfs-ln">';
+  P.parts.forEach(p=>{
+    const open=cur&&cur.part===p.n,on=p.done>0;
+    h+=`<div class="dfs-st p${on?' on pass':''}"><span class="pad"></span><div class="dfs-node${on?' on':''}">${dfirNodeHtml(p)}</div></div>`;
+    if(open)p.blocks.forEach(b=>{const c=b.n===cur.block;
+      h+=`<div class="dfs-st b${b.closed?' done pass':c?' cur half':''}"><span class="pad"></span>Блок ${pad2(b.n)}${c?' · вы здесь':''}<span>${b.done}/${b.size}</span></div>`;
+      if(c)h+=`<div class="dfs-st cl"><div class="dfs-call">${dfirCallHtml(S)}</div></div>`});
+    else{const a=p.blocks[0].n,z=p.blocks[p.blocks.length-1].n;
+      h+=`<div class="dfs-st mini${p.blocks.every(b=>b.closed)?' pass':''}" style="height:${p.blocks.length*14+10}px"><span class="vias">${'<i></i>'.repeat(p.blocks.length)}</span>${a===z?'Блок '+pad2(a):'Блоки '+pad2(a)+'–'+pad2(z)}</div>`}
+  });
+  h+=`<div class="dfs-st last"><span class="pad"></span><span class="dfs-end">Финал · ${P.total} тем</span></div></div>`;
+  el.innerHTML=h;
+}
+// ── эффекты: шум, таймкод, сфера — только пока экран виден
+function dfirStart(){
+  if(!dfirShown()||!dfirState)return;
+  dfirStop();dfirFx.on=true;const RM=reducedMotion()||document.hidden;
+  const g=document.getElementById('dfv-grid');
+  if(g&&!g.childNodes.length){let seed=24,s='';const rnd=()=>{seed=(seed*16807)%2147483647;return(seed-1)/2147483646};
+    const R=(x,y,w,h,o)=>{s+=`<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" fill="#ff1a2a" opacity="${o.toFixed(2)}"/>`};
+    for(let i=0;i<14;i++)R(44+rnd()*16,30+rnd()*14,.18+rnd()*.3,14+rnd()*30,.45+rnd()*.5);
+    for(let i=0;i<16;i++)R(22+rnd()*24,40+rnd()*18,14+rnd()*36,.2+rnd()*.45,.4+rnd()*.55);
+    for(let i=0;i<80;i++){const z=.5+rnd()*2.4;R(46+rnd()*16,38+rnd()*20,z*(1+rnd()*1.5),z*.7,.25+rnd()*.7)}
+    for(let i=0;i<6;i++)R(28+rnd()*10,44+rnd()*6,8+rnd()*12,.9+rnd()*1.2,.55);g.innerHTML=s}
+  const c=document.getElementById('dfv-noise');
+  if(c){const ctx=c.getContext('2d'),W=Math.max(80,Math.round(c.clientWidth/3)),H=Math.max(60,Math.round(c.clientHeight/3));c.width=W;c.height=H;const img=ctx.createImageData(W,H);
+    const draw=()=>{const d=img.data;let p=0;for(let y=0;y<H;y++){const row=Math.random(),band=row>.92?1.6:row>.75?1:.55;let run=0,v=0;
+      for(let x=0;x<W;x++){if(run--<=0){run=(Math.random()*7)|0;v=Math.random()*band}const k=Math.min(255,v*170+Math.random()*40),red=Math.random()>.9985;
+        d[p]=red?255:k*.78;d[p+1]=red?20:k;d[p+2]=red?30:k*.95;d[p+3]=255;p+=4}}ctx.putImageData(img,0,0)};
+    draw();if(!RM)dfirFx.iv.push(setInterval(draw,dfirMetro()?110:70))}
+  const tc=document.getElementById('dfv-tc');
+  if(tc){const P=dfirState.prog,base=P&&P.current?P.current.n:0;let f=0;const tick=()=>{const s=Math.floor(f/25);tc.textContent=`00:${pad2(base%100)}:${pad2(Math.floor(s/60)%60)}:${pad2(s%60)}`.slice(0,8)+':'+pad2(f%25)};tick();if(!RM)dfirFx.iv.push(setInterval(()=>{f++;tick()},40))}
+  const cv=document.getElementById('dfk-radar');
+  if(cv){const loop=t=>{if(!dfirFx.on)return;dfirSphere(cv,t,RM);if(!RM)dfirFx.raf=requestAnimationFrame(loop)};loop(performance.now())}
+}
+let dfirPts=null;
+function dfirSphere(cv,t,RM){
+  const P=dfirState.prog,N=P.total,b=cv.getBoundingClientRect(),S=b.width;if(!S)return;
+  const dpr=Math.min(2,window.devicePixelRatio||1);if(cv.width!==Math.round(S*dpr)){cv.width=Math.round(S*dpr);cv.height=Math.round(S*dpr)}
+  const cx=cv.getContext('2d'),GA=Math.PI*(3-Math.sqrt(5)),deg=Math.PI/180;
+  if(!dfirPts||dfirPts.length!==N){dfirPts=[];for(let i=0;i<N;i++){const y=1-2*(i+.5)/N,r=Math.sqrt(1-y*y),th=i*GA;dfirPts.push([Math.cos(th)*r,y,Math.sin(th)*r])}}
+  const flat=dfirFlat(dfirState.chain),idx=new Map(flat.map((x,i)=>[x.n,i])),PASSED=new Set([...P.done.keys()].map(n=>idx.get(n))),CUR=P.current?idx.get(P.current.n):-1;
+  const K=.9,c=S/2,R=S*.285*K,arc=(r,a0,a1)=>{cx.beginPath();cx.arc(c,c,r,a0,a1)};
+  const txt=(s,x,y,font,col,al)=>{cx.font=font;cx.fillStyle=col;cx.textAlign=al||'center';cx.textBaseline='middle';cx.fillText(s,x,y)};
+  cx.setTransform(dpr,0,0,dpr,0,0);cx.clearRect(0,0,S,S);
+  cx.strokeStyle='rgba(255,255,255,.06)';cx.lineWidth=1;
+  for(const k of [.12,.2,.3]){arc(S*k,0,Math.PI*2);cx.stroke()}
+  const sw=RM?-.6:(t/1000*.5)%(Math.PI*2);
+  if(cx.createConicGradient){const gc=cx.createConicGradient(sw-.9,c,c);gc.addColorStop(0,'rgba(255,255,255,0)');gc.addColorStop(.143,'rgba(255,255,255,.045)');gc.addColorStop(.1432,'rgba(255,255,255,0)');cx.fillStyle=gc;cx.beginPath();cx.moveTo(c,c);cx.arc(c,c,S*.315,0,Math.PI*2);cx.fill()}
+  cx.strokeStyle='rgba(255,255,255,.35)';cx.beginPath();cx.moveTo(c,c);cx.lineTo(c+Math.cos(sw)*S*.315,c+Math.sin(sw)*S*.315);cx.stroke();
+  const ry=RM?.8:t/1000*.16,tl=.62,cs=Math.cos(ry),sn=Math.sin(ry),ct=Math.cos(tl),st=Math.sin(tl);
+  const proj=dfirPts.map((p,i)=>{const x=p[0]*cs+p[2]*sn,z=-p[0]*sn+p[2]*cs,y=p[1];return[c+x*R,c-(y*ct-z*st)*R,y*st+z*ct,i]}).sort((a,b)=>a[2]-b[2]);
+  let curP=null;
+  for(const [x,y,z,i] of proj){const f=(z+1)/2;
+    if(i===CUR){curP=[x,y];continue}
+    if(PASSED.has(i)){cx.fillStyle=`rgba(255,255,255,${.55+.45*f})`;cx.shadowColor='#fff';cx.shadowBlur=8;cx.beginPath();cx.arc(x,y,2*(.7+.4*f),0,7);cx.fill();cx.shadowBlur=0}
+    else{const fr=z>0;cx.fillStyle=`rgba(255,255,255,${fr?.16+.5*f*f:.035+.08*f})`;cx.beginPath();cx.arc(x,y,fr?.9+f:.6,0,7);cx.fill()}}
+  arc(R+4,0,Math.PI*2);cx.strokeStyle='rgba(255,255,255,.28)';cx.stroke();
+  const hr=S*.1*K;cx.fillStyle='rgba(3,3,3,.86)';arc(hr,0,Math.PI*2);cx.fill();cx.strokeStyle='rgba(255,255,255,.55)';cx.stroke();
+  cx.shadowColor='rgba(255,255,255,.7)';cx.shadowBlur=14;txt(pad2(P.level.level),c,c-hr*.12,`500 ${Math.round(hr*1.05)}px Handjet`,'#fff');cx.shadowBlur=0;
+  txt('УРОВЕНЬ',c,c+hr*.6,'11px "Geist Mono"','#9a9a9a');
+  if(curP){const [x,y]=curP,pulse=RM?.5:(Math.sin(t/1000*3.4)+1)/2,bb=11,l=5;
+    cx.fillStyle='rgba(255,42,42,.25)';cx.beginPath();cx.arc(x,y,4+pulse*6,0,7);cx.fill();
+    cx.fillStyle='#ff2a2a';cx.shadowColor='#ff2a2a';cx.shadowBlur=14;cx.beginPath();cx.arc(x,y,3.4,0,7);cx.fill();cx.shadowBlur=0;
+    cx.strokeStyle='#ff2a2a';cx.lineWidth=1.2;cx.beginPath();
+    for(const [sx,sy] of [[-1,-1],[1,-1],[1,1],[-1,1]]){cx.moveTo(x+sx*bb,y+sy*(bb-l));cx.lineTo(x+sx*bb,y+sy*bb);cx.lineTo(x+sx*(bb-l),y+sy*bb)}
+    cx.stroke();cx.lineWidth=1;const dir=x>c?-1:1,lx=x+dir*(bb+26);
+    cx.strokeStyle='rgba(255,42,42,.8)';cx.beginPath();cx.moveTo(x+dir*bb,y-bb);cx.lineTo(x+dir*(bb+10),y-bb-10);cx.lineTo(lx,y-bb-10);cx.stroke();
+    txt(dfirNNN(P.current.n),lx+dir*4,y-bb-10,'500 11px "Geist Mono"','#ff2a2a',dir>0?'left':'right')}
+  const r1=S*.325*K,r2=S*.352*K,step=360/P.parts.length;
+  P.parts.forEach((p,k)=>{const a0=(-90+k*step+1.1)*deg,a1=(-90+(k+1)*step-1.1)*deg,pc=p.size?p.done/p.size:0;
+    cx.beginPath();cx.arc(c,c,r2,a0,a1);cx.arc(c,c,r1,a1,a0,true);cx.closePath();cx.fillStyle='rgba(255,255,255,.035)';cx.fill();cx.strokeStyle=pc?'rgba(255,255,255,.7)':'rgba(255,255,255,.22)';cx.stroke();
+    if(pc){const af=a0+(a1-a0)*pc;cx.beginPath();cx.arc(c,c,r2,a0,af);cx.arc(c,c,r1,af,a0,true);cx.closePath();cx.fillStyle='#fff';cx.shadowColor='#fff';cx.shadowBlur=10;cx.fill();cx.shadowBlur=0}
+    const am=(a0+a1)/2,lr=S*.39*K;if(pc){cx.shadowColor='#fff';cx.shadowBlur=10}
+    txt(p.roman,c+Math.cos(am)*lr,c+Math.sin(am)*lr,'600 14px Handjet',pc?'#fff':'#8a8a8a');cx.shadowBlur=0});
+  const L=P.level,ra=S*.445*K,A0=135*deg,A1=405*deg,v2a=v=>A0+(A1-A0)*v/L.need,into=Math.min(L.need,Math.round(L.into));
+  arc(ra,A0,A1);cx.strokeStyle='rgba(255,255,255,.25)';cx.stroke();
+  arc(ra-5,A0,v2a(into));cx.strokeStyle='#fff';cx.lineWidth=4;cx.shadowColor='#fff';cx.shadowBlur=10;cx.stroke();cx.shadowBlur=0;
+  arc(ra-5,v2a(into),A1);cx.strokeStyle='rgba(255,255,255,.18)';cx.setLineDash([2,3]);cx.stroke();cx.setLineDash([]);cx.lineWidth=1;
+  const stepV=L.need>1500?250:100;
+  for(let v=0;v<=L.need;v+=stepV/4){const a=v2a(v),mj=v%stepV===0,l=mj?9:4;cx.strokeStyle=mj?'rgba(255,255,255,.85)':'rgba(255,255,255,.35)';
+    cx.beginPath();cx.moveTo(c+Math.cos(a)*ra,c+Math.sin(a)*ra);cx.lineTo(c+Math.cos(a)*(ra+l),c+Math.sin(a)*(ra+l));cx.stroke();
+    if(mj&&(v%(stepV*2)===0)){const lr=ra+17;txt(String(v),c+Math.cos(a)*lr,c+Math.sin(a)*lr,'11px "Geist Mono"',v<=into?'#bdbdbd':'#6a6a6a')}}
+  const an=v2a(into);cx.fillStyle='#fff';cx.beginPath();cx.moveTo(c+Math.cos(an)*(ra+2),c+Math.sin(an)*(ra+2));cx.lineTo(c+Math.cos(an-.03)*(ra+12),c+Math.sin(an-.03)*(ra+12));cx.lineTo(c+Math.cos(an+.03)*(ra+12),c+Math.sin(an+.03)*(ra+12));cx.fill();
+  cx.shadowColor='rgba(255,255,255,.6)';cx.shadowBlur=10;txt(`${into}/${L.need}`,c,S*.9,'500 26px Handjet','#fff');cx.shadowBlur=0;
+  txt(`ОПЫТ · +${L.need-into} ДО УР. ${pad2(L.level+1)}`,c,S*.9+20,'11px "Geist Mono"','#9a9a9a');
+}
+
+// ── upload (DF6): a folder picked on the desktop → texts, outline, progress.json marks
+function dfirPickFolder(){if(dfirUploading)return;const i=document.getElementById('dfir-folder');if(i){i.value='';i.click()}}
+async function dfirUpload(list){
+  const all=[...(list||[])];if(!all.length||dfirUploading)return;
+  const path=f=>f.webkitRelativePath||f.name;
+  const want=all.filter(f=>f.name===DFIR_OUTLINE_FILE||f.name==='progress.json'||!!dfirTopicFile(path(f)));
+  dfirUploading=true;renderDfir();
+  try{
+    const files=[];for(const f of want)files.push({path:path(f),text:await f.text()});
+    const [chainOld,log]=await Promise.all([dfirChain(),getCol('xpLog')]),meta={};
+    dfirFlat(chainOld||[]).forEach(t=>{if(t.h&&t.has)meta[t.n]=t.h});
+    const plan=dfirPlanUpload(files,chainOld,meta,log);
+    if(plan.error){toast(`В папке нет «${DFIR_OUTLINE_FILE}». Выбери папку DFIR Base целиком`);return}
+    let written=0,err=null;
+    try{await dfirTextsPut(plan.texts,i=>{written=i;toast(`Тексты: ${i} из ${plan.texts.length}`)})}catch(e){err=e}
+    if(err){const old=new Map(dfirFlat(chainOld||[]).map(t=>[t.n,t]));
+      plan.texts.slice(written).forEach(x=>{const t=dfirFlat(plan.chain).find(y=>y.n===x.n),o=old.get(x.n);
+        for(const p of plan.chain)for(const b of p.blocks)for(const y of b.topics)if(y.n===x.n){y.has=!!(o&&o.has);if(o&&o.h)y.h=o.h;else delete y.h}})}
+    await saveSetting('dfirChain',{v:1,uploadedAt:Date.now(),parts:plan.chain});
+    const xp=[...plan.marks,...plan.blocks];
+    if(xp.length){
+      const before=await levelsNow(),arr=await getCol('xpLog');
+      for(let i=0;i<xp.length;i+=400){const b=fsDb.batch();xp.slice(i,i+400).forEach(e=>{batchPut(b,'xpLog',e);cachePut(arr,e)});commitBatch(b)}
+      notifyLevelChange(before,await levelsNow());
+    }
+    const msg=`Оглавление: ${nWord(dfirFlat(plan.chain).length,['тема','темы','тем'])} · тексты: ${written} новых или обновлено${plan.skipped?`, ${plan.skipped} без изменений`:''} · перенесено отметок: ${plan.marks.length}`;
+    toast(err?`Тексты сохранились не все (${written} из ${plan.texts.length}): ${errText(err)}`:msg);
+  }catch(e){console.warn('dfir upload',e);toast('Папка не загрузилась. '+errText(e))}
+  finally{dfirUploading=false;await refreshDfir();refreshStatusIfVisible()}
+}
+
+// ── reader (DF8)
+let dfirTopicN=null,dfirTopicSeq=0;
+async function dfirOpenTopic(n){
+  if(!n)return;dfirTopicN=n;switchView('dfir-topic');
+  const root=document.getElementById('dfir-topic-root');if(!root)return;
+  const seq=++dfirTopicSeq,chain=await dfirChain();if(!chain){root.innerHTML='';return}
+  const flat=dfirFlat(chain),i=flat.findIndex(t=>t.n===n),t=flat[i];if(!t)return;
+  const blk=dfirBlockOf(chain,t.block),titles={};flat.forEach(x=>titles[x.n]=x.title);
+  dfirTopicRender(root,{t,blk,prev:flat[i-1],next:flat[i+1],body:'<div class="dft-wait">Загружаю текст…</div>'});
+  let body;
+  if(!t.has)body='<div class="dft-none">Текст ещё не написан.</div>';
+  else{const d=await dfirTextGet(n);if(seq!==dfirTopicSeq)return;
+    body=d&&d.text?dfirMd(d.text,titles):'<div class="dft-none">Текст не загружен на этом устройстве. Открой тему при подключении к сети или загрузи папку на компьютере.</div>'}
+  if(seq!==dfirTopicSeq)return;
+  dfirTopicRender(root,{t,blk,prev:flat[i-1],next:flat[i+1],body});
+}
+function dfirTopicRender(root,{t,blk,prev,next,body}){
+  const log=colCache.xpLog&&colCache.xpLog.data||[],e=log.find(x=>x.id==='dfirt_'+t.n);
+  const dm=e?formatDateShort(e.date).replace(/^(Сегодня|Вчера)/,w=>w.toLowerCase()):'';
+  root.innerHTML=`<div class="dft-head"><button type="button" class="dft-back" onclick="switchView('dfir')">← DFIR</button><span class="dft-crumb">Блок ${pad2(blk.n)} · ${escapeHtml(blk.name)}</span></div>
+  <h1 class="dft-title"><span class="dft-n">${dfirNNN(t.n)}</span>${escapeHtml(t.title)}</h1>
+  <div class="dft-meta">${t.minutes?`≈ ${t.minutes} мин · `:''}${e?`пройдена ${escapeHtml(dm)}`:`+${DFIR_TOPIC_XP} опыта`}</div>
+  <article class="dft-md" id="dft-md">${body}</article>
+  <div class="dft-foot">${e?`<button type="button" class="dft-unmark" onclick="dfirTopicToggle(${t.n},false)">Пройдена ${escapeHtml(dm)} · снять отметку</button>`
+    :`<button type="button" class="dfs-go" onclick="dfirTopicToggle(${t.n},true)"><span>Пройдено</span><small>+${DFIR_TOPIC_XP}</small></button>`}
+  <div class="dft-nav">${prev?`<button type="button" onclick="dfirOpenTopic(${prev.n})">← ${dfirNNN(prev.n)}</button>`:'<span></span>'}${next?`<button type="button" onclick="dfirOpenTopic(${next.n})">${dfirNNN(next.n)} →</button>`:''}</div></div>`;
+}
+async function dfirTopicToggle(n,on){
+  if(on){if(!await dfirMark(n))return;
+    clearTimeout(undoTimer);const el=document.getElementById('toast');
+    el.innerHTML=`Тема ${dfirNNN(n)} пройдена · +${DFIR_TOPIC_XP} <button type="button" class="toast-undo" onclick="dfirTopicToggle(${n},false)">Отменить</button>`;
+    el.classList.add('show');undoTimer=setTimeout(()=>el.classList.remove('show'),3500)}
+  else await dfirUnmark(n);
+  dfirAfterMark(n);
+}
+function dfirAfterMark(n){
+  checkAchievements();
+  const root=document.getElementById('dfir-topic-root'),md=document.getElementById('dft-md');
+  if(root&&dfirTopicN===n&&md){dfirChain().then(chain=>{const flat=dfirFlat(chain||[]),i=flat.findIndex(t=>t.n===n);if(i<0)return;dfirTopicRender(root,{t:flat[i],blk:dfirBlockOf(chain,flat[i].block),prev:flat[i-1],next:flat[i+1],body:md.innerHTML})})}
+  if(dfirShown())refreshDfir();
+}
+document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('#dft-md a.df-wl[data-topic]');if(!a)return;e.preventDefault();dfirOpenTopic(+a.dataset.topic)});
+
 
 // ── Quests → Season ──
 const ACH_ICON={streak7:'flame',streak30:'flame',plus25:'bars',trainWeek:'calendar',noDebts:'card',firstGoal:'goal',dfirWeek:'search',firstCase:'doc',tier2:'check',seasonEnd:'goal',quests100:'tasks',journal30:'doc'};

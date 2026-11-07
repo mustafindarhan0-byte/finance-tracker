@@ -178,5 +178,24 @@ ok(/function dataColl[\s\S]*?'dfirTopics'[\s\S]*?\];/.test(rules),'dfirTopics в
 ok(src.includes("dbClear('dfirTopics')"),'clearAll чистит dfirTopics');
 ok(!src.includes("getCol('dfirTopics')")&&!src.includes("dbAll('dfirTopics')"),'тексты не читаются целиком');
 
+// ── DF7: everything from the outline reaches innerHTML escaped
+{
+  const ui=slice('// ── screen (DF7)','// desktop: the chain as a circuit board');
+  const c2={console,document:{addEventListener(){},getElementById:()=>null},addEventListener(){},isDesktop:()=>true,reducedMotion:()=>false,
+    WD_SHORT:['пн','вт','ср','чт','пт','сб','вс'],fmt:n=>String(n)};
+  vm.createContext(c2);
+  vm.runInContext([code,line(/function plural\([^\n]*\n/),line(/function nWord\([^\n]*\n/),ui].join('\n')+';this.U={dfirHeroHtml,dfirCallHtml,dfirSideHtml,dfirNodeHtml,dfirProgress,dfirStreak,dfirParseOutline}',c2);
+  const U=c2.U,BAD='<img src=x onerror=alert(1)>';
+  const evil=U.dfirParseOutline(`## Часть I. ${BAD}\n### Блок 1. ${BAD} блок\n*Инструменты: ${BAD}, ok*\n1. ${BAD} тема\n2. вторая\n`);
+  const S={chain:evil,t:'2026-11-05',avatar:"x') ;background:url(javascript:alert(1)",prog:U.dfirProgress(evil,[],'2026-11-05'),streak:U.dfirStreak([],'2026-11-05')};
+  const html=U.dfirHeroHtml(S)+U.dfirCallHtml(S)+U.dfirSideHtml(S)+U.dfirNodeHtml(S.prog.parts[0]);
+  ok(!/<img/i.test(html),'название части, блока, инструмента и темы экранированы');
+  ok(html.includes('&lt;img src=x onerror=alert(1)&gt;'),'текст виден как текст');
+  ok(!/javascript/i.test(html)&&html.includes("--df-fig:url('figure.jpg')"),'чужая строка вместо фото → figure.jpg, из url(...) не выйти');
+  ok(U.dfirHeroHtml({...S,avatar:'data:image/jpeg;base64,QUJD'}).includes("--df-fig:url('data:image/jpeg;base64,QUJD')"),'аватар-картинка подставляется');
+  const empty=U.dfirHeroHtml({chain:null,t:'2026-11-05',avatar:null,prog:null,streak:U.dfirStreak([],'2026-11-05')});
+  ok(empty.includes('не загружена')&&empty.includes('dfirPickFolder()'),'пустое состояние: «не загружена» и кнопка загрузки на компьютере');
+}
+
 console.log(fail?`${fail} из ${n} проверок упали`:`ok: ${n} проверок`);
 process.exitCode=fail?1:0;
