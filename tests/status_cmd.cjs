@@ -247,6 +247,10 @@ await (async()=>{
  ok(fx&&fx.title==='Брекеты'&&fx.due==='2026-11-03'&&fx.time==='20:00','an old undated task gets its date out of the title',fx);
  ok(M.undatedTaskFix({title:'КПД 31 ноября',due:'',done:true})===null&&M.undatedTaskFix({title:'КПД 31 ноября',due:'2026-11-01'})===null&&M.undatedTaskFix({title:'вода',due:''})===null&&M.undatedTaskFix({title:'отчёт 5 дек',due:'',repeat:{type:'daily'}})===null,'done / dated / repeating / dateless titles are left alone');}
 
+// bug hunt 07.11: an overdue weekly task is a late row today and keeps its next occurrence
+{const r=M.weekAhead([{id:'run',title:'Бег',list:'gym',repeat:{type:'weekly',days:[1]},due:'2026-11-02'}],[],'2026-11-04');
+ const today=r.days.find(d=>d.date==='2026-11-04');
+ ok(today&&today.items.length===1&&today.items[0].late&&today.items[0].real&&r.later.some(e=>e.date==='2026-11-09'),'overdue repeating task: late row today, next Monday in «Дальше»',r)}
 // bug hunt 07.11: currency words, thousands separators, a goal filled twice by the allocation chain
 ok(eq(M.parseInput('обед 2000 тг'),{desc:'обед',amount:2000})&&eq(M.parseInput('кофе 500₸'),{desc:'кофе',amount:500})&&eq(M.parseInput('кофе 1,500'),{desc:'кофе',amount:1500})&&eq(M.parseInput('кофе 1.500'),{desc:'кофе',amount:1500})&&eq(M.parseInput('сок 2,5'),{desc:'сок',amount:2.5}),'[+] amounts: тг/₸ next to the number, 1,500 = thousands');
 {const c2={};vm.createContext(c2);vm.runInContext(slice('function allocPlan(','let allocIncome=')+';this.f=allocPlan',c2);const p=c2.f(400000,{life:150000,chain:[{goalId:'g1',mode:'fill'},{goalId:'g1',mode:'fill'}]},[{id:'g1',name:'Подушка',targetAmount:300000,currentAmount:200000}],[]);

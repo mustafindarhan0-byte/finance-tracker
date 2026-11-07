@@ -3652,6 +3652,7 @@ async function undoTask(logId){
   commitBatch(b);
   document.getElementById('toast').classList.remove('show');
   toast('Отменено');
+  checkAchievements();
 }
 
 // Habits: one deterministic doc per habit/day, so a double tap is harmless
@@ -3714,8 +3715,10 @@ function formatTaskDate(s){
 // ── Tasks screen ──
 let editingTaskId=null,tasksLaterOpen=false,habitsEditing=false;
 async function fixUndatedTasks(){
+  if(await getSetting('undatedFixV1'))return 0;
   const fixes=(tasksCache||[]).map(undatedTaskFix).filter(Boolean);
   for(const u of fixes){cachePut(tasksCache,u);try{await dbPut('tasks',u)}catch(e){console.warn('undated fix',e)}}
+  await saveSetting('undatedFixV1',true);
   return fixes.length;
 }
 async function refreshTasks(){
@@ -3733,8 +3736,8 @@ function upcomingEvents(tasks,from,days){
     if(t.done)return;
     const push=d=>out.push({id:t.id,date:d,time:t.time||'',title:t.title,list:t.list,repeat:!!t.repeat});
     if(!t.repeat){if(t.due&&t.due>=from&&t.due<=end)push(t.due);return}
-    let cur=t.due&&t.due>from?t.due:from;
-    if(t.due&&t.due>=from&&t.due<=end)push(t.due);
+    // overdue (due before `from`): the occurrences start at `from` itself, so search from the day before
+    let cur;if(t.due&&t.due>=from){cur=t.due;if(t.due<=end)push(t.due)}else cur=addDays(from,-1);
     for(let i=0;i<60;i++){cur=nextOccurrence(t.repeat,cur);if(!cur||cur>end)break;push(cur)}
   });
   return out.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'99:99').localeCompare(b.time||'99:99')||a.title.localeCompare(b.title));
@@ -4328,7 +4331,7 @@ const sphereColor=s=>({money:'var(--money)',dfir:'var(--dfir)',body:'var(--body)
 const hhmm=ms=>{const d=new Date(ms);return pad2(d.getHours())+':'+pad2(d.getMinutes())};
 function extractJournal(body){
   let sphere=null;
-  const text=body.replace(/#([A-Za-zА-Яа-яЁё]+)/g,(m,tag)=>{const k=tag.toLowerCase();if(k in TAG_SPHERE){sphere=TAG_SPHERE[k];return ''}return m}).replace(/\s+/g,' ').trim();
+  const text=body.replace(/#([A-Za-zА-Яа-яЁё]+)/g,(m,tag)=>{const k=tag.toLowerCase();if(Object.prototype.hasOwnProperty.call(TAG_SPHERE,k)){sphere=TAG_SPHERE[k];return ''}return m}).replace(/\s+/g,' ').trim();
   return{text,sphere};
 }
 async function addJournal(text,sphere){
@@ -4492,7 +4495,12 @@ function weekAhead(tasks,log,t0){
   const days=[];
   for(let d=t0;d<=we;d=addDays(d,1)){
     const items=ev.filter(e=>e.date===d).map(e=>({...e,task:byId.get(e.id)||null,real:!!byId.get(e.id)&&byId.get(e.id).due===d}));
-    if(d===t0)items.unshift(...open.filter(t=>t.due&&t.due<t0&&!t.repeat).sort((x,y)=>x.due.localeCompare(y.due)).map(t=>({id:t.id,date:t0,time:t.time||'',title:t.title,list:t.list,repeat:false,task:t,real:true,late:true})));
+    if(d===t0){
+      // overdue tasks, repeating ones too, are a real late row today (their today's occurrence is that same row)
+      const late=open.filter(t=>t.due&&t.due<t0).sort((x,y)=>x.due.localeCompare(y.due)),lateIds=new Set(late.map(t=>t.id));
+      for(let k=items.length-1;k>=0;k--)if(lateIds.has(items[k].id))items.splice(k,1);
+      items.unshift(...late.map(t=>({id:t.id,date:t0,time:t.time||'',title:t.title,list:t.list,repeat:!!t.repeat,task:t,real:true,late:true})));
+    }
     if(items.length)days.push({date:d,items});
   }
   const done=(log||[]).filter(l=>l.date>=ws&&l.date<t0).length;
