@@ -3261,7 +3261,7 @@ async function clearAll(){
   if(!await sheetConfirm({title:'Удалить все данные?',text:'Операции, задачи, привычки, тренировки и опыт этого пространства. Это необратимо.',ok:'Удалить',danger:true}))return;
   if(!await sheetConfirm({title:'Точно удалить всё?',text:'Отменить будет нельзя.',ok:'Да, удалить всё',danger:true}))return;
   try{
-    await Promise.all([dbClear('transactions'),dbClear('goals'),dbClear('budgets'),dbClear('templates'),dbClear('learned'),dbClear('settings'),dbClear('importedStatements'),...EXTRA_STORES.map(dbClear)]);
+    await Promise.all([dbClear('transactions'),dbClear('goals'),dbClear('budgets'),dbClear('templates'),dbClear('learned'),dbClear('settings'),dbClear('importedStatements'),dbClear('dfirTopics'),...EXTRA_STORES.map(dbClear)]);
     trackWrite(spaceRef.collection('_meta').doc('info').set({resetAt:serverTs()},{merge:true}));
     clearSyncMarks();
     dirtyTx();dirtyTasks();learnedMap={};settingsCache=null;currency='KZT';
@@ -5703,6 +5703,39 @@ async function setAvatar(ev){
 }
 async function resetAvatar(){await saveSetting('avatar',null);statusAvatar=null;toast('Возвращено стандартное фото')}
 
+// ── DFIR screen: storage, marks, upload, screen, reader (SPEC_dfir) ──
+// Texts are read one document at a time when a topic opens — never through getCol/dbAll (that would pull every text on start).
+const DFIR_BATCH_DOCS=400,DFIR_BATCH_BYTES=3.5*1024*1024;
+async function dfirChain(){const v=await getSetting('dfirChain');return v&&Array.isArray(v.parts)&&v.parts.length?v.parts:null}
+async function dfirTextGet(n){
+  const ref=docRef('dfirTopics',dfirNNN(n));let snap;
+  try{snap=await withTimeout(ref.get(),8000)}catch(e){try{snap=await ref.get({source:'cache'})}catch(e2){return{error:e}}}
+  countRead('dfirTopics',1);
+  const d=snap&&snap.exists?snap.data():null;return d&&!d.deleted?d:null;
+}
+// texts in batches small enough for Firestore (≤ 500 writes, ≤ 10 MiB a request); throws on a rule / network error
+async function dfirTextsPut(list,onProgress){
+  let i=0;
+  while(i<list.length){
+    const b=fsDb.batch();let bytes=0,k=0;
+    while(i<list.length&&k<DFIR_BATCH_DOCS&&(k===0||bytes+list[i].text.length*2<DFIR_BATCH_BYTES)){bytes+=list[i].text.length*2;batchPut(b,'dfirTopics',list[i]);i++;k++}
+    await withTimeout(b.commit(),60000);
+    if(onProgress)onProgress(i,list.length);
+  }
+}
+// block XP follows the topics: a closed block gets dfirb_<n>, a reopened one loses it
+async function dfirSyncBlocks(){
+  const chain=await dfirChain();if(!chain)return;
+  const log=await getCol('xpLog'),need=dfirBlockXpNeeded(chain,dfirDoneMap(log),log);
+  for(const b of need.add)await awardXp(b.id,'dfir',DFIR_BLOCK_XP,'dfirBlock');
+  for(const id of need.del)await revokeXp(id);
+}
+async function dfirMark(n){
+  const id='dfirt_'+n;if((await getCol('xpLog')).some(e=>e.id===id))return false;
+  await awardXp(id,'dfir',DFIR_TOPIC_XP,'dfirTopic');await dfirSyncBlocks();return true;
+}
+async function dfirUnmark(n){await revokeXp('dfirt_'+n);await dfirSyncBlocks()}
+
 // ── Quests → Season ──
 const ACH_ICON={streak7:'flame',streak30:'flame',plus25:'bars',trainWeek:'calendar',noDebts:'card',firstGoal:'goal',dfirWeek:'search',firstCase:'doc',tier2:'check',seasonEnd:'goal',quests100:'tasks',journal30:'doc'};
 async function renderSeason(){
@@ -5816,7 +5849,7 @@ async function copyWeek(){
 
 // ── F3.3 Data integrity check: pure part (tests/integrity.cjs loads it from here up to the UI marker) ──
 const INTEGRITY_CLASSES={goal:'Копилки',debt:'Рассрочки',xp:'Опыт (XP)',task:'Задачи и привычки',tx:'Операции',bank:'Балансы банков'};
-const XP_KNOWN_PREFIXES=['task_','habit_','journal_','workout_','debt_','alloc_','cool_','skill_'];
+const XP_KNOWN_PREFIXES=['task_','habit_','journal_','workout_','debt_','alloc_','cool_','skill_','dfirt_','dfirb_'];
 function isYmd(s){
   if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s))return false;
   const y=+s.slice(0,4),m=+s.slice(5,7),d=+s.slice(8,10);
@@ -5939,6 +5972,7 @@ function checkInvariants(data){
     else if(id.startsWith('workout_')){const w=wById.get(id.slice(8));if(!w)orphan(id,e,'нет тренировки');else if(!w.done)orphan(id,e,'тренировка не завершена')}
     else if(id.startsWith('debt_')){if(!logById.has(id.slice(5)))orphan(id,e,'нет записи выполнения платежа')}
     else if(id.startsWith('alloc_')){if(!alIds.has(id.slice(6)))orphan(id,e,'нет распределения')}
+    else if(id.startsWith('dfirt_')||id.startsWith('dfirb_')){} // DFIR chain: the mark itself is the record
     else if(!id.startsWith('cool_'))add('xp','info',`Неизвестный тип записи опыта: ${id}`,`${fm(e.amount)} XP от ${e.date||'—'}; известные префиксы: ${XP_KNOWN_PREFIXES.join(', ')}.`,[id],null);
   });
   const want=(id,amount,sphere,source,date,at,title,ids,how)=>{

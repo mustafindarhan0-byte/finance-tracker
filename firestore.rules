@@ -13,7 +13,8 @@ service cloud.firestore {
       function dataColl(c) {
         return c in ['_meta', 'transactions', 'goals', 'budgets', 'templates', 'settings', 'learned',
                      'tasks', 'taskLog', 'habits', 'habitChecks', 'journal', 'debts', 'allocations',
-                     'workoutPlans', 'workouts', 'bodyWeights', 'xpLog', 'importedStatements', 'backups'];
+                     'workoutPlans', 'workouts', 'bodyWeights', 'xpLog', 'importedStatements', 'backups',
+                     'dfirTopics'];
       }
 
       allow get: if member();

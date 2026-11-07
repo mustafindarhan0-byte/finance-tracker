@@ -149,8 +149,9 @@ const OLD=oldShape(NEW);
  ok(has(r.list,'xp',/workout_w2.*не завершена/).length===1,'XP for unfinished workout flagged');
  let d2=d;o.forEach(x=>{d2=apply(d2,x.fix)});ok(run(d2).list.length===0,'orphan XP fixes clear everything')}
 // 16. unknown prefix (info, no fix), cooling ignored, duplicate ids
-{const d=clone(NEW);d.xpLog.push({id:'bonus_1',date:'2026-10-01',amount:10},{id:'task_L1',date:'2026-10-02',amount:40});
+{const d=clone(NEW);d.xpLog.push({id:'bonus_1',date:'2026-10-01',amount:10},{id:'dfirt_24',date:'2026-10-02',amount:50,sphere:'dfir'},{id:'dfirb_3',date:'2026-10-02',amount:100,sphere:'dfir'},{id:'task_L1',date:'2026-10-02',amount:40});
  const r=run(d);ok(has(r.list,'xp',/Неизвестный тип.*bonus_1/).length===1&&has(r.list,'xp',/bonus_1/)[0].fix===null,'unknown XP prefix → info without fix',r.list);
+ ok(!r.list.some(x=>x.ids.includes('dfirt_24')||x.ids.includes('dfirb_3')),'DFIR chain XP (dfirt_/dfirb_) accepted',r.list);
  ok(has(r.list,'xp',/Дубль записи опыта task_L1/).length===1,'duplicate XP id → warn');ok(!r.list.some(x=>x.ids.includes('cool_dfir_2026-09-20')),'cool_ entries accepted')}
 // 17. missing XP for each action kind, with correct amount/sphere/date
 {const d=clone(NEW);d.xpLog=d.xpLog.filter(e=>e.id.startsWith('cool_'));

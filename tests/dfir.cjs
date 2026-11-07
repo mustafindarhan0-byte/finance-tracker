@@ -172,5 +172,11 @@ const dup=X.dfirPlanUpload([{path:'Оглавление цепочки.md',text:
 eq(dup.texts[0].text,'настоящая','из двух файлов с одним номером — тот, где n совпадает');
 eq(X.dfirPlanUpload([{path:'Оглавление цепочки.md',text:OUT},{path:'progress.json',text:'не json'}],null,{},[]).marks,[],'битый progress.json не ломает загрузку');
 
+// ── DF5: rules allow the texts collection
+const rules=fs.readFileSync(path.join(ROOT,'firestore.rules'),'utf8');
+ok(/function dataColl[\s\S]*?'dfirTopics'[\s\S]*?\];/.test(rules),'dfirTopics в dataColl');
+ok(src.includes("dbClear('dfirTopics')"),'clearAll чистит dfirTopics');
+ok(!src.includes("getCol('dfirTopics')")&&!src.includes("dbAll('dfirTopics')"),'тексты не читаются целиком');
+
 console.log(fail?`${fail} из ${n} проверок упали`:`ok: ${n} проверок`);
 process.exitCode=fail?1:0;
