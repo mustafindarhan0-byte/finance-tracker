@@ -4070,6 +4070,234 @@ async function checkAchievements(){
   finally{achBusy=false;if(achAgain){achAgain=false;setTimeout(checkAchievements,0)}}
 }
 
+// ── DFIR: chain, progress, streak, markdown (tests/dfir.cjs) ──
+// The chain = «Оглавление цепочки.md» of DFIR Base (13 parts, 40 blocks, 520 topics). Progress lives only in xpLog:
+// dfirt_<n> = topic n passed (date = when), dfirb_<block> = block closed. Texts: collection dfirTopics, one doc per topic.
+const DFIR_SKIP_DIRS=['_raw','_site','.obsidian','.trash','.git','Vault'];
+const DFIR_OUTLINE_FILE='Оглавление цепочки.md';
+const DFIR_TOPIC_XP=50,DFIR_BLOCK_XP=100,DFIR_WEEK_GOAL=3,DFIR_FREEZE_MAX=3;
+const dfirNNN=n=>String(n).padStart(3,'0');
+const dfirYmd=s=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s);
+// outline markdown → [{n, roman, name, blocks:[{n, name, src, tools, topics:[{n, title}]}]}]; same rules as DFIR Base server.py
+function dfirParseOutline(md){
+  const parts=[];let part=null,block=null,m;
+  for(const raw of String(md||'').replace(/\r\n?/g,'\n').split('\n')){
+    const line=raw.trimEnd();
+    if(line.startsWith('## Часть ')){
+      m=/^## Часть ([IVXLC]+)\.\s*(.*)$/.exec(line);
+      part={roman:m?m[1]:'',name:(m?m[2]:line.slice(9)).trim(),blocks:[]};parts.push(part);block=null;
+    }else if(/^#{1,2} /.test(line)){part=null;block=null}
+    else if(line.startsWith('### Блок ')&&part){
+      m=/^### Блок (\d+)\.\s*(.+)$/.exec(line);
+      block=m?{n:+m[1],name:m[2].trim(),src:'',tools:'',topics:[]}:null;if(block)part.blocks.push(block);
+    }else if(block&&line.startsWith('*Опора:'))block.src=line.replace(/^\*Опора:\s*/,'').replace(/\*+$/,'').trim();
+    else if(block&&line.startsWith('*Инструменты:'))block.tools=line.replace(/^\*Инструменты:\s*/,'').replace(/\*+$/,'').trim();
+    else if(block&&(m=/^(\d+)\.\s+(.+)$/.exec(line)))block.topics.push({n:+m[1],title:m[2].trim()});
+  }
+  return parts.filter(p=>p.blocks.length).map((p,i)=>({n:i+1,...p}));
+}
+// relative path of a picked file → {n} for a topic file «NNN title.md», null for anything else (Vault, .obsidian, …)
+function dfirTopicFile(path){
+  const segs=String(path||'').replace(/\\/g,'/').split('/').filter(Boolean),name=segs.pop()||'';
+  if(segs.some(s=>DFIR_SKIP_DIRS.includes(s)||s.startsWith('.')))return null;
+  const m=/^(\d{3}) .+\.md$/i.exec(name);
+  return m?{n:+m[1]}:null;
+}
+// frontmatter (flat key: value) → {meta, body}
+function dfirFront(md){
+  let s=String(md||'').replace(/\r\n?/g,'\n');const meta={};
+  if(s.startsWith('---\n')){
+    const end=s.indexOf('\n---',3);
+    if(end>0){
+      s.slice(4,end).split('\n').forEach(l=>{const i=l.indexOf(':');if(i>0)meta[l.slice(0,i).trim()]=l.slice(i+1).trim().replace(/^"(.*)"$/,'$1')});
+      s=s.slice(end+4).replace(/^[^\n]*\n/,'');
+    }
+  }
+  return{meta,body:s.replace(/^\n+/,'')};
+}
+// FNV-1a, so an unchanged text is not written again
+function dfirHash(s){let h=0x811c9dc5;s=String(s);for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0}return h.toString(16).padStart(8,'0')}
+// every topic in chain order with its block and part
+function dfirFlat(chain){const out=[];(chain||[]).forEach(p=>p.blocks.forEach(b=>b.topics.forEach(t=>out.push({...t,block:b.n,part:p.n}))));return out}
+function dfirDoneMap(xpLog){const d=new Map();(xpLog||[]).forEach(e=>{const m=/^dfirt_(\d+)$/.exec(String(e.id));if(m)d.set(+m[1],e.date)});return d}
+// step inside a rank: 4 diamonds over the rank's levels (Стажёр 1–4 → the level itself)
+const DFIR_RANK_BANDS=[[1,4],[5,10],[15,15],[30,20],[50,10]];
+function dfirGrade(L){const b=[...DFIR_RANK_BANDS].reverse().find(x=>L>=x[0]);return Math.max(1,Math.min(4,Math.ceil((L-b[0]+1)/b[1]*4)))}
+function dfirProgress(chain,xpLog,today){
+  const done=dfirDoneMap(xpLog),flat=dfirFlat(chain);
+  const parts=(chain||[]).map(p=>{
+    const blocks=p.blocks.map(b=>{const d=b.topics.filter(t=>done.has(t.n)).length;return{n:b.n,name:b.name,part:p.n,done:d,size:b.topics.length,closed:b.topics.length>0&&d===b.topics.length}});
+    const d=blocks.reduce((s,b)=>s+b.done,0),size=blocks.reduce((s,b)=>s+b.size,0);
+    return{n:p.n,roman:p.roman,name:p.name,done:d,size,pct:size?Math.round(d/size*100):0,blocks};
+  });
+  const blocks=parts.flatMap(p=>p.blocks);
+  let current=null;
+  if(!done.size)current=flat[0]||null;
+  else{
+    const maxN=Math.max(...[...done.keys()].filter(n=>flat.some(t=>t.n===n)),0),i=flat.findIndex(t=>t.n===maxN);
+    current=flat.slice(i+1).find(t=>!done.has(t.n))||flat.find(t=>!done.has(t.n))||null;
+  }
+  let curBlock=null;
+  if(current){const b=blocks.find(x=>x.n===current.block);curBlock={...b,doneInBlock:b.done,pct:b.size?Math.round(b.done/b.size*100):0}}
+  const xpAll=(xpLog||[]).filter(e=>e.sphere==='dfir').reduce((s,e)=>s+(e.amount||0),0),level=levelInfo(xpAll);
+  const byDay={};(xpLog||[]).forEach(e=>{if(e.sphere==='dfir')byDay[e.date]=(byDay[e.date]||0)+(e.amount||0)});
+  const month=[];for(let k=30;k>=0;k--){const d=addDays(today,-k);month.push({date:d,xp:byDay[d]||0})}
+  return{done,doneCount:flat.filter(t=>done.has(t.n)).length,total:flat.length,current,curBlock,blocks,parts,
+    xp:xpAll,level,rank:rankOf(level.level),grade:dfirGrade(level.level),nextRank:nextRankAt(level.level),month};
+}
+// which dfirb_ entries must exist: {add:[{id, block, date}], del:[id]}; date = the latest topic date of the block
+function dfirBlockXpNeeded(chain,done,xpLog){
+  const have=new Set((xpLog||[]).map(e=>String(e.id)).filter(id=>id.startsWith('dfirb_'))),add=[],del=[];
+  (chain||[]).forEach(p=>p.blocks.forEach(b=>{
+    const id='dfirb_'+b.n,closed=b.topics.length>0&&b.topics.every(t=>done.has(t.n));
+    if(closed&&!have.has(id))add.push({id,block:b.n,date:b.topics.map(t=>done.get(t.n)).sort().pop()});
+    if(!closed&&have.has(id))del.push(id);
+  }));
+  return{add,del};
+}
+// Weekly series (ISO weeks): a week counts at DFIR_WEEK_GOAL topics; the current week counts as soon as it has them and
+// never breaks the series before Sunday. 3 freezes at the start, +1 on the 1st of every month (max 3); a missed week
+// with a live series spends one: the series survives but does not grow.
+function dfirStreak(dates,today){
+  const per={};(dates||[]).filter(dfirYmd).forEach(d=>{const k=weekStart(d);per[k]=(per[k]||0)+1});
+  const cur=weekStart(today),thisWeek=per[cur]||0;
+  const first=Object.keys(per).filter(k=>per[k]>=DFIR_WEEK_GOAL).sort()[0];
+  const out={streak:0,record:0,thisWeek,freezes:DFIR_FREEZE_MAX,frozenWeeks:[],countedWeeks:[],per,week:cur};
+  if(!first)return out;
+  let streak=0,record=0,freezes=DFIR_FREEZE_MAX,prev=first;
+  const grant=(a,b)=>{let m=a.slice(0,8)+'01';for(;;){m=addMonth(m);if(m>b)break;if(m>a)freezes=Math.min(DFIR_FREEZE_MAX,freezes+1)}};
+  const addMonth=d=>{const y=+d.slice(0,4),mo=+d.slice(5,7);return mo===12?`${y+1}-01-01`:`${y}-${pad2(mo+1)}-01`};
+  for(let w=first;w<cur;w=addDays(w,7)){
+    const ev=addDays(w,7);grant(prev,ev);prev=ev;
+    if((per[w]||0)>=DFIR_WEEK_GOAL){streak++;out.countedWeeks.push(w)}
+    else if(streak>0&&freezes>0){freezes--;out.frozenWeeks.push(w)}
+    else streak=0;
+    record=Math.max(record,streak);
+  }
+  if(today>prev)grant(prev,today);
+  if(first<=cur&&thisWeek>=DFIR_WEEK_GOAL){streak++;out.countedWeeks.push(cur)}
+  record=Math.max(record,streak);
+  return{...out,streak,record,freezes};
+}
+
+// Markdown of a topic → safe HTML (no dependencies; every piece of text goes through escapeHtml).
+// titles: {n: title} of the chain — [[NNN name]] becomes a link to topic n when it exists.
+function dfirInline(s,titles){
+  const code=[];
+  s=String(s).replace(/`([^`]+)`/g,(_,c)=>{code.push(c);return`\u0000${code.length-1}\u0000`});
+  s=escapeHtml(s);
+  s=s.replace(/\[\[([^\]|]+?)(?:\|([^\]]+))?\]\]/g,(_,t,alias)=>{
+    const m=/^(\d{3})\s/.exec(t),n=m?+m[1]:null,label=(alias||t).trim();
+    return n&&titles&&titles[n]!=null?`<a href="#" class="df-wl" data-topic="${n}">${label}</a>`:`<span class="df-wl-x">${label}</span>`;
+  });
+  s=s.replace(/!\[([^\]]*)\]\([^)]*\)/g,'$1');
+  s=s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,(_,t,u)=>/^https?:\/\//i.test(u)?`<a href="${u}" target="_blank" rel="noopener noreferrer">${t}</a>`:t);
+  s=s.replace(/\*\*([^*]+?)\*\*/g,'<b>$1</b>').replace(/__([^_]+?)__/g,'<b>$1</b>');
+  s=s.replace(/(^|[^*\w])\*([^*\s](?:[^*]*?[^*\s])?)\*(?![*\w])/g,'$1<i>$2</i>');
+  return s.replace(/\u0000(\d+)\u0000/g,(_,i)=>`<code>${escapeHtml(code[+i])}</code>`);
+}
+function dfirMdBlocks(lines,titles,top){
+  const out=[],LI=/^(\s*)([-*+]|\d+[.)])\s+(.*)$/;let para=[],i=0;
+  const flush=()=>{if(para.length){out.push(`<p>${dfirInline(para.join(' '),titles)}</p>`);para=[]}};
+  const cells=r=>r.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(c=>c.trim());
+  while(i<lines.length){
+    const l=lines[i];let m;
+    if((m=/^\s*```\s*([\w+#.-]*)/.exec(l))){
+      flush();const buf=[];i++;
+      while(i<lines.length&&!/^\s*```\s*$/.test(lines[i]))buf.push(lines[i++]);
+      i++;out.push(`<pre class="df-code"${m[1]?` data-lang="${escapeHtml(m[1])}"`:''}><code>${escapeHtml(buf.join('\n'))}</code></pre>`);continue;
+    }
+    if(!l.trim()){flush();i++;continue}
+    if((m=/^(#{1,6})\s+(.*)$/.exec(l))){
+      flush();i++;
+      if(top&&m[1].length===1&&!out.length)continue; // the file's own «# 24. Title» repeats the reader header
+      const h=Math.min(6,m[1].length+1);out.push(`<h${h}>${dfirInline(m[2],titles)}</h${h}>`);continue;
+    }
+    if(/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(l)){flush();out.push('<hr>');i++;continue}
+    if(/^\s*\|/.test(l)&&i+1<lines.length&&/^\s*\|?\s*:?-{2,}/.test(lines[i+1])){
+      flush();const head=cells(l);i+=2;const rows=[];
+      while(i<lines.length&&/^\s*\|/.test(lines[i]))rows.push(cells(lines[i++]));
+      out.push(`<div class="df-table"><table><thead><tr>${head.map(c=>`<th>${dfirInline(c,titles)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${dfirInline(c,titles)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);
+      continue;
+    }
+    if(/^\s*>/.test(l)){
+      flush();const buf=[];
+      while(i<lines.length&&/^\s*>/.test(lines[i]))buf.push(lines[i++].replace(/^\s*>\s?/,''));
+      const c=/^\[!(\w+)\]([-+]?)\s*(.*)$/.exec(buf[0]||'');
+      if(c){
+        const type=c[1].toLowerCase(),body=dfirMdBlocks(buf.slice(1),titles,false),title=c[3]?dfirInline(c[3],titles):escapeHtml(type);
+        out.push(c[2]?`<details class="df-call df-${escapeHtml(type)}"${c[2]==='+'?' open':''}><summary>${title}</summary>${body}</details>`
+          :`<div class="df-call df-${escapeHtml(type)}"><div class="df-call-t">${title}</div>${body}</div>`);
+      }else out.push(`<blockquote>${dfirMdBlocks(buf,titles,false)}</blockquote>`);
+      continue;
+    }
+    if((m=LI.exec(l))){
+      flush();const base=m[1].length,ord=/\d/.test(m[2]),items=[];
+      while(i<lines.length){
+        const x=lines[i],lm=LI.exec(x);
+        if(lm&&lm[1].length<=base+1){items.push({t:[lm[3]],sub:[]});i++;continue}
+        if(lm&&items.length){const it=items[items.length-1];it.sub.push(x.slice(Math.min(x.length,base+2)));i++;continue}
+        if(x.trim()&&/^\s{2,}/.test(x)&&items.length){items[items.length-1].t.push(x.trim());i++;continue}
+        if(!x.trim()&&i+1<lines.length&&LI.test(lines[i+1])&&LI.exec(lines[i+1])[1].length>=base){i++;continue}
+        break;
+      }
+      const tag=ord?'ol':'ul';
+      out.push(`<${tag}>${items.map(it=>`<li>${dfirInline(it.t.join(' '),titles)}${it.sub.length?dfirMdBlocks(it.sub,titles,false):''}</li>`).join('')}</${tag}>`);
+      continue;
+    }
+    para.push(l.trim());i++;
+  }
+  flush();
+  return out.join('');
+}
+function dfirMd(md,titles){return dfirMdBlocks(dfirFront(md).body.split('\n'),titles||{},true)}
+
+// Picked folder → what to write. files: [{path, text}] (only .md / progress.json are read); textsMeta: {n: hash} already
+// stored; returns {chain, texts:[{id, n, title, text, len, hash}], skipped, marks:[xpLog entries], blocks:[xpLog entries]}
+// or {error:'noOutline'}. Marks come from progress.json once (ids already in xpLog are skipped).
+function dfirPlanUpload(files,chainOld,textsMeta,xpLog){
+  const ok=f=>!String(f.path).replace(/\\/g,'/').split('/').slice(0,-1).some(s=>DFIR_SKIP_DIRS.includes(s)||s.startsWith('.'));
+  const base=f=>String(f.path).replace(/\\/g,'/').split('/').pop();
+  const depth=f=>String(f.path).replace(/\\/g,'/').split('/').length;
+  const outlineF=files.filter(f=>ok(f)&&base(f)===DFIR_OUTLINE_FILE).sort((a,b)=>depth(a)-depth(b))[0];
+  const parsed=outlineF?dfirParseOutline(outlineF.text):null;
+  const chain=parsed&&parsed.length?parsed:(chainOld&&chainOld.length?JSON.parse(JSON.stringify(chainOld)):null);
+  if(!chain)return{error:'noOutline'};
+  const flat=dfirFlat(chain),inChain=new Map(flat.map(t=>[t.n,t]));
+  const oldTopic=new Map(dfirFlat(chainOld||[]).map(t=>[t.n,t]));
+  const cand=new Map();
+  files.forEach(f=>{
+    const r=dfirTopicFile(f.path);if(!r||!inChain.has(r.n))return;
+    const fr=dfirFront(f.text),exact=String(fr.meta.n||'')===String(r.n),prev=cand.get(r.n);
+    if(!prev||(exact&&!prev.exact))cand.set(r.n,{...fr,exact});
+  });
+  const texts=[];let skipped=0;const meta=textsMeta||{};
+  cand.forEach((c,n)=>{
+    const hash=dfirHash(c.body);
+    if(meta[n]===hash){skipped++;return}
+    texts.push({id:dfirNNN(n),n,title:inChain.get(n).title,text:c.body,len:c.body.length,hash});
+  });
+  chain.forEach(p=>p.blocks.forEach(b=>b.topics.forEach(t=>{
+    const c=cand.get(t.n),o=oldTopic.get(t.n);
+    t.has=!!c||!!(o&&o.has);
+    if(c)t.h=dfirHash(c.body);else if(o&&o.h)t.h=o.h;
+    const min=c?parseInt(c.meta.minutes,10):(o?o.minutes:NaN);if(min>0)t.minutes=min;
+  })));
+  const have=new Set((xpLog||[]).map(e=>String(e.id))),marks=[];
+  const progF=files.filter(f=>ok(f)&&base(f)==='progress.json').sort((a,b)=>depth(a)-depth(b))[0];
+  if(progF){
+    let pj=null;try{pj=JSON.parse(progF.text)}catch(e){}
+    const dn=pj&&pj.done&&typeof pj.done==='object'?pj.done:{};
+    Object.keys(dn).map(Number).sort((a,b)=>a-b).forEach(n=>{
+      const d=dn[n],id='dfirt_'+n;
+      if(inChain.has(n)&&dfirYmd(d)&&!have.has(id))marks.push({id,date:d,at:parseLocalDate(d).getTime()+43200000,sphere:'dfir',amount:DFIR_TOPIC_XP,source:'dfirTopic'});
+    });
+  }
+  const done=dfirDoneMap([...(xpLog||[]),...marks]);
+  const blocks=dfirBlockXpNeeded(chain,done,xpLog).add.map(b=>({id:b.id,date:b.date,at:parseLocalDate(b.date).getTime()+43200001,sphere:'dfir',amount:DFIR_BLOCK_XP,source:'dfirBlock'}));
+  return{chain,outline:!!(parsed&&parsed.length),texts,skipped,marks,blocks};
+}
+
 // ── Journal & command line ([+]) ──
 const TAG_SPHERE={dfir:'dfir','деньги':'money',money:'money','зал':'body','тело':'body',body:'body',gym:'body','быт':null,home:null};
 const sphereColor=s=>({money:'var(--money)',dfir:'var(--dfir)',body:'var(--body)'}[s]||'var(--fog)');
