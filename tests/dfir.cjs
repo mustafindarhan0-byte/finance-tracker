@@ -192,7 +192,7 @@ ok(!src.includes("getCol('dfirTopics')")&&!src.includes("dbAll('dfirTopics')"),'
   const c2={console,document:{addEventListener(){},getElementById:()=>null},addEventListener(){},isDesktop:()=>true,reducedMotion:()=>false,
     WD_SHORT:['пн','вт','ср','чт','пт','сб','вс'],fmt:n=>String(n)};
   vm.createContext(c2);
-  vm.runInContext([code,line(/function plural\([^\n]*\n/),line(/function nWord\([^\n]*\n/),ui].join('\n')+';this.U={dfirHeroHtml,dfirCallHtml,dfirSideHtml,dfirNodeHtml,dfirProgress,dfirStreak,dfirParseOutline}',c2);
+  vm.runInContext([code,line(/function safeAvatar\([^\n]*\n/),line(/function plural\([^\n]*\n/),line(/function nWord\([^\n]*\n/),ui].join('\n')+';this.U={dfirHeroHtml,dfirCallHtml,dfirSideHtml,dfirNodeHtml,dfirProgress,dfirStreak,dfirParseOutline}',c2);
   const U=c2.U,BAD='<img src=x onerror=alert(1)>';
   const evil=U.dfirParseOutline(`## Часть I. ${BAD}\n### Блок 1. ${BAD} блок\n*Инструменты: ${BAD}, ok*\n1. ${BAD} тема\n2. вторая\n`);
   const S={chain:evil,t:'2026-11-05',avatar:"x') ;background:url(javascript:alert(1)",prog:U.dfirProgress(evil,[],'2026-11-05'),streak:U.dfirStreak([],'2026-11-05')};

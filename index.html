@@ -992,7 +992,7 @@ async function dbAllInner(s){
       const cached=await col.get({source:'cache'});
       // the browser may have evicted the cache while localStorage survived — then read everything again
       if(cached.size>=Math.floor((mark.n||0)*0.9)){
-        writeSyncMark(s,delta,mark,cached.size);
+        if(!(delta.metadata&&delta.metadata.fromCache))writeSyncMark(s,delta,mark,cached.size);
         return cached.docs.map(d=>d.data()).filter(x=>!x.deleted);
       }
     }catch(e){console.warn('delta read',s,e)}
@@ -1189,6 +1189,7 @@ async function createNewSpace(){
   document.getElementById('setup-status').textContent='Создаём пространство…';
   const code=generateCode(),spaceId=await sha256Hex(code);
   await connectSpace(spaceId);
+  if(!authUser){document.getElementById('setup-status').textContent='Нет связи с сервером. Проверь интернет и попробуй ещё раз.';return}
   localStorage.setItem('syncSpace',spaceId);
   localStorage.setItem('syncCode',code);
   if(authUser){
@@ -2874,7 +2875,8 @@ function cleanBackupData(raw){
   for(const s of BACKUP_STORES){
     if(!raw||!Array.isArray(raw[s]))continue;
     let arr=raw[s].filter(d=>d&&typeof d==='object'&&!Array.isArray(d)&&!d.deleted).map(plainValue);
-    if(s==='settings')arr=arr.filter(x=>x.key!=='geminiKey');
+    if(s==='settings')arr=arr.filter(x=>x.key!=='geminiKey').map(x=>x.key==='dfirChain'&&x.value&&Array.isArray(x.value.parts)
+      ?{...x,value:{...x.value,parts:x.value.parts.map(p=>({...p,blocks:(p.blocks||[]).map(b=>({...b,topics:(b.topics||[]).map(({h,has,...t})=>t)}))}))}}:x);
     out[s]=arr;
   }
   return out;
@@ -5634,6 +5636,8 @@ function coolingSync(){return coolingInfo(xpLogSync())}
 const MONTHS_GEN=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 const WD_SHORT=['пн','вт','ср','чт','пт','сб','вс'];
 const dayWord=n=>{const a=n%10,b=n%100;return b>=11&&b<=14?'дней':a===1?'день':a>=2&&a<=4?'дня':'дней'};
+// only a picture data URL (from «Фото героя») — anything else (a crafted backup/import value) falls back to the default
+function safeAvatar(v){return /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v||'')?v:'figure.jpg'}
 let statusAvatar=null,heroPrev=null,introPending=false,heroAssemble=true,questPrevPct=0;
 let firstRunState=null,statusMoney=null;
 async function refreshStatus(){
@@ -5676,7 +5680,7 @@ function renderStatus(){
   const noteTxt=Object.keys(SPHERES).filter(s=>!warn[s]&&returnBonusActive(xpLogSync(),s,t0)).map(s=>`${SPHERES[s]}: возвращение — XP ×1,5`);
   const backupNote=typeof backupReminderText==='function'?backupReminderText():'';if(backupNote)noteTxt.push(backupNote);
   const plaques=(coolTxt.length?`<div class="st-plaque">${coolTxt.map(escapeHtml).join(' · ')}</div>`:'')+(noteTxt.length?`<div class="st-plaque info">${noteTxt.map(escapeHtml).join(' · ')}</div>`:'');
-  const src=statusAvatar||'figure.jpg';
+  const src=safeAvatar(statusAvatar);
   // F6.2: compact sphere tiles in one row, each a button to its screen
   const tile=s=>{
     const info=levelInfo(tot[s]),w=warn[s];
@@ -5767,13 +5771,14 @@ async function dfirTextGet(n){
 }
 // texts in batches small enough for Firestore (≤ 500 writes, ≤ 10 MiB a request); throws on a rule / network error
 async function dfirTextsPut(list,onProgress){
-  let i=0;
+  let i=0,done=0;const committed=new Set(),commits=[];
   while(i<list.length){
-    const b=fsDb.batch();let bytes=0,k=0;
-    while(i<list.length&&k<DFIR_BATCH_DOCS&&(k===0||bytes+list[i].text.length*2<DFIR_BATCH_BYTES)){bytes+=list[i].text.length*2;batchPut(b,'dfirTopics',list[i]);i++;k++}
-    await withTimeout(b.commit(),90000);
-    if(onProgress)onProgress(i,list.length);
+    const b=fsDb.batch(),ids=[];let bytes=0;
+    while(i<list.length&&ids.length<DFIR_BATCH_DOCS&&(!ids.length||bytes+list[i].text.length*2<DFIR_BATCH_BYTES)){bytes+=list[i].text.length*2;batchPut(b,'dfirTopics',list[i]);ids.push(list[i].n);i++}
+    commits.push(b.commit().then(()=>{ids.forEach(n=>committed.add(n));done+=ids.length;if(onProgress)onProgress(done,list.length)}));
   }
+  // all batches are already in the write queue; a timeout only means the network is slow — they still go out
+  try{await withTimeout(Promise.all(commits),120000)}catch(e){e.committed=committed;throw e}
 }
 // block XP follows the topics: a closed block gets dfirb_<n>, a reopened one loses it
 async function dfirSyncBlocks(){
@@ -5820,7 +5825,7 @@ function dfirHours(topics){const m=topics.reduce((s,t)=>s+(Number(t.minutes)||0)
 function dfirHeroHtml(S){
   const P=S.prog,cur=P&&P.current,blk=cur&&dfirBlockOf(S.chain,cur.block),desk=isDesktop();
   // only a picture data URL (the avatar from «Фото героя») or a plain file name may go into url(...)
-  const fig=/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(S.avatar||'')?S.avatar:'figure.jpg';
+  const fig=safeAvatar(S.avatar);
   let kick='',l1,l2,cap,ch='',tag='';
   if(!S.chain){l1='Цепочка';l2='не загружена';cap=desk?'Загрузи папку DFIR Base: оглавление, тексты и отметки подтянутся сами.':'Загрузи папку DFIR Base на компьютере.'}
   else if(!cur){l1='Цепочка';l2='пройдена';cap=`${P.doneCount} из ${P.total} тем.`}
@@ -6116,8 +6121,8 @@ async function dfirUpload(list){
     let written=0,err=null;
     try{await dfirTextsPut(plan.texts,i=>{written=i;toast(`Тексты: ${i} из ${plan.texts.length}`)})}catch(e){err=e}
     const queued=!!err&&errCode(err)==='timeout';
-    if(err&&!queued){const old=new Map(dfirFlat(chainOld||[]).map(t=>[t.n,t]));
-      plan.texts.slice(written).forEach(x=>{const t=dfirFlat(plan.chain).find(y=>y.n===x.n),o=old.get(x.n);
+    if(err&&!queued){const old=new Map(dfirFlat(chainOld||[]).map(t=>[t.n,t])),ok=err.committed||new Set();
+      plan.texts.filter(x=>!ok.has(x.n)).forEach(x=>{const o=old.get(x.n);
         for(const p of plan.chain)for(const b of p.blocks)for(const y of b.topics)if(y.n===x.n){y.has=!!(o&&o.has);if(o&&o.h)y.h=o.h;else delete y.h}})}
     await saveSetting('dfirChain',{v:1,uploadedAt:Date.now(),imported:plan.imported,parts:plan.chain});
     const xp=[...plan.marks,...plan.blocks];
